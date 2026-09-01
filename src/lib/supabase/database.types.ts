@@ -275,6 +275,20 @@ export type TutorToolCallRow = {
   created_at: string;
 };
 
+/** Matches supabase/migrations/0006_deterministic_grading.sql. */
+export type ResponseModality = "structured" | "code" | "text";
+
+export type AssessmentAttemptRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  response_modality: ResponseModality;
+  question_snapshot: Record<string, unknown>;
+  response: Record<string, unknown>;
+  grading_result: Record<string, unknown>;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -387,6 +401,12 @@ export type Database = {
         Row: TutorToolCallRow;
         Insert: Omit<TutorToolCallRow, "id" | "created_at">;
         Update: Partial<Omit<TutorToolCallRow, "id">>;
+        Relationships: [];
+      };
+      assessment_attempts: {
+        Row: AssessmentAttemptRow;
+        Insert: Omit<AssessmentAttemptRow, "id" | "created_at">;
+        Update: Partial<Omit<AssessmentAttemptRow, "id">>;
         Relationships: [];
       };
     };
