@@ -30,7 +30,7 @@ Single project (per plan.md's Project Structure): `src/types/domain/`,
 
 **Purpose**: Create the directories this feature's files live in.
 
-- [ ] T001 Create `src/types/domain/`, `benchmark/dsa-course/rubrics/`, and `tests/unit/domain/` directories (all already scaffolded as empty except `src/types/`, which needs the `domain/` subfolder)
+- [X] T001 Create `src/types/domain/`, `benchmark/dsa-course/rubrics/`, and `tests/unit/domain/` directories (all already scaffolded as empty except `src/types/`, which needs the `domain/` subfolder)
 
 **Checkpoint**: Directories exist; no code yet.
 
@@ -42,7 +42,7 @@ Single project (per plan.md's Project Structure): `src/types/domain/`,
 
 **⚠️ CRITICAL**: No User Story 1 schema task can begin until T002 is complete.
 
-- [ ] T002 Define the `SourceAnchor` type (`artifactId: string`, `locator: string`, `excerpt: string`) in `src/types/domain/source-anchor.ts`, per data-model.md's SourceAnchor table
+- [X] T002 Define the `SourceAnchor` type (`artifactId: string`, `locator: string`, `excerpt: string`) in `src/types/domain/source-anchor.ts`, per data-model.md's SourceAnchor table
 
 **Checkpoint**: Shared type ready; schema implementation can begin.
 
@@ -58,21 +58,21 @@ Single project (per plan.md's Project Structure): `src/types/domain/`,
 
 > Write these first; they must fail (module not found) before the schemas exist.
 
-- [ ] T003 [P] [US1] Write shape test in `tests/unit/domain/concept.test.ts`: one valid `CourseConcept` example passes; an example missing `sourceAnchors` fails; an example with `canonicalName` duplicated inside its own `aliases` fails (data-model.md validation rules)
-- [ ] T004 [P] [US1] Write shape test in `tests/unit/domain/concept-edge.test.ts`: one valid `ConceptEdge` example passes; an example with `relationType: "other"` and no `relationTypeNote` fails; an example with `relationType` other than `"other"` that *has* a `relationTypeNote` fails (the conditional-field rule from data-model.md)
-- [ ] T005 [P] [US1] Write shape test in `tests/unit/domain/evidence-event.test.ts`: one valid `EvidenceEvent` example passes; an example with both `conceptIds` and `edgeIds` empty fails; an example with none of `sourceArtifactId`/`assessmentAttemptId`/`conversationTurnId` set fails; assert the type has no exported update/delete function (Constitution Principle II — append-only by construction)
-- [ ] T006 [P] [US1] Write shape test in `tests/unit/domain/assessment.test.ts`: one valid `Assessment` example passes; an example with both `targetConceptIds` and `targetEdgeIds` empty fails
+- [X] T003 [P] [US1] Write shape test in `tests/unit/domain/concept.test.ts`: one valid `CourseConcept` example passes; an example missing `sourceAnchors` fails; an example with `canonicalName` duplicated inside its own `aliases` fails (data-model.md validation rules)
+- [X] T004 [P] [US1] Write shape test in `tests/unit/domain/concept-edge.test.ts`: one valid `ConceptEdge` example passes; an example with `relationType: "other"` and no `relationTypeNote` fails; an example with `relationType` other than `"other"` that *has* a `relationTypeNote` fails (the conditional-field rule from data-model.md)
+- [X] T005 [P] [US1] Write shape test in `tests/unit/domain/evidence-event.test.ts`: one valid `EvidenceEvent` example passes; an example with both `conceptIds` and `edgeIds` empty fails; an example with none of `sourceArtifactId`/`assessmentAttemptId`/`conversationTurnId` set fails; assert the type has no exported update/delete function (Constitution Principle II — append-only by construction)
+- [X] T006 [P] [US1] Write shape test in `tests/unit/domain/assessment.test.ts`: one valid `Assessment` example passes; an example with both `targetConceptIds` and `targetEdgeIds` empty fails
 
-- [ ] T007 Run `node --test tests/unit/domain/concept.test.ts tests/unit/domain/concept-edge.test.ts tests/unit/domain/evidence-event.test.ts tests/unit/domain/assessment.test.ts` — expect FAIL (`Cannot find module '../../../src/types/domain/...'`)
+- [X] T007 Run `node --test tests/unit/domain/concept.test.ts tests/unit/domain/concept-edge.test.ts tests/unit/domain/evidence-event.test.ts tests/unit/domain/assessment.test.ts` — expect FAIL (`Cannot find module '../../../src/types/domain/...'`)
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Implement `CourseConcept` in `src/types/domain/concept.ts` (fields per data-model.md: `id`, `courseId`, `unitId`, `canonicalName`, `aliases`, `description`, `importanceScore`, `sourceAnchors: SourceAnchor[]`, `status`, `confidence`) — depends on T002
-- [ ] T009 [P] [US1] Implement `ConceptEdge` in `src/types/domain/concept-edge.ts` (fields per data-model.md, including the `relationType` union with `"other"` plus optional `relationTypeNote`) — depends on T002
-- [ ] T010 [P] [US1] Implement `EvidenceEvent` in `src/types/domain/evidence-event.ts` (fields per data-model.md, closed `evidenceType` enum separating `exposure` from `retrieval`/`application`/`transfer`/etc.) — no dependency on T002
-- [ ] T011 [P] [US1] Implement `Assessment` in `src/types/domain/assessment.ts` (fields per data-model.md) — depends on T002
-- [ ] T012 [US1] Create barrel export `src/types/domain/index.ts` re-exporting all four schemas plus `SourceAnchor` — depends on T008, T009, T010, T011
-- [ ] T013 [US1] Run `npm run typecheck` and `node --test tests/unit/domain/concept.test.ts tests/unit/domain/concept-edge.test.ts tests/unit/domain/evidence-event.test.ts tests/unit/domain/assessment.test.ts` — expect PASS
+- [X] T008 [P] [US1] Implement `CourseConcept` in `src/types/domain/concept.ts` (fields per data-model.md: `id`, `courseId`, `unitId`, `canonicalName`, `aliases`, `description`, `importanceScore`, `sourceAnchors: SourceAnchor[]`, `status`, `confidence`) — depends on T002
+- [X] T009 [P] [US1] Implement `ConceptEdge` in `src/types/domain/concept-edge.ts` (fields per data-model.md, including the `relationType` union with `"other"` plus optional `relationTypeNote`) — depends on T002
+- [X] T010 [P] [US1] Implement `EvidenceEvent` in `src/types/domain/evidence-event.ts` (fields per data-model.md, closed `evidenceType` enum separating `exposure` from `retrieval`/`application`/`transfer`/etc.) — no dependency on T002
+- [X] T011 [P] [US1] Implement `Assessment` in `src/types/domain/assessment.ts` (fields per data-model.md) — depends on T002
+- [X] T012 [US1] Create barrel export `src/types/domain/index.ts` re-exporting all four schemas plus `SourceAnchor` — depends on T008, T009, T010, T011
+- [X] T013 [US1] Run `npm run typecheck` and `node --test tests/unit/domain/concept.test.ts tests/unit/domain/concept-edge.test.ts tests/unit/domain/evidence-event.test.ts tests/unit/domain/assessment.test.ts` — expect PASS
 
 **Checkpoint**: Schemas exist, typecheck cleanly, and each has a passing shape test. This is the MVP — every later roadmap phase can now be typed against something real.
 
