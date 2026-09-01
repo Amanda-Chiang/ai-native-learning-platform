@@ -62,6 +62,15 @@ the CLI is installed, as a final confirmation.
 
 ## Group B — requires a real Supabase project and Trigger.dev account
 
+**Update 2026-09-01**: a live Supabase project now exists. B1's migration
+push and an automated version of the RLS half of B2 (anon-key query
+against all three tables, confirming `status=200, rows=0` rather than an
+error or a data leak) have been run for real — see
+`brain/decisions/architecture-log.md`'s "Live Supabase project
+provisioned" entry. The full B2 walkthrough (two real signed-in accounts
+via the actual UI) and B3/B4 (which need Trigger.dev, not yet
+provisioned) are still outstanding.
+
 These are the actual end-to-end proof that the feature works — run them
 once accounts exist and `.env.local` is filled in from
 `.env.example`.

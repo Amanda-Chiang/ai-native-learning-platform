@@ -162,3 +162,28 @@ checklist is a setup gate, not a retrofit. Applies to
 - Storage folder-scoping (`(storage.foldername(name))[1] = auth.uid()::text`
   in `0001_courses_artifacts.sql`) already follows the recommended
   pattern — confirmed against this research, not changed.
+
+## 2026-09-01 — Live Supabase project provisioned; RLS verified for real, not assumed
+
+- Linked the local project to a real Supabase project (`npx supabase
+  link`/`db push` via the CLI over `npx`, no global install needed) and
+  applied `0001_courses_artifacts.sql`.
+- **Ran the actual verification the checklist above calls for**, not just
+  planned it: queried `courses`/`artifacts`/`artifact_processing_runs`
+  with the anon key and no session. Result: `status=200, rows=0` for all
+  three, and the `course-artifacts` Storage bucket is not listable
+  anonymously either — the correct outcome (RLS blocking, not erroring or
+  leaking), not a hypothetical.
+- **Real setup mistake hit and fixed**: the Supabase dashboard's API page
+  shows both a base "Project URL" and, in some views, a "REST URL"
+  ending in `/rest/v1/`. Pasting the latter into
+  `NEXT_PUBLIC_SUPABASE_URL` doubles the path internally (the client
+  library appends `/rest/v1/` itself) and every request 404s with
+  "Invalid path specified in request URL." Fixed by using the base URL
+  only. Documented in `.env.example` so this doesn't recur.
+- `db lint` (the check Phase 1's quickstart.md substituted with a manual
+  review, since no live project existed yet) turns out to require a
+  local Docker-based Supabase instance (`supabase start`), not the remote
+  project — a separate, heavier workflow this project doesn't currently
+  use. The anon-key query above is a more direct verification of the
+  thing that actually matters (RLS behavior) anyway.

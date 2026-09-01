@@ -45,6 +45,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# supabase CLI local link cache (project ref, pooler URL, version info --
+# machine-local state, not secrets, but not meant to be committed)
+/supabase/.temp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
