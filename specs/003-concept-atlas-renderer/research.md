@@ -62,6 +62,35 @@ file records the resolutions in Decision/Rationale/Alternatives format.
   relationship to see why" requirement, so removing interactivity
   entirely isn't an option, only narrowing it).
 
+## Investigated and closed: "related concepts look dimmed" was not a bug (US3)
+
+- **What happened**: after wiring focus-dimming (T023), the
+  `focused-concept.png` screenshot showed "Amortized Analysis" and
+  "Recurrence Relations" (both directly related to the focused "Big-O
+  Notation" concept, confirmed correct in the detail panel's own listed
+  relationships) looking visually faded compared to it — looked exactly
+  like they were being incorrectly dimmed along with genuinely unrelated
+  concepts.
+- **Investigation**: rather than trust the visual read, extracted
+  `computeRelatedIds`/`applyFocusDimming` out of the client component
+  into a standalone, unit-testable module
+  (`src/features/concept-atlas/focus-dimming.ts`) and wrote a direct test
+  asserting a related node's `style.opacity` is never set to
+  `DIMMED_OPACITY`. The test passed on the first try, and the screenshot
+  looked identical after the refactor (same behavior, now proven, not
+  just refactored) — confirming there was never a dimming bug.
+- **Actual explanation**: "unverified" and "weak" mastery states are
+  *deliberately* styled with muted colors (dashed gray, thin amber) per
+  `visual-language.md`'s own table — sitting next to "Big-O Notation"'s
+  bold thick-green "solid" styling, they look faded by contrast even at
+  full opacity. Comparing a screenshot against my own visual impression
+  wasn't reliable evidence either way here; the direct unit test was.
+- **Kept anyway**: the extraction into `focus-dimming.ts` is real
+  value independent of whether a bug existed — dimming logic is now
+  tested in isolation rather than living untestable inside a "use client"
+  component, and future changes to it (e.g. US4 extending it to
+  relationship focus) have a regression test to run against.
+
 ## Cross-phase fixes discovered while implementing this feature
 
 Two bugs surfaced only once this feature's code actually ran against a

@@ -49,3 +49,19 @@ test("collapsing units shows progressive disclosure: collapsed units shrink, sib
 
   await expect(page).toHaveScreenshot("expanded-unit.png");
 });
+
+test("clicking a concept opens a stable detail panel and dims unrelated content", async ({
+  page,
+}) => {
+  await page.goto("/courses/demo/atlas");
+  await page.waitForSelector(".react-flow__node", { state: "visible" });
+  await page.waitForTimeout(300);
+
+  // "Big-O Notation" has no cross-unit edge running through it in this
+  // layout (spec.md Edge Cases: a real, not just Playwright-convenient,
+  // choice -- see the "Dynamic Programming" collision documented above).
+  await page.getByText("Big-O Notation", { exact: true }).click();
+  await page.waitForTimeout(300);
+
+  await expect(page).toHaveScreenshot("focused-concept.png");
+});

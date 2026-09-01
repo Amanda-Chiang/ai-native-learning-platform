@@ -19,9 +19,14 @@ import {
   toLayoutPreferenceEntry,
   type LayoutPreference,
 } from "@/features/concept-atlas/layout-preference.ts";
+import { applyFocusDimming } from "@/features/concept-atlas/focus-dimming.ts";
 import { ConceptNode } from "@/features/concept-atlas/components/ConceptNode.tsx";
 import { RelationshipEdge } from "@/features/concept-atlas/components/RelationshipEdge.tsx";
 import { UnitGroupNode } from "@/features/concept-atlas/components/UnitGroupNode.tsx";
+import {
+  ConceptDetailPanel,
+  type FocusedConcept,
+} from "@/features/concept-atlas/components/ConceptDetailPanel.tsx";
 
 const nodeTypes = { conceptNode: ConceptNode, unitGroup: UnitGroupNode };
 const edgeTypes = { relationshipEdge: RelationshipEdge };
@@ -30,11 +35,44 @@ const edgeTypes = { relationshipEdge: RelationshipEdge };
 // (contracts/layout-actions.md).
 const SAVE_DEBOUNCE_MS = 500;
 
+function buildFocusedConcept(graph: CourseGraph, conceptId: string): FocusedConcept | null {
+  const concept = graph.concepts.find((c) => c.id === conceptId);
+  if (!concept) {
+    return null;
+  }
+
+  const relationships = graph.relationships
+    .filter((r) => r.fromConceptId === conceptId || r.toConceptId === conceptId)
+    .map((r) => {
+      const outgoing = r.fromConceptId === conceptId;
+      const otherId = outgoing ? r.toConceptId : r.fromConceptId;
+      const other = graph.concepts.find((c) => c.id === otherId);
+      return {
+        id: r.id,
+        type: r.type,
+        direction: (outgoing ? "outgoing" : "incoming") as "outgoing" | "incoming",
+        otherConceptId: otherId,
+        otherConceptLabel: other?.canonicalLabel ?? otherId,
+        learnerState: r.learnerState,
+      };
+    });
+
+  return {
+    kind: "concept",
+    id: concept.id,
+    canonicalLabel: concept.canonicalLabel,
+    aliases: concept.aliases,
+    masteryState: concept.masteryState,
+    relationships,
+  };
+}
+
 export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId: string }) {
   const [defaultPositions, setDefaultPositions] = useState<Map<string, LayoutPosition> | null>(
     null,
   );
   const [preferences, setPreferences] = useState<LayoutPreference[]>([]);
+  const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,8 +111,18 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
     if (!positions) {
       return { nodes: [], edges: [] };
     }
-    return courseGraphToReactFlowElements(graph, positions, collapsedUnitIds);
-  }, [graph, positions, collapsedUnitIds]);
+    const base = courseGraphToReactFlowElements(graph, positions, collapsedUnitIds);
+    // Dimming is transient view state derived from click state, not
+    // persisted or stored on the canonical DTO -- still respects
+    // Constitution Principle I, same as the ELK-computed coordinates
+    // this same pipeline already attaches only at the adapter layer.
+    return applyFocusDimming(base.nodes, base.edges, focusedConceptId, graph);
+  }, [graph, positions, collapsedUnitIds, focusedConceptId]);
+
+  const focusedConcept = useMemo(
+    () => (focusedConceptId ? buildFocusedConcept(graph, focusedConceptId) : null),
+    [graph, focusedConceptId],
+  );
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingEntriesRef = useRef<Map<string, LayoutPreference>>(new Map());
@@ -108,6 +156,11 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
     (_event: unknown, node: Node) => {
       if (node.type === "unitGroup") {
         toggleUnit(node.id);
+      } else if (node.type === "conceptNode") {
+        // Closing and reopening on the same node acts as a toggle;
+        // clicking a different concept just re-focuses -- neither
+        // rearranges the underlying map (spec FR-010).
+        setFocusedConceptId((current) => (current === node.id ? null : node.id));
       }
     },
     [toggleUnit],
@@ -133,7 +186,7 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
   }
 
   return (
-    <div style={{ width: "100%", height: "80vh" }}>
+    <div style={{ width: "100%", height: "80vh", position: "relative" }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -157,6 +210,9 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
         <Background />
         <Controls />
       </ReactFlow>
+      {focusedConcept && (
+        <ConceptDetailPanel focused={focusedConcept} onClose={() => setFocusedConceptId(null)} />
+      )}
     </div>
   );
 }

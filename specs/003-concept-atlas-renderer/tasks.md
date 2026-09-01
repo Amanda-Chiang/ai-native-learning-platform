@@ -197,17 +197,17 @@ in place; close it, confirm the map is unchanged.
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] Implement `src/features/concept-atlas/components/ConceptDetailPanel.tsx`:
+- [X] T022 [US3] Implement `src/features/concept-atlas/components/ConceptDetailPanel.tsx`:
   a responsive container (side panel on desktop, bottom sheet on
   mobile/tablet via CSS per research.md's "same component, different
   container" decision) showing canonical label, aliases, mastery state,
   and relationships for a focused concept
-- [ ] T023 [US3] Wire concept-click interaction into `ConceptAtlas.tsx`:
+- [X] T023 [US3] Wire concept-click interaction into `ConceptAtlas.tsx`:
   clicking a `ConceptNode` opens `ConceptDetailPanel` for that concept and
   visually de-emphasizes (dims, doesn't hide) unrelated nodes/edges (spec
   FR-008, FR-009); closing it returns to the prior view with no
   repositioning (spec FR-010) — depends on T010, T022
-- [ ] T024 [P] [US3] Add the focused-concept screenshot (detail panel
+- [X] T024 [P] [US3] Add the focused-concept screenshot (detail panel
   open) to `tests/visual/concept-atlas.spec.ts` — depends on T023
 
 **Checkpoint**: Concept inspection works without disturbing the map.
