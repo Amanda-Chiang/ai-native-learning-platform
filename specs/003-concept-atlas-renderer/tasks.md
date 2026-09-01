@@ -77,24 +77,24 @@ nodes.
 
 > Write first; confirm failing before implementation.
 
-- [ ] T004 [P] [US1] Write `tests/unit/concept-atlas/react-flow-adapter.test.ts`:
+- [X] T004 [P] [US1] Write `tests/unit/concept-atlas/react-flow-adapter.test.ts`:
   given the demo fixture's `CourseGraph`, the adapter produces exactly one
   React Flow node per concept and exactly one edge per relationship
   (including the fixture's two intentional duplicate-edge pairs producing
   *two* separate edges, not one merged edge — spec FR-014); every node
   carries its concept's `masteryState`; every edge carries its
   relationship's `type`, `learnerState`, and `crossUnit` flag
-- [ ] T005 [US1] Run `node --test tests/unit/concept-atlas/react-flow-adapter.test.ts`
+- [X] T005 [US1] Run `node --test tests/unit/concept-atlas/react-flow-adapter.test.ts`
   — expect FAIL (module not found)
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] Implement `src/features/concept-atlas/adapters/react-flow-adapter.ts`:
+- [X] T006 [US1] Implement `src/features/concept-atlas/adapters/react-flow-adapter.ts`:
   converts a `CourseGraph` + ELK-computed positions into `@xyflow/react`
   `Node[]`/`Edge[]`, per data-model.md's "React Flow adapter output"
   section — this is the ONLY place in the codebase where a `CourseGraph`
   concept/relationship gets a coordinate attached — depends on T003
-- [ ] T007 [US1] Run `node --test tests/unit/concept-atlas/react-flow-adapter.test.ts`
+- [X] T007 [US1] Run `node --test tests/unit/concept-atlas/react-flow-adapter.test.ts`
   — expect PASS
 - [ ] T008 [P] [US1] Implement `src/features/concept-atlas/components/ConceptNode.tsx`:
   custom React Flow node rendering `masteryState` via the redundant
