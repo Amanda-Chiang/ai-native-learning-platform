@@ -237,3 +237,28 @@ Both are recorded here rather than adjusted away because the point of
 this harness is to be an honest instrument, not a passing one — a
 scoring script that quietly compensates for its own known blind spots
 stops being a check on anything.
+
+## Review queue ordering: a plain sort, not a priority heap
+
+- **Decision**: `review-queue-priority.ts` orders the queue with a single
+  `Array.prototype.sort` by a three-tier priority (student-flagged first,
+  most flags first within that tier; then reconciliation `"uncertain"`;
+  then everything else by ascending confidence) — not a heap data
+  structure.
+- **Rationale**: A heap earns its `O(log n)` insert/extract-max cost when
+  a caller repeatedly asks "give me the current highest-priority item"
+  against a live, changing set (a scheduler, Dijkstra's algorithm). This
+  queue is fetched once per page load, rendered in full, and only
+  changes when a reviewer confirms/rejects one item (removing it from
+  the *next* page load's query, not from an in-memory heap this request
+  is holding open) — that's "sort a list once," not "repeated
+  extract-max," so a single `O(n log n)` sort does the identical job
+  with far less code and no sift-up/sift-down logic to get wrong.
+- **Alternatives considered**: an actual binary heap (rejected per the
+  above — solves a problem this queue doesn't have at its scale, dozens
+  of items per course); a numeric weighted score combining flag count,
+  reconciliation confidence, and extraction confidence into one number
+  (rejected — same reasoning as the reconciliation three-way decision:
+  a single blended score would need real calibration data to justify its
+  weights, which doesn't exist yet; three explicit tiers are directly
+  understandable and don't pretend to a precision they don't have).

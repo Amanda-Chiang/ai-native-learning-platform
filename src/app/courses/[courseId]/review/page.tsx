@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getReviewQueue, type ReviewQueueItem } from "@/features/course-graph-ingestion/actions.ts";
+import { sortReviewQueueByPriority } from "@/features/course-graph-ingestion/review-queue-priority.ts";
 import { ReviewQueue } from "@/features/course-graph-ingestion/components/ReviewQueue.tsx";
 
 /**
@@ -23,7 +24,14 @@ export default async function CourseReviewPage({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
-  const items = courseId === "demo" ? await loadDemoReviewQueue() : await getReviewQueue(courseId);
+  // getReviewQueue already sorts by priority internally -- the demo
+  // fixture path doesn't go through it, so it's sorted here explicitly
+  // too, rather than leaving the two paths silently rendering in
+  // different orders (sorting an already-sorted array is a no-op, so
+  // this stays correct for the real path as well).
+  const items = sortReviewQueueByPriority(
+    courseId === "demo" ? await loadDemoReviewQueue() : await getReviewQueue(courseId),
+  );
 
   return (
     <main>

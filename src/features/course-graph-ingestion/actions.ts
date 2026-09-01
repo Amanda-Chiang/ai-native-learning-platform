@@ -11,6 +11,7 @@ import type {
   ConceptFlagRow,
 } from "@/lib/supabase/database.types.ts";
 import { validateFlagReason } from "@/features/course-graph-ingestion/flag-validation.ts";
+import { sortReviewQueueByPriority } from "@/features/course-graph-ingestion/review-queue-priority.ts";
 
 /**
  * Server action contracts: specs/004-course-graph-ingestion/contracts/ingestion-actions.md
@@ -130,7 +131,7 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
     flags: (flagsByTarget.get(row.id) ?? []).map(toConceptFlag),
   }));
 
-  return [...conceptItems, ...edgeItems];
+  return sortReviewQueueByPriority([...conceptItems, ...edgeItems]);
 }
 
 export async function confirmCandidate(
