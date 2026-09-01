@@ -81,20 +81,37 @@ restating per-feature:
 - Run the relevant test suite (+ visual QA for Concept Atlas changes)
   before declaring any feature complete.
 
-## Immediate next actions
+## Current status (snapshot, not a live tracker — verify against `specs/` before acting on it)
 
-1. **Run `/speckit-constitution`** to convert the still-template
-   `.specify/memory/constitution.md` into real principles, seeded from the
-   `CLAUDE.md` invariants above and PRD §3 (P1–P6). This has not been done
-   yet — the constitution file is currently unfilled placeholders, and
-   Spec Kit's other commands read it.
-2. **Run `/speckit-specify` for `course-domain-schemas`** (Phase 0) — the
-   only phase with no upstream dependency. Its output (schemas + benchmark
-   corpus) gates everything else, including whether Phase 1's Postgres
-   schema needs revision.
-3. Do not start Phase 1 scaffolding work in parallel — Postgres tables in
-   §10 are derived directly from the Phase 0 schemas; sequencing matters
-   here even though this is a solo build.
+**As of 2026-09-01:**
+
+- `.specify/memory/constitution.md` is filled in (v1.0.0) — the "run
+  `/speckit-constitution`" step below is done, not pending.
+- Phase 0 (`course-domain-schemas`), Phase 1
+  (`account-course-artifact-foundation`), and Phase 2
+  (`course-graph-ingestion`, `concept-atlas-renderer`) are fully
+  implemented — every task in their `specs/NNN-*/tasks.md` is checked off,
+  migrations pushed and RLS-verified live, visual regression suites
+  passing.
+- Phase 3's `learner-graph-evidence` has a complete spec, plan, and task
+  breakdown (`specs/005-learner-graph-evidence/`) but implementation
+  (`/speckit-implement`) has not started. `tutor-agent`, Phase 3's other
+  feature, has not been specified yet.
+- Phases 4-6 have not been touched.
+
+**This section will go stale the moment more work lands** — it is a
+snapshot taken on the date above, not a maintained tracker. The
+authoritative source for "what's actually done" is always each
+`specs/NNN-*/tasks.md`'s own checkbox state (and, for *why* something was
+built the way it was, `brain/decisions/architecture-log.md`), not this
+prose. Don't re-run a Spec Kit command against a feature whose `tasks.md`
+already shows it complete without checking first.
+
+### Original "immediate next actions" (historical, both items now done)
+
+1. ~~Run `/speckit-constitution`~~ — done, `.specify/memory/constitution.md` v1.0.0.
+2. ~~Run `/speckit-specify` for `course-domain-schemas`~~ — done, see
+   `specs/001-course-domain-schemas/`.
 
 ## Housekeeping
 
