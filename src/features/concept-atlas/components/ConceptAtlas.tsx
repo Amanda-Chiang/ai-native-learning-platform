@@ -26,6 +26,7 @@ import { UnitGroupNode } from "@/features/concept-atlas/components/UnitGroupNode
 import {
   ConceptDetailPanel,
   type Focused,
+  type EvidenceProvenance,
 } from "@/features/concept-atlas/components/ConceptDetailPanel.tsx";
 
 const nodeTypes = { conceptNode: ConceptNode, unitGroup: UnitGroupNode };
@@ -52,7 +53,11 @@ const SAVE_DEBOUNCE_MS = 500;
 // feature, not two independently-tuned ones.
 const MOBILE_BREAKPOINT_QUERY = "(max-width: 768px)";
 
-function buildFocused(graph: CourseGraph, target: FocusTarget): Focused | null {
+function buildFocused(
+  graph: CourseGraph,
+  target: FocusTarget,
+  evidenceProvenance?: EvidenceProvenance,
+): Focused | null {
   if (target.kind === "relationship") {
     const relationship = graph.relationships.find((r) => r.id === target.id);
     if (!relationship) {
@@ -68,6 +73,7 @@ function buildFocused(graph: CourseGraph, target: FocusTarget): Focused | null {
       toConceptLabel: to?.canonicalLabel ?? relationship.toConceptId,
       learnerState: relationship.learnerState,
       explanation: relationship.explanation,
+      evidenceProvenance,
     };
   }
 
@@ -99,6 +105,7 @@ function buildFocused(graph: CourseGraph, target: FocusTarget): Focused | null {
     aliases: concept.aliases,
     masteryState: concept.masteryState,
     relationships,
+    evidenceProvenance,
   };
 }
 
@@ -106,6 +113,7 @@ export function ConceptAtlas({
   graph,
   courseId,
   onFlag,
+  getEvidenceProvenance,
 }: {
   graph: CourseGraph;
   courseId: string;
@@ -116,6 +124,13 @@ export function ConceptAtlas({
    * (typically a direct Server Action reference) in.
    */
   onFlag?: (kind: "concept" | "relationship", id: string, reason: string) => Promise<{ error: string | null }>;
+  /**
+   * learner-graph-evidence's User Story 4. Optional -- this renderer
+   * feature stays unaware of that feature's server actions by name
+   * (Constitution Principle I); the page passes a matching function in,
+   * mirroring onFlag's existing optional-prop pattern.
+   */
+  getEvidenceProvenance?: (kind: "concept" | "relationship", id: string) => Promise<EvidenceProvenance>;
 }) {
   const [defaultPositions, setDefaultPositions] = useState<Map<string, LayoutPosition> | null>(
     null,
@@ -123,6 +138,7 @@ export function ConceptAtlas({
   const [preferences, setPreferences] = useState<LayoutPreference[]>([]);
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [evidenceProvenance, setEvidenceProvenance] = useState<EvidenceProvenance | undefined>(undefined);
 
   useEffect(() => {
     const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
@@ -177,9 +193,25 @@ export function ConceptAtlas({
     return applyFocusDimming(base.nodes, base.edges, focusTarget, graph);
   }, [graph, positions, collapsedUnitIds, focusTarget]);
 
+  useEffect(() => {
+    setEvidenceProvenance(undefined);
+    if (!focusTarget || !getEvidenceProvenance) {
+      return;
+    }
+    let cancelled = false;
+    getEvidenceProvenance(focusTarget.kind, focusTarget.id).then((provenance) => {
+      if (!cancelled) {
+        setEvidenceProvenance(provenance);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [focusTarget, getEvidenceProvenance]);
+
   const focused = useMemo(
-    () => (focusTarget ? buildFocused(graph, focusTarget) : null),
-    [graph, focusTarget],
+    () => (focusTarget ? buildFocused(graph, focusTarget, evidenceProvenance) : null),
+    [graph, focusTarget, evidenceProvenance],
   );
 
   // On a phone/tablet-sized viewport, fitView would still zoom the whole

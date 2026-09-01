@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { MasteryState, RelationshipType } from "@/types/graph/course-graph.ts";
+import type { EvidenceType } from "@/types/domain/evidence-event.ts";
 
 /**
  * One component, responsive container -- side panel on desktop, bottom
@@ -14,6 +15,14 @@ import type { MasteryState, RelationshipType } from "@/types/graph/course-graph.
  * Handles two kinds of focus: a concept (US3) or a relationship (US4) --
  * one panel component, not two, for the same reason.
  */
+
+/**
+ * FR-009/FR-014's provenance: what evidence a tier is actually traceable
+ * to. `null` explicitly means "no evidence recorded yet" -- never a
+ * fabricated-sounding placeholder string standing in for absence of
+ * data (learner-graph-evidence's own no-silent-placeholders convention).
+ */
+export type EvidenceProvenance = { lastEvidenceType: EvidenceType; lastEvidenceAt: string } | null;
 
 export type RelatedRelationship = {
   id: string;
@@ -31,6 +40,7 @@ export type FocusedConcept = {
   aliases: string[];
   masteryState: MasteryState;
   relationships: RelatedRelationship[];
+  evidenceProvenance?: EvidenceProvenance;
 };
 
 export type FocusedRelationship = {
@@ -48,6 +58,7 @@ export type FocusedRelationship = {
    * (course-graph.ts's Relationship.explanation doc comment).
    */
   explanation?: string;
+  evidenceProvenance?: EvidenceProvenance;
 };
 
 export type Focused = FocusedConcept | FocusedRelationship;
@@ -154,6 +165,21 @@ function FlagControl({ onFlag }: { onFlag: (reason: string) => Promise<{ error: 
   );
 }
 
+function EvidenceProvenanceNote({ evidenceProvenance }: { evidenceProvenance?: EvidenceProvenance }) {
+  if (evidenceProvenance === undefined) return null;
+  if (evidenceProvenance === null) {
+    return (
+      <p style={{ color: "#6b7280", fontSize: 12 }}>No evidence recorded yet.</p>
+    );
+  }
+  return (
+    <p style={{ color: "#6b7280", fontSize: 12 }}>
+      Last evidence: {evidenceProvenance.lastEvidenceType} on{" "}
+      {new Date(evidenceProvenance.lastEvidenceAt).toLocaleDateString()}
+    </p>
+  );
+}
+
 function ConceptDetail({
   focused,
   onFlag,
@@ -170,6 +196,7 @@ function ConceptDetail({
       <p>
         <strong>Mastery:</strong> {focused.masteryState}
       </p>
+      <EvidenceProvenanceNote evidenceProvenance={focused.evidenceProvenance} />
       <h3>Relationships</h3>
       {focused.relationships.length === 0 ? (
         <p>No relationships recorded yet.</p>
@@ -210,6 +237,7 @@ function RelationshipDetail({
         <strong>Status:</strong>{" "}
         <span style={{ color: isWeak ? "#d97706" : "#16a34a" }}>{focused.learnerState}</span>
       </p>
+      <EvidenceProvenanceNote evidenceProvenance={focused.evidenceProvenance} />
       {isWeak && (
         <>
           <h3>Why this is rated weak</h3>

@@ -66,6 +66,24 @@ test("clicking a concept opens a stable detail panel and dims unrelated content"
   await expect(page).toHaveScreenshot("focused-concept.png");
 });
 
+test("a concept's detail panel surfaces its real evidence provenance (learner-graph-evidence US4)", async ({
+  page,
+}) => {
+  await page.goto("/courses/demo/atlas");
+  await page.waitForSelector(".react-flow__node", { state: "visible" });
+  await page.waitForTimeout(300);
+
+  // "Big-O Notation" is wired to a fixed demo provenance
+  // (src/app/courses/[courseId]/atlas/page.tsx's demoEvidenceProvenance)
+  // -- fetched asynchronously after focus, so wait for the panel's
+  // provenance text specifically, not just a fixed timeout.
+  await page.getByText("Big-O Notation", { exact: true }).click();
+  await page.getByText("Last evidence:").waitFor({ state: "visible" });
+  await page.waitForTimeout(300);
+
+  await expect(page).toHaveScreenshot("focused-concept-with-evidence-provenance.png");
+});
+
 test("clicking a weak relationship shows why it's rated weak", async ({ page }) => {
   await page.goto("/courses/demo/atlas");
   await page.waitForSelector(".react-flow__node", { state: "visible" });
