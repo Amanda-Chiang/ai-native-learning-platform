@@ -3,13 +3,18 @@
 An AI-native learning platform built as a responsive web application, per
 `docs/technical-prd.md`, sequenced via `docs/implementation-roadmap.md`.
 
-**Status (2026-09-01)**: Phases 0-3 implemented and verified live
+**Status (2026-09-01)**: Phases 0-3 fully implemented and verified live
 (schemas + benchmark corpus, Supabase Auth/Postgres/RLS/Storage/Trigger.dev
 foundation, course-graph ingestion with a real OpenAI extraction pipeline,
 React Flow + ELK concept atlas renderer, evidence-backed learner state
 with a recompute-from-log mastery algorithm, and a tool-using tutor agent
-with grounded/paced/evidence-backed conversation). See `specs/` for the
-authoritative per-feature status: each
+with grounded/paced/evidence-backed conversation). Phase 4's
+`deterministic-grading` half is also implemented and verified live
+(five property-validating DSA checkers, real E2B-sandboxed code
+grading, rubric-constrained text grading, all committing real
+evidence) — `assessment-generation-pipeline`, Phase 4's other feature,
+has not been specified yet. See `specs/` for the authoritative
+per-feature status: each
 `specs/NNN-*/tasks.md` tracks its own checkboxes accurately. For a
 chronological record of major design decisions and why, see
 `brain/decisions/architecture-log.md`.

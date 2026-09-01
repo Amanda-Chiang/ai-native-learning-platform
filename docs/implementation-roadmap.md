@@ -99,7 +99,16 @@ restating per-feature:
   two-account isolation check for evidence, and a live real-`gpt-4.1`
   conversation check for the tutor agent), unit tests and an E2E suite
   (the project's first authenticated Playwright coverage) passing.
-- Phases 4-6 have not been touched.
+- Phase 4's `deterministic-grading` half is fully implemented — every
+  task in `specs/007-deterministic-grading/tasks.md` is checked off,
+  migration pushed and RLS/FK-verified live, and a full live
+  walkthrough confirmed real structured-answer evidence, real
+  E2B-sandboxed code execution (pass/fail/timeout), and real
+  rubric-based text grading against the actual OpenAI API. Its
+  reference checkers are exactly what `assessment-generation-pipeline`
+  (Phase 4's other feature, not yet specified) will call for its own
+  independent-solve validation step.
+- Phases 5-6 have not been touched.
 
 **This section will go stale the moment more work lands** — it is a
 snapshot taken on the date above, not a maintained tracker. The

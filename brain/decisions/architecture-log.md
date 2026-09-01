@@ -432,3 +432,54 @@ checklist is a setup gate, not a retrofit. Applies to
   flaky ~1%-pixel diff on `expanded-unit.png`, confirmed by inspection to
   be pre-existing node-selection-highlight jitter unrelated to
   tutor-agent, left as-is).
+
+## 2026-09-01 — deterministic-grading built end to end (all 4 user stories, Phase 4 begins)
+
+- `deterministic-grading` (Phase 4's grading half) implemented per
+  `specs/007-deterministic-grading/`: five pure, property-validating
+  reference checkers (BFS/DFS, heap, tree, topological-sort, bounded
+  shortest-path), real sandboxed code execution via `@e2b/code-interpreter`
+  (a new, justified dependency — nothing else in this project can
+  safely execute untrusted code), and rubric-constrained text grading
+  via the existing `openai` client. Every path funnels through one
+  shared mapping function, `toCommitEvidenceInput`, before
+  `actions.ts` calls `learner-graph-evidence`'s existing
+  `commitEvidence` — no grading path invents its own evidence mapping.
+- Real design insight worth remembering: most of these domains have
+  more than one correct answer (BFS/DFS tie-breaking, equally-short
+  paths, multiple valid topological orders), so every checker validates
+  a *property* the claimed answer must satisfy rather than doing
+  exact-match against one canonical reference answer. Malformed
+  question input (a cyclic graph claiming to need a topological sort,
+  a nonexistent start node) gets its own `invalid_input` outcome,
+  distinct from "wrong answer" — a broken question is never miscounted
+  as a student mistake.
+- `assessment_attempts` (new table) is a self-contained snapshot, not a
+  question-bank foreign key — `assessment-generation-pipeline` (which
+  will own a real question bank) doesn't exist yet, so this feature
+  doesn't block on it. This is also the migration that finally gives
+  `evidence_events.assessment_attempt_id` its real foreign key,
+  deliberately left unconstrained since `0004_learner_evidence.sql`.
+- `grading-evidence.ts`'s pure mapping function had to be split from
+  the actual `commitEvidence` call (which lives in `actions.ts`)
+  specifically so it stays testable by plain `node --test` — importing
+  `commitEvidence` directly would transitively pull in the `"@/"` path
+  alias that only resolves under Next.js's bundler, the same
+  constraint that already shaped `commit-evidence-validation.ts`/
+  `flag-validation.ts`'s split from their own actions files.
+- Verification actually run, not just typechecked: 174 unit tests pass
+  across the whole repo (38 new in this feature); migration pushed and
+  RLS/FK verified live; a full live walkthrough was run against the
+  real Supabase project, the real OpenAI API, and a real E2B sandbox —
+  a structured BFS answer produced real evidence traceable through a
+  real `assessment_attempts` row; rubric grading returned real,
+  varying confidence values (1.0 / 0.9 / 0.85) across a clear-correct,
+  a vague-wrong, and a borderline-partial response; and code grading
+  was confirmed against a real passing case, a real failing case (with
+  real captured error output), and a real timeout (`did_not_complete`,
+  never faked as a pass or fail).
+- The E2B sandbox grader (`code-sandbox-grader.ts`) deliberately has no
+  unit test of its own — mocking the one thing E2B was added for would
+  test nothing real; its correctness is proven entirely by the live
+  walkthrough above, called out explicitly in tasks.md rather than
+  silently skipped.

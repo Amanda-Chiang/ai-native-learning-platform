@@ -35,7 +35,7 @@ Single Next.js project (per plan.md's Project Structure):
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `@e2b/code-interpreter` to `package.json` dependencies
+- [X] T001 Add `@e2b/code-interpreter` to `package.json` dependencies
   (research.md's justified new dependency) — no other setup needed
   before the migration, since this feature's pure checkers have no
   external dependency of their own.
@@ -50,18 +50,18 @@ before any code imports it.
 **Purpose**: Schema and shared types every user story writes to or reads
 from. No user story can be implemented before this phase completes.
 
-- [ ] T002 Write `supabase/migrations/0006_deterministic_grading.sql`
+- [X] T002 Write `supabase/migrations/0006_deterministic_grading.sql`
   per data-model.md: `assessment_attempts` (append-only, RLS keyed on
   `user_id = auth.uid()`, matching `learner-graph-evidence`/
   `tutor-agent`'s precedent) and the
   `evidence_events_assessment_attempt_id_fkey` foreign key
   `0004_learner_evidence.sql` deliberately left unconstrained
-- [ ] T003 Push the migration (`npx supabase db push`) and verify RLS:
+- [X] T003 Push the migration (`npx supabase db push`) and verify RLS:
   an anon-key query against `assessment_attempts` returns
   `status=200, rows=0` for a signed-out session, and the new FK
   constraint exists — do not proceed until confirmed against the live
   project
-- [ ] T004 [P] Extend `src/lib/supabase/database.types.ts` with
+- [X] T004 [P] Extend `src/lib/supabase/database.types.ts` with
   `AssessmentAttemptRow` (row/insert/update types), same pattern used
   for every prior table
 
@@ -89,7 +89,7 @@ Supabase dependency of their own).
 
 ### Implementation for User Story 1
 
-- [ ] T005 [P] [US1] Write
+- [X] T005 [P] [US1] Write
   `tests/unit/deterministic-grading/bfs-dfs-checker.test.ts` (test-first):
   a claimed BFS/DFS order consistent with the algorithm's real
   step-by-step constraints validates as `"correct"` even when it
@@ -98,10 +98,10 @@ Supabase dependency of their own).
   step is `"incorrect"` with the exact divergence index; a
   `startNodeId` not present in the graph, or a `claimedOrder` that
   isn't a permutation of the reachable nodes, is `"invalid_input"`
-- [ ] T006 [US1] Create
+- [X] T006 [US1] Create
   `src/features/deterministic-grading/checkers/bfs-dfs-checker.ts` per
   data-model.md; make T005 pass
-- [ ] T007 [P] [US1] Write
+- [X] T007 [P] [US1] Write
   `tests/unit/deterministic-grading/heap-checker.test.ts` (test-first):
   a correct operation trace's claimed extracted sequence/final state
   validates exactly; an incorrect one is rejected with the real
@@ -109,21 +109,21 @@ Supabase dependency of their own).
   extract on an empty heap is `"invalid_input"`; `checkHeapProperty`
   independently validates/rejects a bare array against the min-/max-heap
   property
-- [ ] T008 [US1] Create
+- [X] T008 [US1] Create
   `src/features/deterministic-grading/checkers/heap-checker.ts` per
   data-model.md (`checkHeapOperations` and `checkHeapProperty`); make
   T007 pass
-- [ ] T009 [P] [US1] Write
+- [X] T009 [P] [US1] Write
   `tests/unit/deterministic-grading/tree-checker.test.ts` (test-first):
   a claimed traversal (in-order/pre-order/post-order) is checked by
   exact match against the real computed traversal; a claimed
   post-insertion tree is compared structurally against standard BST
   insertion, not just by node count; a malformed tree/insert value is
   `"invalid_input"`
-- [ ] T010 [US1] Create
+- [X] T010 [US1] Create
   `src/features/deterministic-grading/checkers/tree-checker.ts` per
   data-model.md; make T009 pass
-- [ ] T011 [P] [US1] Write
+- [X] T011 [P] [US1] Write
   `tests/unit/deterministic-grading/topological-sort-checker.test.ts`
   (test-first): any claimed order respecting every edge's real
   precedence constraint validates as `"correct"`, not just one
@@ -131,10 +131,10 @@ Supabase dependency of their own).
   `"incorrect"` with that specific violated edge; a cyclic input graph
   is `"invalid_input"` ("no valid order exists"), never graded as an
   incorrect answer
-- [ ] T012 [US1] Create
+- [X] T012 [US1] Create
   `src/features/deterministic-grading/checkers/topological-sort-checker.ts`
   per data-model.md; make T011 pass
-- [ ] T013 [P] [US1] Write
+- [X] T013 [P] [US1] Write
   `tests/unit/deterministic-grading/shortest-path-checker.test.ts`
   (test-first): a claimed path that's real (consecutive nodes actually
   connected) and whose summed weight equals the graph's real shortest
@@ -142,7 +142,7 @@ Supabase dependency of their own).
   equally-short path; a claimed path with the wrong total distance is
   `"incorrect"` with the real shortest distance; an unreachable
   target or nonexistent source/target node is `"invalid_input"`
-- [ ] T014 [US1] Create
+- [X] T014 [US1] Create
   `src/features/deterministic-grading/checkers/shortest-path-checker.ts`
   per data-model.md; make T013 pass
 
@@ -171,7 +171,7 @@ action) and `learner-graph-evidence`'s already-shipped `commitEvidence`.
 
 ### Implementation for User Story 2
 
-- [ ] T015 [P] [US2] Write
+- [X] T015 [P] [US2] Write
   `tests/unit/deterministic-grading/grading-evidence.test.ts`
   (test-first): a `"correct"` checker result maps to
   `correctness: true`, `graderConfidence: 1.0`; an `"incorrect"` result
@@ -179,12 +179,12 @@ action) and `learner-graph-evidence`'s already-shipped `commitEvidence`.
   computation has no uncertainty either way); an `"invalid_input"`
   result produces no `CommitEvidenceInput` at all and signals an error
   instead — never a fabricated evidence commit for a malformed question
-- [ ] T016 [US2] Create
+- [X] T016 [US2] Create
   `src/features/deterministic-grading/grading-evidence.ts`'s
   `commitEvidenceFromGradingResult` for the structured-checker result
   types per data-model.md (code/rubric result handling added in
   US3/US4); make T015 pass
-- [ ] T017 [US2] Create `src/features/deterministic-grading/actions.ts`
+- [X] T017 [US2] Create `src/features/deterministic-grading/actions.ts`
   with `gradeStructuredResponse` per contracts/grading-actions.md:
   dispatches to the matching checker by `domain`, inserts an
   `assessment_attempts` row (`response_modality: "structured"`) with
@@ -218,7 +218,7 @@ insert shape and `commitEvidenceFromGradingResult` funnel).
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Create
+- [X] T018 [US3] Create
   `src/features/deterministic-grading/code-sandbox-grader.ts` per
   data-model.md: runs `code`/`tests` in a real E2B sandbox, returns a
   `CodeGradingResult` — `"graded"` with real per-test pass/fail and
@@ -228,12 +228,12 @@ insert shape and `commitEvidenceFromGradingResult` funnel).
   Group B/T023) — this task's own correctness is proven by running it
   for real, not by mocking the one thing that makes it worth using E2B
   at all
-- [ ] T019 [US3] Extend `grading-evidence.ts`'s
+- [X] T019 [US3] Extend `grading-evidence.ts`'s
   `commitEvidenceFromGradingResult` to handle `CodeGradingResult`:
   `"graded"` maps `correctness` from `allPassed`, `graderConfidence: 1.0`;
   `"did_not_complete"` produces no evidence commit, same as
   `"invalid_input"` (FR-008)
-- [ ] T020 [US3] Create `gradeCodeResponse` in `actions.ts` per
+- [X] T020 [US3] Create `gradeCodeResponse` in `actions.ts` per
   contracts/grading-actions.md: calls `code-sandbox-grader.ts`, inserts
   an `assessment_attempts` row (`response_modality: "code"`), then
   `commitEvidenceFromGradingResult` — an optional LLM explanation of a
@@ -263,14 +263,14 @@ insert shape and `commitEvidenceFromGradingResult` funnel).
 
 ### Implementation for User Story 4
 
-- [ ] T021 [P] [US4] Write
+- [X] T021 [P] [US4] Write
   `tests/unit/deterministic-grading/rubric-grader-validation.test.ts`
   (test-first): a confidence at or above
   `DEFAULT_RUBRIC_GRADING_CONFIDENCE_THRESHOLD` resolves
   `isLowConfidence: false`; a confidence below it resolves
   `isLowConfidence: true` — this pure threshold logic is testable
   without a real model call
-- [ ] T022 [US4] Create `src/features/deterministic-grading/rubric-grader.ts`
+- [X] T022 [US4] Create `src/features/deterministic-grading/rubric-grader.ts`
   per data-model.md: `DEFAULT_RUBRIC_GRADING_CONFIDENCE_THRESHOLD`
   (labeled as a tunable starting parameter, same convention
   `evidence-weights.ts`/`assistance-ladder.ts` already established),
@@ -278,13 +278,13 @@ insert shape and `commitEvidenceFromGradingResult` funnel).
   returning a `RubricGradingResult` with `isLowConfidence` computed from
   the model's own returned confidence against the threshold; make T021
   pass
-- [ ] T023 [US4] Extend `grading-evidence.ts`'s
+- [X] T023 [US4] Extend `grading-evidence.ts`'s
   `commitEvidenceFromGradingResult` to handle `RubricGradingResult`:
   `correctness` from `outcome === "correct"`, `graderConfidence` set to
   the rubric result's real (possibly low) `confidence` — never inflated
   to look certain even when `isLowConfidence` is true (FR-010 requires
   the result still commits, flagged, not withheld)
-- [ ] T024 [US4] Create `gradeTextResponse` in `actions.ts` per
+- [X] T024 [US4] Create `gradeTextResponse` in `actions.ts` per
   contracts/grading-actions.md: calls `rubric-grader.ts`, inserts an
   `assessment_attempts` row (`response_modality: "text"`), then
   `commitEvidenceFromGradingResult`
@@ -299,13 +299,13 @@ one shared path.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T025 Run `npm run typecheck` across the whole repository — expect
+- [X] T025 Run `npm run typecheck` across the whole repository — expect
   PASS with no regressions outside this feature
-- [ ] T026 Add `tests/unit/deterministic-grading/*.test.ts` to
+- [X] T026 Add `tests/unit/deterministic-grading/*.test.ts` to
   `package.json`'s `test:unit` script and run it — expect PASS (all
   five checkers, grading-evidence's mapping, and the rubric grader's
   threshold logic)
-- [ ] T027 Walk through quickstart.md Groups A and B end to end; B1's
+- [X] T027 Walk through quickstart.md Groups A and B end to end; B1's
   live RLS/FK check, B2's real structured-grading-to-evidence check,
   B3's real sandbox execution (including a genuine timeout case), and
   B4's low-confidence rubric check must all be actually confirmed
