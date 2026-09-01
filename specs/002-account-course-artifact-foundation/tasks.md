@@ -65,21 +65,21 @@ story in this feature depends on.
 **⚠️ CRITICAL**: No user story task can begin until T004–T008 are
 complete.
 
-- [ ] T004 Write `supabase/migrations/0001_courses_artifacts.sql`: the
+- [X] T004 Write `supabase/migrations/0001_courses_artifacts.sql`: the
   `courses`, `artifacts`, and `artifact_processing_runs` tables with
   `ENABLE ROW LEVEL SECURITY` and `owner_id = auth.uid()` policies on
   each, exactly per data-model.md's column/policy tables
-- [ ] T005 [P] Implement `src/lib/supabase/database.types.ts`: hand-written
+- [X] T005 [P] Implement `src/lib/supabase/database.types.ts`: hand-written
   TypeScript row types (`Course`, `Artifact`, `ArtifactProcessingRun`)
   matching the migration's columns, until `supabase gen types` can run
   against a live project (research.md)
-- [ ] T006 [P] Implement `src/lib/supabase/client.ts`: browser Supabase
+- [X] T006 [P] Implement `src/lib/supabase/client.ts`: browser Supabase
   client via `@supabase/ssr`'s `createBrowserClient`, reading
   `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- [ ] T007 [P] Implement `src/lib/supabase/server.ts`: server-side
+- [X] T007 [P] Implement `src/lib/supabase/server.ts`: server-side
   Supabase client via `@supabase/ssr`'s `createServerClient`, reading the
   session from Next.js cookies, for use in Server Components/Actions
-- [ ] T008 Implement `src/middleware.ts`: refreshes the Supabase session
+- [X] T008 Implement `src/middleware.ts`: refreshes the Supabase session
   cookie on every request, per `@supabase/ssr`'s documented App Router
   pattern (required for server-side session reads in T007 to stay valid)
   — depends on T006, T007
