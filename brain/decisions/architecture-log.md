@@ -219,3 +219,33 @@ checklist is a setup gate, not a retrofit. Applies to
   click precisely.
 - Full reasoning: `specs/003-concept-atlas-renderer/research.md` ("Edge
   click-hitboxes can block clicks on nearby nodes").
+
+## 2026-09-01 — Edge-label click targeting: three compounding React Flow bugs
+
+- Getting a relationship-edge label reliably clickable (T028's
+  weak-relationship detail panel) took three separate real fixes, not
+  one: (1) a bent `getSmoothStepPath` edge's bounding-box center is
+  often off the actual stroke, so the click target moved to the edge's
+  own label instead (`labelX`/`labelY` is always a real point on the
+  path); (2) React Flow paints `.react-flow__edges` above
+  `.react-flow__edgelabel-renderer` by default, so an edge's own
+  invisible hitbox always sat on top of its own colocated label — fixed
+  with a scoped CSS `z-index` override raising the label layer above the
+  edges layer; (3) React Flow's `onEdgeClick` prop hit-tests by
+  pointer-to-path distance (not DOM targeting), so wiring it alongside
+  the label's own click handler double-fired the same focus-toggle per
+  click, silently netting no change — fixed by removing the redundant
+  `onEdgeClick` prop and keeping only the label handler.
+- **Standing rule going forward**: for any React Flow edge that needs a
+  reliably clickable label, wire the click handler on the label element
+  only — never also on `onEdgeClick` — and don't assume DOM stacking
+  order follows visual expectation; check it explicitly for anything
+  that must receive real pointer events.
+- Also surfaced (not fixed, scoped out): two relationships between the
+  same concept pair route identically and their labels fully overlap,
+  so only whichever renders on top in DOM order is clickable. A general
+  fix needs multi-edge/parallel-edge offsetting; the fixture was
+  reordered as a workaround so the relationship with a real explanation
+  wins.
+- Full reasoning: `specs/003-concept-atlas-renderer/research.md`
+  ("Relationship-edge click targeting: three real bugs, not one").

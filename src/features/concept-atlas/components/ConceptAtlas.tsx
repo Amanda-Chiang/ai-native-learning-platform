@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ReactFlow, Background, Controls, type Node } from "@xyflow/react";
+import { ReactFlow, Background, Controls, type Node, type Edge } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { CourseGraph } from "@/types/graph/course-graph.ts";
 import {
@@ -19,32 +19,62 @@ import {
   toLayoutPreferenceEntry,
   type LayoutPreference,
 } from "@/features/concept-atlas/layout-preference.ts";
-import { applyFocusDimming } from "@/features/concept-atlas/focus-dimming.ts";
+import { applyFocusDimming, type FocusTarget } from "@/features/concept-atlas/focus-dimming.ts";
 import { ConceptNode } from "@/features/concept-atlas/components/ConceptNode.tsx";
 import { RelationshipEdge } from "@/features/concept-atlas/components/RelationshipEdge.tsx";
 import { UnitGroupNode } from "@/features/concept-atlas/components/UnitGroupNode.tsx";
 import {
   ConceptDetailPanel,
-  type FocusedConcept,
+  type Focused,
 } from "@/features/concept-atlas/components/ConceptDetailPanel.tsx";
 
 const nodeTypes = { conceptNode: ConceptNode, unitGroup: UnitGroupNode };
 const edgeTypes = { relationshipEdge: RelationshipEdge };
 
+// React Flow paints .react-flow__edges (the SVG path layer) above
+// .react-flow__edgelabel-renderer (the label portal) in DOM order. A
+// label sits at a point derived directly from its own edge's path, so
+// the edge's invisible interaction hitbox is always colocated with --
+// and by default stacks over -- its own label, swallowing clicks meant
+// for the label (found while making relationship edges clickable).
+const EDGE_LABEL_STACKING_FIX = `
+  .react-flow__edgelabel-renderer {
+    z-index: 1000;
+  }
+`;
+
 // Debounce interaction-end saves rather than writing on every drag frame
 // (contracts/layout-actions.md).
 const SAVE_DEBOUNCE_MS = 500;
 
-function buildFocusedConcept(graph: CourseGraph, conceptId: string): FocusedConcept | null {
-  const concept = graph.concepts.find((c) => c.id === conceptId);
+function buildFocused(graph: CourseGraph, target: FocusTarget): Focused | null {
+  if (target.kind === "relationship") {
+    const relationship = graph.relationships.find((r) => r.id === target.id);
+    if (!relationship) {
+      return null;
+    }
+    const from = graph.concepts.find((c) => c.id === relationship.fromConceptId);
+    const to = graph.concepts.find((c) => c.id === relationship.toConceptId);
+    return {
+      kind: "relationship",
+      id: relationship.id,
+      type: relationship.type,
+      fromConceptLabel: from?.canonicalLabel ?? relationship.fromConceptId,
+      toConceptLabel: to?.canonicalLabel ?? relationship.toConceptId,
+      learnerState: relationship.learnerState,
+      explanation: relationship.explanation,
+    };
+  }
+
+  const concept = graph.concepts.find((c) => c.id === target.id);
   if (!concept) {
     return null;
   }
 
   const relationships = graph.relationships
-    .filter((r) => r.fromConceptId === conceptId || r.toConceptId === conceptId)
+    .filter((r) => r.fromConceptId === concept.id || r.toConceptId === concept.id)
     .map((r) => {
-      const outgoing = r.fromConceptId === conceptId;
+      const outgoing = r.fromConceptId === concept.id;
       const otherId = outgoing ? r.toConceptId : r.fromConceptId;
       const other = graph.concepts.find((c) => c.id === otherId);
       return {
@@ -72,7 +102,7 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
     null,
   );
   const [preferences, setPreferences] = useState<LayoutPreference[]>([]);
-  const [focusedConceptId, setFocusedConceptId] = useState<string | null>(null);
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,12 +146,12 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
     // persisted or stored on the canonical DTO -- still respects
     // Constitution Principle I, same as the ELK-computed coordinates
     // this same pipeline already attaches only at the adapter layer.
-    return applyFocusDimming(base.nodes, base.edges, focusedConceptId, graph);
-  }, [graph, positions, collapsedUnitIds, focusedConceptId]);
+    return applyFocusDimming(base.nodes, base.edges, focusTarget, graph);
+  }, [graph, positions, collapsedUnitIds, focusTarget]);
 
-  const focusedConcept = useMemo(
-    () => (focusedConceptId ? buildFocusedConcept(graph, focusedConceptId) : null),
-    [graph, focusedConceptId],
+  const focused = useMemo(
+    () => (focusTarget ? buildFocused(graph, focusTarget) : null),
+    [graph, focusTarget],
   );
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,10 +190,40 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
         // Closing and reopening on the same node acts as a toggle;
         // clicking a different concept just re-focuses -- neither
         // rearranges the underlying map (spec FR-010).
-        setFocusedConceptId((current) => (current === node.id ? null : node.id));
+        setFocusTarget((current) =>
+          current?.kind === "concept" && current.id === node.id
+            ? null
+            : { kind: "concept", id: node.id },
+        );
       }
     },
     [toggleUnit],
+  );
+
+  const focusRelationship = useCallback((relationshipId: string) => {
+    setFocusTarget((current) =>
+      current?.kind === "relationship" && current.id === relationshipId
+        ? null
+        : { kind: "relationship", id: relationshipId },
+    );
+  }, []);
+
+  // Deliberately NOT also wiring React Flow's onEdgeClick prop here.
+  // React Flow detects edge clicks via distance-to-path hit testing on
+  // the pane (not real DOM targeting), so a click on the label -- which
+  // sits directly on the path by construction -- fires React Flow's own
+  // edge-click detection too. Wiring both meant a single click called
+  // focusRelationship twice, toggling the focus target right back to
+  // null (found via a console.log that showed two calls per click).
+  // The label handler alone is sufficient and is the more reliable
+  // target anyway (see RelationshipEdge.tsx's onFocusEdge doc comment).
+  const edgesWithHandlers = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        data: { ...edge.data, onFocusEdge: () => focusRelationship(edge.id) },
+      })),
+    [edges, focusRelationship],
   );
 
   const onNodeDragStop = useCallback(
@@ -187,9 +247,10 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
 
   return (
     <div style={{ width: "100%", height: "80vh", position: "relative" }}>
+      <style>{EDGE_LABEL_STACKING_FIX}</style>
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={edgesWithHandlers}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodeClick={onNodeClick}
@@ -210,9 +271,7 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
         <Background />
         <Controls />
       </ReactFlow>
-      {focusedConcept && (
-        <ConceptDetailPanel focused={focusedConcept} onClose={() => setFocusedConceptId(null)} />
-      )}
+      {focused && <ConceptDetailPanel focused={focused} onClose={() => setFocusTarget(null)} />}
     </div>
   );
 }

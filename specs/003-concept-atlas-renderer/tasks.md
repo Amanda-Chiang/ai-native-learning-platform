@@ -230,20 +230,30 @@ concept).
 
 ### Implementation for User Story 4
 
-- [ ] T025 [US4] Extend `RelationshipEdge.tsx` (from US1/T009) so a `weak`
+- [X] T025 [US4] Extend `RelationshipEdge.tsx` (from US1/T009) so a `weak`
   `learnerState` renders with both reduced opacity AND a distinct stroke
-  pattern together, never opacity alone (spec FR-005) — this may already
-  be satisfied by T009 depending on how it was built; this task verifies
-  and closes any gap
-- [ ] T026 [US4] Extend `ConceptDetailPanel.tsx` (from US3/T022) to also
+  pattern together, never opacity alone (spec FR-005) — already satisfied
+  by T009; verified, no code change needed
+- [X] T026 [US4] Extend `ConceptDetailPanel.tsx` (from US3/T022) to also
   accept a focused *relationship* (not only a concept), showing its type,
   label, and the evidence/reasoning behind a weak rating (spec FR-011) —
   depends on T022
-- [ ] T027 [US4] Wire relationship-click interaction into `ConceptAtlas.tsx`:
+- [X] T027 [US4] Wire relationship-click interaction into `ConceptAtlas.tsx`:
   clicking a `RelationshipEdge` opens the extended detail panel and dims
   unrelated content, same pattern as concept focus — depends on T023, T026
-- [ ] T028 [P] [US4] Add the weak-relationship-state screenshot to
-  `tests/visual/concept-atlas.spec.ts` — depends on T027
+- [X] T028 [P] [US4] Add the weak-relationship-state screenshot to
+  `tests/visual/concept-atlas.spec.ts` — depends on T027. Took three real
+  bugs to get right (see research.md): (1) a bent edge path's own
+  bounding-box center often isn't on the stroke, so click targeting moved
+  to the edge's label instead; (2) React Flow paints `.react-flow__edges`
+  above `.react-flow__edgelabel-renderer` by default, so a label's own
+  edge always intercepted clicks meant for it — fixed with a CSS
+  `z-index` override; (3) React Flow's `onEdgeClick` prop uses
+  distance-to-path hit testing on the pane (not DOM targeting), so
+  wiring it alongside the label's own click handler double-fired
+  `focusRelationship` per click, toggling the focus target right back to
+  `null` — fixed by dropping the redundant `onEdgeClick` prop and
+  keeping only the label handler.
 
 **Checkpoint**: Weak relationships are identifiable and explainable, not
 just visually different for no stated reason.

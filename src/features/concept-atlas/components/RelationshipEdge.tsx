@@ -23,6 +23,16 @@ export type RelationshipEdgeData = {
   type: RelationshipType;
   learnerState: LearnerRelationshipState;
   crossUnit: boolean;
+  /**
+   * Focuses this relationship (opens the detail panel). Wired to the
+   * label text specifically, not only React Flow's own onEdgeClick --
+   * a bent/stepped path's own bounding-box center frequently does not
+   * sit on the actual stroke geometry (found while testing: clicking
+   * the edge's <g> element reliably missed the path itself), but the
+   * label's position is derived directly from the path calculation, so
+   * it's always a real point on the line.
+   */
+  onFocusEdge?: () => void;
 };
 
 export function RelationshipEdge({
@@ -70,6 +80,9 @@ export function RelationshipEdge({
       />
       <EdgeLabelRenderer>
         <div
+          onClick={data.onFocusEdge}
+          role={data.onFocusEdge ? "button" : undefined}
+          data-relationship-id={id}
           style={{
             position: "absolute",
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
@@ -78,6 +91,7 @@ export function RelationshipEdge({
             padding: "1px 4px",
             borderRadius: 4,
             pointerEvents: "all",
+            cursor: data.onFocusEdge ? "pointer" : undefined,
           }}
         >
           {label ?? data.type}

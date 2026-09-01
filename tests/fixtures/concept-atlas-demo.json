@@ -35,11 +35,11 @@
   "relationships": [
     { "id": "r-queue-bfs", "type": "prerequisite-of", "fromConceptId": "c-queue", "toConceptId": "c-bfs", "crossUnit": false, "learnerState": "strong" },
     { "id": "r-stack-dfs", "type": "prerequisite-of", "fromConceptId": "c-stack", "toConceptId": "c-dfs", "crossUnit": false, "learnerState": "strong" },
-    { "id": "r-graph-bfs", "type": "prerequisite-of", "fromConceptId": "c-graph", "toConceptId": "c-bfs", "crossUnit": false, "learnerState": "weak" },
+    { "id": "r-graph-bfs", "type": "prerequisite-of", "fromConceptId": "c-graph", "toConceptId": "c-bfs", "crossUnit": false, "learnerState": "weak", "explanation": "Student has answered BFS mechanics questions correctly but has not yet been asked to justify BFS in terms of the underlying graph representation (adjacency list/matrix) it operates on." },
     { "id": "r-graph-dfs", "type": "prerequisite-of", "fromConceptId": "c-graph", "toConceptId": "c-dfs", "crossUnit": false, "learnerState": "weak" },
     { "id": "r-dfs-topo", "type": "builds-on", "fromConceptId": "c-dfs", "toConceptId": "c-topo-sort", "crossUnit": false, "learnerState": "weak" },
-    { "id": "r-bfs-shortest-path", "type": "builds-on", "fromConceptId": "c-bfs", "toConceptId": "c-shortest-path", "crossUnit": false, "learnerState": "weak" },
     { "id": "r-bfs-shortest-path-dup", "type": "applies-to", "fromConceptId": "c-bfs", "toConceptId": "c-shortest-path", "crossUnit": false, "learnerState": "weak" },
+    { "id": "r-bfs-shortest-path", "type": "builds-on", "fromConceptId": "c-bfs", "toConceptId": "c-shortest-path", "crossUnit": false, "learnerState": "weak", "explanation": "Two independent attempts to explain why BFS produces shortest paths in an unweighted graph were incomplete -- student described the traversal order correctly but not why level-order exploration guarantees minimality." },
     { "id": "r-tree-graph", "type": "analogous-to", "fromConceptId": "c-tree", "toConceptId": "c-graph", "crossUnit": true, "learnerState": "strong" },
     { "id": "r-tree-bst", "type": "prerequisite-of", "fromConceptId": "c-tree", "toConceptId": "c-bst", "crossUnit": false, "learnerState": "weak" },
     { "id": "r-tree-traversal-bst", "type": "applies-to", "fromConceptId": "c-tree-traversal", "toConceptId": "c-bst", "crossUnit": false, "learnerState": "weak" },

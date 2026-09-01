@@ -65,3 +65,20 @@ test("clicking a concept opens a stable detail panel and dims unrelated content"
 
   await expect(page).toHaveScreenshot("focused-concept.png");
 });
+
+test("clicking a weak relationship shows why it's rated weak", async ({ page }) => {
+  await page.goto("/courses/demo/atlas");
+  await page.waitForSelector(".react-flow__node", { state: "visible" });
+  await page.waitForTimeout(300);
+
+  // Click the edge's own label text (tagged with the relationship id),
+  // not its <g> wrapper -- a bent/stepped edge path's bounding-box
+  // center frequently doesn't sit on the actual stroke (found while
+  // writing this test), and "builds-on" isn't unique text anyway (five
+  // relationships share that type). r-bfs-shortest-path has a real
+  // explanation string in the fixture, exercising the non-fallback path.
+  await page.locator('[data-relationship-id="r-bfs-shortest-path"]').click();
+  await page.waitForTimeout(300);
+
+  await expect(page).toHaveScreenshot("weak-relationship.png");
+});

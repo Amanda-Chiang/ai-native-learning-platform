@@ -49,6 +49,7 @@ renderer output back into.
 | `toConceptId` | `string` | |
 | `crossUnit` | `boolean` | Whether `fromConceptId` and `toConceptId` belong to different units — precomputed input, not derived at render time, so the renderer never needs unit-membership logic beyond what it's given |
 | `learnerState` | `"weak" \| "strong"` | Relationship-level state, independent of either endpoint concept's own `masteryState` (spec Key Entities) |
+| `explanation` | `string \| undefined` | **Added during US4 implementation** — missing from this table's original version. Why this relationship is rated as it is (spec FR-011). Optional: real evidence-backed reasoning isn't wired into this renderer (that's the learner-graph/evidence system's job); when absent, the UI shows a generic fallback rather than inventing a specific-sounding reason nothing backs. |
 
 **Validation rule**: `(fromConceptId, toConceptId, type)` is NOT required
 to be unique — the demo fixture's `r-bfs-shortest-path` /

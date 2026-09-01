@@ -45,6 +45,17 @@ export type Relationship = {
    * own masteryState.
    */
   learnerState: LearnerRelationshipState;
+  /**
+   * Why this relationship is rated as it is (spec FR-011: clicking a
+   * weak relationship must surface why). Optional -- this field was
+   * missing entirely until US4 needed it (found while implementing
+   * relationship-click), and real evidence-backed reasoning isn't wired
+   * into this renderer yet (that's the learner-graph/evidence system,
+   * not concept-atlas-renderer's job). When absent, the UI falls back to
+   * a generic message rather than inventing a specific-sounding reason
+   * that isn't backed by anything real.
+   */
+  explanation?: string;
 };
 
 /**

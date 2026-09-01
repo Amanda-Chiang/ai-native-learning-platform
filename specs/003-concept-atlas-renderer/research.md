@@ -189,3 +189,51 @@ too, not just this one:
   new external dependency/account, unnecessary for a project at this
   stage, and duplicates what Playwright's own screenshot assertions
   already do locally).
+
+## Relationship-edge click targeting: three real bugs, not one
+
+Getting a Playwright click to reliably open the relationship detail
+panel (T028) took three separate, real fixes — recorded here because
+each one is a general React Flow interaction lesson, not just a test
+quirk:
+
+1. **Bounding-box center isn't on the stroke.** `RelationshipEdge.tsx`
+   uses `getSmoothStepPath`, which produces a bent/orthogonal path. A
+   `<g>` element's geometric bounding-box center frequently lands off
+   the actual line for a stepped path. Fix: click the edge's own label
+   instead (`EdgeLabelRenderer`) — its position (`labelX`/`labelY`) is
+   derived directly from the same path calculation, so it's always a
+   real point on the line, tagged with `data-relationship-id`.
+2. **The edge paints over its own label.** React Flow renders
+   `.react-flow__edges` (the SVG path layer, including each edge's
+   invisible `interactionWidth` hitbox) above
+   `.react-flow__edgelabel-renderer` (the label portal) in DOM order.
+   Since a label sits exactly on its own edge's path, the edge's own
+   hitbox always intercepted clicks meant for its colocated label. Fix:
+   a scoped CSS rule in `ConceptAtlas.tsx` raising
+   `.react-flow__edgelabel-renderer`'s `z-index` above the edges layer.
+3. **Double-wiring caused a self-canceling toggle.** React Flow's
+   `onEdgeClick` prop doesn't use DOM event targeting — it hit-tests by
+   distance from the pointer to the path, using `interactionWidth`.
+   Because the label sits directly on the path, clicking the label *also*
+   satisfied React Flow's own edge-click detection. With both
+   `onEdgeClick` (React Flow prop) and the label's own `onFocusEdge`
+   wired to the same `focusRelationship(id)` toggle, one physical click
+   fired the toggle twice, netting no visible change (confirmed with a
+   temporary `console.log`, which printed twice per click). Fix: dropped
+   the redundant `onEdgeClick` prop; the label handler alone is
+   sufficient and was already the more reliable target per bug #1.
+
+A fourth, adjacent issue surfaced while writing the test: two
+relationships between the same concept pair (`r-bfs-shortest-path` /
+`r-bfs-shortest-path-dup`, added intentionally in the fixture to test
+focus-dimming's "don't pull in duplicate-edge siblings" behavior) route
+identically and therefore render their labels at the exact same point.
+Whichever renders later in DOM order permanently sits on top and
+intercepts clicks meant for the other. This is a real, general product
+limitation (overlapping duplicate relationships between the same pair
+are not independently clickable) that a full fix would require an
+edge-offsetting layout strategy for parallel/multi-edges — out of scope
+for this task. Fixture-level workaround: reordered the two entries so
+the relationship carrying the real `explanation` (the one the test and
+a real student would want to reach) paints on top.
