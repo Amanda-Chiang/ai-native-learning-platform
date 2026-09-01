@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node --test tests/unit/domain/*.test.ts tests/unit/artifacts/*.test.ts",
+    "test:unit": "node --test tests/unit/domain/*.test.ts tests/unit/artifacts/*.test.ts tests/unit/concept-atlas/*.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

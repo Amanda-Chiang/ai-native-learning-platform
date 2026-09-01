@@ -13,24 +13,66 @@ file records the resolutions in Decision/Rationale/Alternatives format.
 - **Alternatives considered**: `reactflow` (rejected — deprecated
   redirect package, same underlying library but not where fixes land).
 
-## ELK integration: `elkjs`'s bundled worker build, invoked from a client effect
+## ELK integration: `elkjs/lib/elk.bundled.js`, invoked from a client effect (corrected during implementation)
 
-- **Decision**: run ELK layout via `elkjs`'s web-worker build, triggered
-  in a `useEffect` after the `CourseGraph` DTO is converted to ELK's graph
-  input format, with computed positions merged into React Flow node data
-  before render.
-- **Rationale**: ELK's layered algorithm is synchronous-but-slow-ish
-  (graph layout is CPU-bound); running it in a worker keeps the main
-  thread responsive for a 20-40+ concept graph without needing a server
-  round-trip. This matches PRD §13.7's target pipeline: DTO → Graphology
-  (skipped, see below) → ELK → React Flow adapter.
+- **Decision**: run ELK layout via `elkjs`'s browser-safe bundled build
+  (`elkjs/lib/elk.bundled.js`), which runs synchronously on the main
+  thread, triggered in a `useEffect` after the `CourseGraph` DTO is
+  converted to ELK's graph input format, with computed positions merged
+  into React Flow node data before render.
+- **Correction**: this Phase 0 research entry originally said "web-worker
+  build." That was wrong in a way only discovered while actually wiring
+  it up (T010/T013): `elkjs`'s default entry point (`import ELK from
+  "elkjs"`) auto-detects its environment and, in a bundled context,
+  tries `require('web-worker')` -- a dependency that isn't installed and
+  isn't resolvable inside Next.js's client webpack bundle, crashing the
+  whole page. `elk.bundled.js` is elkjs's own documented alternative
+  entry point specifically for bundlers, and it runs synchronously
+  instead of trying to spawn a worker.
+- **Rationale**: layout for a 20-40 concept graph is fast enough that
+  running synchronously on the main thread is not a real responsiveness
+  problem in practice -- the worker approach this entry originally
+  proposed was solving a performance problem that turned out not to be
+  worth the bundler friction it introduced. This still matches PRD
+  §13.7's target pipeline: DTO → Graphology (skipped, see below) → ELK →
+  React Flow adapter; only the *execution context* changed, not the
+  pipeline shape.
 - **Alternatives considered**: server-side layout computation (rejected —
-  adds a network round-trip for something that can run entirely
-  client-side, and the constitution's client-architecture rule is about
-  canonical *data* living server-side, not about where a derived,
-  renderer-local computation like layout must run); a non-worker
-  synchronous ELK call (rejected — risks janking the UI thread on larger
-  courses, which SC-001/SC-006 care about).
+  adds a network round-trip for something that runs fast enough
+  client-side); manually configuring a worker-loader for elkjs's default
+  entry (rejected — `elk.bundled.js` is the officially documented fix for
+  exactly this bundler scenario, no custom webpack config needed).
+
+## Cross-phase fixes discovered while implementing this feature
+
+Two bugs surfaced only once this feature's code actually ran against a
+real dev server -- both fixed at the source rather than routed around,
+since they would have blocked every future feature's local development
+too, not just this one:
+
+- **`src/middleware.ts` crashed every route, not just auth ones, when
+  Supabase env vars are unset.** Phase 1's middleware ran
+  `createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, ...)`
+  unconditionally on every request (its matcher covers the whole app).
+  With no live Supabase project configured, this threw immediately and
+  took down the entire dev server -- including this feature's atlas page,
+  which has nothing to do with auth. Fixed by returning early when the
+  env vars are absent, since there is no session to refresh without a
+  project anyway. Same fix applied to `SiteHeader` (rendered in the root
+  layout, wrapping every page), which had the identical problem one layer
+  up.
+- **`fitView`'s default `minZoom` (0.5) clipped a wide multi-unit
+  course.** The whole-course atlas (5 units spread horizontally) needed
+  to zoom out further than 0.5x to fit the viewport; React Flow's default
+  zoom floor prevented that, so the leftmost and rightmost units rendered
+  partially off-canvas -- a direct violation of spec SC-001. Fixed by
+  lowering `minZoom` on the `<ReactFlow>` instance. A second, related fix
+  was needed alongside it: concept/unit nodes didn't have explicit
+  `width`/`height` set on the node objects themselves (only in CSS
+  `style`), which `fitView`'s bounds calculation reads directly -- without
+  it, the first `fitView` pass computed bounds from effectively
+  zero-size, unmeasured nodes. Both fixes were required together; neither
+  alone fully resolved the clipping.
 
 ## Graphology: deferred, not added
 

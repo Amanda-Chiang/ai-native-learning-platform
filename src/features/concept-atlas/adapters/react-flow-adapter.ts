@@ -1,5 +1,13 @@
 import type { Node, Edge } from "@xyflow/react";
-import ELK from "elkjs";
+// elkjs's default entry point (`elkjs`) auto-detects its environment and
+// tries to `require('web-worker')` when it thinks it's in a worker-capable
+// context -- that require is unresolvable in Next.js's client webpack
+// bundle (no such dependency is installed, nor should it be). The
+// `elk.bundled.js` build is elkjs's own documented browser-safe entry
+// point: it runs synchronously on the main thread instead, which is fine
+// here since layout for a 20-40 concept graph is fast enough not to
+// need worker offloading in practice.
+import ELK from "elkjs/lib/elk.bundled.js";
 import type { CourseGraph } from "@/types/graph/course-graph.ts";
 
 /**
@@ -13,6 +21,8 @@ const CONCEPT_NODE_WIDTH = 160;
 const CONCEPT_NODE_HEIGHT = 48;
 const CONCEPT_GAP = 24;
 const UNIT_GAP = 80;
+
+export type LayoutPosition = { x: number; y: number; width?: number; height?: number };
 
 /**
  * Computes a two-level layout with ELK: units are laid out relative to
@@ -60,10 +70,19 @@ export async function computeElkLayout(
   };
 
   const layouted = await elk.layout(elkGraph);
-  const positions = new Map<string, { x: number; y: number }>();
+  const positions = new Map<string, LayoutPosition>();
 
   for (const unitNode of layouted.children ?? []) {
-    positions.set(unitNode.id, { x: unitNode.x ?? 0, y: unitNode.y ?? 0 });
+    // ELK auto-sizes a container node (no explicit width/height was set
+    // on units above) to fit its children plus the configured padding --
+    // that computed size is what makes the unit render as a bounded
+    // region rather than an arbitrary box (spec FR-001).
+    positions.set(unitNode.id, {
+      x: unitNode.x ?? 0,
+      y: unitNode.y ?? 0,
+      width: unitNode.width ?? CONCEPT_NODE_WIDTH + 32,
+      height: unitNode.height ?? CONCEPT_NODE_HEIGHT + UNIT_HEADER_HEIGHT + 32,
+    });
     for (const conceptNode of unitNode.children ?? []) {
       // Concept positions from ELK are relative to their parent unit --
       // React Flow's parentId/extent mechanism expects the same
@@ -82,7 +101,7 @@ export async function computeElkLayout(
  */
 export function courseGraphToReactFlowElements(
   graph: CourseGraph,
-  positions: Map<string, { x: number; y: number }>,
+  positions: Map<string, LayoutPosition>,
   collapsedUnitIds: Set<string>,
 ): { nodes: Node[]; edges: Edge[] } {
   const conceptToUnit = new Map<string, string>();
@@ -94,12 +113,21 @@ export function courseGraphToReactFlowElements(
 
   const unitNodes: Node[] = graph.units.map((unit) => {
     const pos = positions.get(unit.id) ?? { x: 0, y: 0 };
+    const width = pos.width ?? CONCEPT_NODE_WIDTH + 32;
+    const height = pos.height ?? CONCEPT_NODE_HEIGHT + UNIT_HEADER_HEIGHT + 32;
     return {
       id: unit.id,
       type: "unitGroup",
-      position: pos,
+      position: { x: pos.x, y: pos.y },
       data: { title: unit.title, collapsed: collapsedUnitIds.has(unit.id) },
-      style: { width: undefined, height: undefined },
+      // Both style (visual CSS sizing) AND top-level width/height (what
+      // fitView's bounds calculation reads) must be set -- setting only
+      // style left fitView computing bounds from unmeasured, effectively
+      // zero-size nodes on its first pass, which is what caused clipped
+      // unit regions in the initial screenshot attempt.
+      style: { width, height },
+      width,
+      height,
     };
   });
 
@@ -114,6 +142,8 @@ export function courseGraphToReactFlowElements(
       parentId: unitId,
       extent: unitId ? ("parent" as const) : undefined,
       hidden: inCollapsedUnit,
+      width: CONCEPT_NODE_WIDTH,
+      height: CONCEPT_NODE_HEIGHT,
       data: {
         canonicalLabel: concept.canonicalLabel,
         aliases: concept.aliases,

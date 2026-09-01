@@ -10,9 +10,22 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
+  // No live Supabase project exists yet in this environment
+  // (specs/002-account-course-artifact-foundation Assumptions). Without
+  // this check, every single route -- including ones with nothing to do
+  // with auth -- would crash the whole dev server, since
+  // createServerClient throws immediately on an empty URL/key. Skip
+  // session refresh entirely when unconfigured; there is no session to
+  // refresh without a project anyway.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {

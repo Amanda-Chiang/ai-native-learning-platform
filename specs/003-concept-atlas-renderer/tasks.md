@@ -96,30 +96,30 @@ nodes.
   concept/relationship gets a coordinate attached — depends on T003
 - [X] T007 [US1] Run `node --test tests/unit/concept-atlas/react-flow-adapter.test.ts`
   — expect PASS
-- [ ] T008 [P] [US1] Implement `src/features/concept-atlas/components/ConceptNode.tsx`:
+- [X] T008 [P] [US1] Implement `src/features/concept-atlas/components/ConceptNode.tsx`:
   custom React Flow node rendering `masteryState` via the redundant
   ring+color+label encoding from
   `.claude/skills/concept-atlas/references/visual-language.md`'s table
   (dashed/gray "Unverified", thin blue "Exposed", thin amber "Weak", thick
   green "Solid")
-- [ ] T009 [P] [US1] Implement `src/features/concept-atlas/components/RelationshipEdge.tsx`:
+- [X] T009 [P] [US1] Implement `src/features/concept-atlas/components/RelationshipEdge.tsx`:
   custom React Flow edge rendering relationship `type` via line style
   (not color alone) plus an inline label, and `crossUnit` via a visually
   distinct stroke from within-unit edges, per `visual-language.md`
-- [ ] T010 [US1] Implement `src/features/concept-atlas/components/ConceptAtlas.tsx`:
+- [X] T010 [US1] Implement `src/features/concept-atlas/components/ConceptAtlas.tsx`:
   top-level client component — runs ELK layout (research.md's worker
   approach) on mount, renders unit regions as bounded containers (React
   Flow sub-flow/group nodes) with `ConceptNode`s inside and
   `RelationshipEdge`s between them — depends on T006, T008, T009
-- [ ] T011 [US1] Implement `src/app/courses/[courseId]/atlas/page.tsx`:
+- [X] T011 [US1] Implement `src/app/courses/[courseId]/atlas/page.tsx`:
   loads `tests/fixtures/concept-atlas-demo.json` as the `CourseGraph` (per
   spec.md Assumptions — real per-course data is `course-graph-ingestion`'s
   job) and renders `ConceptAtlas` — depends on T010
-- [ ] T012 [P] [US1] Write `tests/visual/concept-atlas.spec.ts`'s first
+- [X] T012 [P] [US1] Write `tests/visual/concept-atlas.spec.ts`'s first
   screenshot: whole-course atlas, per
   `.claude/skills/concept-atlas/references/testing.md`'s required list —
   depends on T011
-- [ ] T013 [US1] Run `npx playwright test tests/visual/concept-atlas.spec.ts`
+- [X] T013 [US1] Run `npx playwright test tests/visual/concept-atlas.spec.ts`
   — expect the whole-course-atlas screenshot to establish a baseline with
   zero overlapping/clipped nodes (spec SC-001)
 
