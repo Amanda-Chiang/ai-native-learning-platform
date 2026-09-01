@@ -1,0 +1,38 @@
+{
+  "nonStandardRelationType": {
+    "description": "A relationship that doesn't cleanly fit the seven standard PRD S10.2 relation types, recorded as \"other\" with a required relationTypeNote explaining the resolution, per spec.md Edge Cases and research.md's decision.",
+    "edgeId": "edge-pq-other-heap-sort",
+    "resolvedAs": "relationType: \"other\", with relationTypeNote explaining that Heap Sort instantiates the Priority Queue interface's generic sort pattern rather than being explained-by, contained-in, contrasted-with, generalized-from, or exemplifying it -- none of the seven standard types fit \"produces a concrete instance of\"."
+  },
+  "multiAliasConcept": {
+    "description": "A concept appearing under two different names in different source artifacts, represented as one canonical concept with recorded aliases rather than two separate concepts, per spec.md Edge Cases.",
+    "conceptId": "concept-bfs",
+    "canonicalName": "Breadth-First Search",
+    "aliases": ["BFS"],
+    "evidence": "lecture-09-breadth-first-search's own title spells out \"Breadth-First Search\", while lecture-10-depth-first-search's \"Previously\" section refers back to it only as \"Breadth-First Search (BFS)\" -- both terms are real, source-grounded, and refer to the identical algorithm across two different lecture artifacts."
+  },
+  "multiTargetEvidence": {
+    "description": "A hypothetical (illustrative, not a real logged student interaction) piece of evidence that plausibly supports more than one concept and more than one relationship at once, demonstrating the EvidenceEvent schema's conceptIds[]/edgeIds[] arrays are exercised together, per spec.md Edge Cases and PRD S10.3.",
+    "example": {
+      "id": "evidence-example-bfs-fifo-connection",
+      "userId": "user-example",
+      "courseId": "course-6006",
+      "conceptIds": ["concept-bfs", "concept-graph"],
+      "edgeIds": ["edge-graph-prerequisite-bfs", "edge-level-sets-mechanism-bfs"],
+      "evidenceType": "relationship_explanation",
+      "correctness": true,
+      "graderConfidence": 0.85,
+      "assistanceLevel": 1,
+      "difficulty": 0.6,
+      "transferDistance": 0.2,
+      "assessmentAttemptId": "attempt-example-001",
+      "createdAt": "2026-09-01T00:00:00.000Z"
+    },
+    "note": "A single answer explaining why BFS requires a graph as input AND why level sets are what make BFS work is evidence about two concepts and two edges simultaneously -- exactly the case the schema's array-valued conceptIds/edgeIds fields exist to support, per data-model.md."
+  },
+  "ambiguousQuestion": {
+    "description": "A deliberately ambiguous question, included so the question-ambiguity evaluation rubric (spec User Story 3) has a real positive test case rather than only clean examples, per spec.md Edge Cases.",
+    "qaPairId": "qa-ps4-4-2-closer-to-ambiguous",
+    "whyAmbiguous": "\"Closer to\" a max-heap or min-heap is not a metric defined anywhere in the course material (Lecture 8 only defines the Max-Heap Property as a strict per-node boolean condition), so the question has no single correct answer as phrased."
+  }
+}

@@ -1,0 +1,423 @@
+[
+  {
+    "id": "concept-sequence-interface",
+    "courseId": "course-6006",
+    "unitId": "unit-foundations",
+    "canonicalName": "Sequence interface",
+    "aliases": [],
+    "description": "An interface maintaining a sequence of items where order is extrinsic, supporting build/len, static get_at/set_at, and dynamic insert/delete operations at either end or a given index.",
+    "importanceScore": 0.8,
+    "sourceAnchors": [
+      { "artifactId": "lecture-02-data-structures", "locator": "Sequence interface section", "excerpt": "Maintain a sequence of items (order is extrinsic)" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.95
+  },
+  {
+    "id": "concept-set-interface",
+    "courseId": "course-6006",
+    "unitId": "unit-foundations",
+    "canonicalName": "Set interface",
+    "aliases": ["dictionary"],
+    "description": "An interface maintaining a set of items with unique keys, where order is intrinsic (by key); supports build/len, find, insert/delete, and Order operations. A dictionary is a Set without the Order operations.",
+    "importanceScore": 0.8,
+    "sourceAnchors": [
+      { "artifactId": "lecture-02-data-structures", "locator": "Set interface section", "excerpt": "Sequence about extrinsic order, set is about intrinsic order" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.95
+  },
+  {
+    "id": "concept-array-sequence",
+    "courseId": "course-6006",
+    "unitId": "unit-foundations",
+    "canonicalName": "Array Sequence",
+    "aliases": [],
+    "description": "A Sequence implementation giving Theta(1) get_at/set_at, but Theta(n) dynamic insert/delete because of reallocation and shifting.",
+    "importanceScore": 0.6,
+    "sourceAnchors": [
+      { "artifactId": "lecture-02-data-structures", "locator": "Array Sequence section", "excerpt": "Array is great for static operations! get_at(i) and set_at(i, x) in Theta(1) time!" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-linked-list-sequence",
+    "courseId": "course-6006",
+    "unitId": "unit-foundations",
+    "canonicalName": "Linked List Sequence",
+    "aliases": [],
+    "description": "A pointer-based Sequence where each node stores an item and a pointer to the next node; insert/delete from the front run in Theta(1) time, but get_at/set_at cost Theta(n).",
+    "importanceScore": 0.6,
+    "sourceAnchors": [
+      { "artifactId": "lecture-02-data-structures", "locator": "Linked List Sequence section", "excerpt": "Can now insert and delete from the front in Theta(1) time! Yay!" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-dynamic-array-sequence",
+    "courseId": "course-6006",
+    "unitId": "unit-foundations",
+    "canonicalName": "Dynamic Array Sequence",
+    "aliases": ["dynamic array"],
+    "description": "A Sequence that allocates extra space at a chosen fill ratio so reallocation doesn't happen on every dynamic operation, giving Theta(1) amortized cost for last-position insert/delete.",
+    "importanceScore": 0.75,
+    "sourceAnchors": [
+      { "artifactId": "lecture-02-data-structures", "locator": "Dynamic Array Sequence section", "excerpt": "Allocate extra space so reallocation does not occur with every dynamic operation" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-amortized-analysis",
+    "courseId": "course-6006",
+    "unitId": "unit-foundations",
+    "canonicalName": "Amortized analysis",
+    "aliases": [],
+    "description": "An analysis technique distributing cost over many operations: an operation has amortized cost T(n) if any k operations cost at most k*T(n) total, even if individual operations occasionally cost more.",
+    "importanceScore": 0.7,
+    "sourceAnchors": [
+      { "artifactId": "lecture-02-data-structures", "locator": "Amortized Analysis section", "excerpt": "Operation has amortized cost T(n) if k operations cost at most <= kT(n)" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-binary-tree",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Binary tree",
+    "aliases": [],
+    "description": "A pointer-based data structure with three pointers per node (item, parent, left, right), designed so operations run in O(h) time for root height h.",
+    "importanceScore": 0.85,
+    "sourceAnchors": [
+      { "artifactId": "lecture-06-binary-trees-1", "locator": "How? Binary Trees! section", "excerpt": "Binary tree is pointer-based data structure with three pointers per node" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.95
+  },
+  {
+    "id": "concept-traversal-order",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Traversal order",
+    "aliases": [],
+    "description": "The inherent order of a binary tree's nodes: every node in a node's left subtree comes before it, every node in its right subtree comes after.",
+    "importanceScore": 0.7,
+    "sourceAnchors": [
+      { "artifactId": "lecture-06-binary-trees-1", "locator": "Terminology section", "excerpt": "A binary tree has an inherent order: its traversal order" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-tree-height-depth",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Tree height and depth",
+    "aliases": [],
+    "description": "depth(X) is the length of the path from node X to the root; height(X) is the max depth of any node in the subtree rooted at X. Tree operations are designed to run in O(h) time.",
+    "importanceScore": 0.6,
+    "sourceAnchors": [
+      { "artifactId": "lecture-06-binary-trees-1", "locator": "Terminology section", "excerpt": "Idea: Design operations to run in O(h) time for root height h, and maintain h = O(log n)" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-bst",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Binary Search Tree (BST)",
+    "aliases": ["Set Binary Tree"],
+    "description": "A binary tree whose traversal order equals sorted key order, equivalently: for every node, every key in its left subtree is <= its key <= every key in its right subtree.",
+    "importanceScore": 0.85,
+    "sourceAnchors": [
+      { "artifactId": "lecture-06-binary-trees-1", "locator": "Application: Set section", "excerpt": "Set Binary Tree (a.k.a. Binary Search Tree / BST): Traversal order is sorted order increasing by key" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.95
+  },
+  {
+    "id": "concept-subtree-size-augmentation",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Subtree size augmentation",
+    "aliases": [],
+    "description": "Maintaining a node.size field at each binary tree node, updated in O(h) time per insert/delete, so a subtree's size can be checked in O(1) time -- used to implement Sequence-style subtree_at(i).",
+    "importanceScore": 0.6,
+    "sourceAnchors": [
+      { "artifactId": "lecture-06-binary-trees-1", "locator": "Application: Sequence section", "excerpt": "Maintain the size of each node's subtree at the node via augmentation" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "concept-successor-predecessor-navigation",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Successor/predecessor navigation",
+    "aliases": [],
+    "description": "Finding the next (or previous) node in a binary tree's traversal order: if X has a right child, its successor is the first node of the right subtree; otherwise it is the lowest ancestor for which X is in its left subtree.",
+    "importanceScore": 0.55,
+    "sourceAnchors": [
+      { "artifactId": "lecture-06-binary-trees-1", "locator": "Tree Navigation section", "excerpt": "Find successor of node <X> in the traversal order (predecessor is symmetric)" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "concept-priority-queue-interface",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Priority Queue interface",
+    "aliases": [],
+    "description": "A Set interface optimized for build, insert, delete_max, and find_max -- keeping track of many items and quickly accessing/removing the most important one.",
+    "importanceScore": 0.8,
+    "sourceAnchors": [
+      { "artifactId": "lecture-08-binary-heaps", "locator": "Priority Queue Interface section", "excerpt": "Order items by key = priority so Set interface (not Sequence interface)" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-implicit-complete-binary-tree",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Implicit complete binary tree",
+    "aliases": ["array as a complete binary tree"],
+    "description": "Interpreting an array as a complete binary tree with no stored pointers, using index arithmetic (left(i)=2i+1, right(i)=2i+2, parent(i)=floor((i-1)/2)) to compute neighbors.",
+    "importanceScore": 0.75,
+    "sourceAnchors": [
+      { "artifactId": "lecture-08-binary-heaps", "locator": "Implicit Complete Tree section", "excerpt": "Complete binary tree structure can be implicit instead of storing pointers" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-max-heap-property",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Max-Heap property",
+    "aliases": [],
+    "description": "At node i, Q[i] >= Q[j] for j in {left(i), right(i)}. A max-heap satisfies this at every node, which implies every node is >= all nodes in its subtree, so the maximum item is always at the root.",
+    "importanceScore": 0.85,
+    "sourceAnchors": [
+      { "artifactId": "lecture-08-binary-heaps", "locator": "Binary Heaps section", "excerpt": "Max-Heap Property at node i: Q[i] >= Q[j] for j in {left(i), right(i)}" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.95
+  },
+  {
+    "id": "concept-heap-insert",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Heap insert (max_heapify_up)",
+    "aliases": [],
+    "description": "Append the new item to the end of the array, then swap with its parent repeatedly until the Max-Heap Property holds. Running time Theta(log n).",
+    "importanceScore": 0.75,
+    "sourceAnchors": [
+      { "artifactId": "lecture-08-binary-heaps", "locator": "Heap Insert section", "excerpt": "max_heapify_up(i): swap with parent until Max-Heap Property" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-heap-delete-max",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Heap delete_max (max_heapify_down)",
+    "aliases": [],
+    "description": "Swap the root with the last item, remove the last item, then swap the new root down with its larger child repeatedly until the Max-Heap Property holds. Running time Theta(log n).",
+    "importanceScore": 0.75,
+    "sourceAnchors": [
+      { "artifactId": "lecture-08-binary-heaps", "locator": "Heap Delete Max section", "excerpt": "max_heapify_down(i): swap root with larger child until Max-Heap Property" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-heap-sort",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Heap Sort",
+    "aliases": [],
+    "description": "The sorting algorithm produced by plugging a binary max-heap into priority queue sort (build, then repeatedly delete_max), running in O(n log n) time, in-place.",
+    "importanceScore": 0.8,
+    "sourceAnchors": [
+      { "artifactId": "lecture-08-binary-heaps", "locator": "Heap Sort section", "excerpt": "Plugging max-heap into priority queue sort gives us a new sorting algorithm" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-linear-build-heap",
+    "courseId": "course-6006",
+    "unitId": "unit-trees",
+    "canonicalName": "Linear-time build heap",
+    "aliases": [],
+    "description": "Building a heap by treating the full array as a complete tree from the start and calling max_heapify_down from the last index down to the first (leaves-up), which costs O(n) total rather than the Omega(n log n) of repeated inserts.",
+    "importanceScore": 0.6,
+    "sourceAnchors": [
+      { "artifactId": "lecture-08-binary-heaps", "locator": "Linear Build Heap section", "excerpt": "Idea! Treat full array as a complete binary tree from start, then max_heapify_down(i) for i from n-1 to 0" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "concept-graph",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Graph G=(V,E)",
+    "aliases": ["graph"],
+    "description": "A set of vertices V and a set of pairs of vertices E, either directed (ordered pairs) or undirected (unordered pairs); this course assumes simple graphs.",
+    "importanceScore": 0.9,
+    "sourceAnchors": [
+      { "artifactId": "lecture-09-breadth-first-search", "locator": "Graph Definitions section", "excerpt": "Graph G = (V, E) is a set of vertices V and a set of pairs of vertices E" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.95
+  },
+  {
+    "id": "concept-adjacency-list",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Adjacency list representation",
+    "aliases": [],
+    "description": "Storing a graph as a Set structure mapping each vertex u to Adj(u), itself stored as an array or linked list, giving Theta(|V|+|E|) space and defining 'linear time' for graph algorithms.",
+    "importanceScore": 0.75,
+    "sourceAnchors": [
+      { "artifactId": "lecture-09-breadth-first-search", "locator": "Graph Representations section", "excerpt": "for each u, need to store Adj(u) in another data structure called an adjacency list" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-path-distance",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Path and distance",
+    "aliases": [],
+    "description": "A path is a sequence of vertices connected by edges; distance delta(u,v) is the length of the shortest path from u to v, defined as infinity if v is unreachable.",
+    "importanceScore": 0.75,
+    "sourceAnchors": [
+      { "artifactId": "lecture-09-breadth-first-search", "locator": "Paths section", "excerpt": "The distance delta(u, v) from u to v is the minimum length of any path from u to v" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-shortest-paths-tree",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Shortest paths tree",
+    "aliases": [],
+    "description": "Rather than returning every full shortest path, store each vertex's parent P(v) -- the second-to-last vertex on a shortest path from s -- forming a tree of size O(|V|).",
+    "importanceScore": 0.75,
+    "sourceAnchors": [
+      { "artifactId": "lecture-09-breadth-first-search", "locator": "Shortest Paths Tree section", "excerpt": "Set of parents comprise a shortest paths tree with O(|V|) size!" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-bfs",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Breadth-First Search",
+    "aliases": ["BFS"],
+    "description": "Explores graph nodes in increasing order of distance from a source, computing level sets L_i, and runs in O(|V|+|E|) time -- solves Single Source Shortest Paths.",
+    "importanceScore": 0.95,
+    "sourceAnchors": [
+      { "artifactId": "lecture-09-breadth-first-search", "locator": "Breadth-First Search (BFS) section", "excerpt": "Idea! Explore graph nodes in increasing order of distance" },
+      { "artifactId": "lecture-10-depth-first-search", "locator": "Previously section", "excerpt": "Breadth-First Search (BFS) - algorithm that solves Single Source Shortest Paths" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.95
+  },
+  {
+    "id": "concept-level-sets",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Level sets",
+    "aliases": ["L_i"],
+    "description": "L_i is the set of all vertices at distance i from the BFS source; BFS computes each L_i from L_{i-1} by examining every neighbor of every vertex in L_{i-1} not already placed at an earlier level.",
+    "importanceScore": 0.7,
+    "sourceAnchors": [
+      { "artifactId": "lecture-09-breadth-first-search", "locator": "Breadth-First Search (BFS) section", "excerpt": "Goal: Compute level sets L_i = {v | v in V and d(s, v) = i}" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "concept-dfs",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Depth-First Search",
+    "aliases": ["DFS"],
+    "description": "Visits outgoing adjacencies recursively, never revisiting a vertex, following any path until stuck then backtracking; solves Single Source Reachability in O(|E|) time.",
+    "importanceScore": 0.95,
+    "sourceAnchors": [
+      { "artifactId": "lecture-10-depth-first-search", "locator": "Depth-First Search (DFS) section", "excerpt": "Idea! Visit outgoing adjacencies recursively, but never revisit a vertex" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.95
+  },
+  {
+    "id": "concept-full-bfs-dfs",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Full-BFS and Full-DFS",
+    "aliases": [],
+    "description": "Repeating a search algorithm A on any unvisited vertex until all vertices have been visited, to explore an entire graph rather than just vertices reachable from one source; runs in O(|V|+|E|) time.",
+    "importanceScore": 0.7,
+    "sourceAnchors": [
+      { "artifactId": "lecture-10-depth-first-search", "locator": "Full-BFS and Full-DFS section", "excerpt": "Repeat the following until all vertices have been visited: Choose an arbitrary unvisited vertex s" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-connected-components",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Connected components",
+    "aliases": [],
+    "description": "A partition of an undirected graph's vertices into subsets that are each internally connected with no edges between different subsets.",
+    "importanceScore": 0.7,
+    "sourceAnchors": [
+      { "artifactId": "lecture-10-depth-first-search", "locator": "Graph Connectivity section", "excerpt": "Connected_Components(G): given undirected graph G = (V, E), return partition of V into subsets" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-topological-sort",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Topological sort",
+    "aliases": ["topological order"],
+    "description": "An ordering f on the vertices of a DAG such that every edge (u,v) satisfies f(u) < f(v); the reverse of a Full-DFS finishing order is a topological order.",
+    "importanceScore": 0.8,
+    "sourceAnchors": [
+      { "artifactId": "lecture-10-depth-first-search", "locator": "Topological Sort section", "excerpt": "Claim: If G = (V, E) is a DAG, the reverse of a finishing order is a topological order" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "concept-cycle-detection",
+    "courseId": "course-6006",
+    "unitId": "unit-graphs",
+    "canonicalName": "Cycle detection",
+    "aliases": [],
+    "description": "Checking whether a graph is acyclic by testing whether the reverse finishing order of Full-DFS is a valid topological order; if not, DFS traversed an edge from a vertex to one of its own ancestors.",
+    "importanceScore": 0.7,
+    "sourceAnchors": [
+      { "artifactId": "lecture-10-depth-first-search", "locator": "Cycle Detection section", "excerpt": "If reverse finishing order for Full-DFS is not a topological order, then G must contain a cycle" }
+    ],
+    "status": "confirmed",
+    "confidence": 0.85
+  }
+]

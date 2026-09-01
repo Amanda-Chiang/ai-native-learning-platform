@@ -1,0 +1,303 @@
+[
+  {
+    "id": "edge-array-part-of-sequence",
+    "sourceConceptId": "concept-array-sequence",
+    "targetConceptId": "concept-sequence-interface",
+    "relationType": "part_of",
+    "explanation": "Array Sequence is one concrete implementation of the Sequence interface.",
+    "sourceAnchors": [{ "artifactId": "lecture-02-data-structures", "locator": "Array Sequence section", "excerpt": "Array is great for static operations" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-linked-list-part-of-sequence",
+    "sourceConceptId": "concept-linked-list-sequence",
+    "targetConceptId": "concept-sequence-interface",
+    "relationType": "part_of",
+    "explanation": "Linked List Sequence is one concrete implementation of the Sequence interface.",
+    "sourceAnchors": [{ "artifactId": "lecture-02-data-structures", "locator": "Linked List Sequence section", "excerpt": "Pointer data structure (this is not related to a Python \"list\")" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-dynamic-array-part-of-sequence",
+    "sourceConceptId": "concept-dynamic-array-sequence",
+    "targetConceptId": "concept-sequence-interface",
+    "relationType": "part_of",
+    "explanation": "Dynamic Array Sequence is one concrete implementation of the Sequence interface.",
+    "sourceAnchors": [{ "artifactId": "lecture-02-data-structures", "locator": "Dynamic Array Sequence section", "excerpt": "Make an array efficient for last dynamic operations" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-amortized-mechanism-dynamic-array",
+    "sourceConceptId": "concept-amortized-analysis",
+    "targetConceptId": "concept-dynamic-array-sequence",
+    "relationType": "mechanism_for",
+    "explanation": "Amortized analysis is the technique that explains why a Dynamic Array's costly reallocations still average out to O(1) per operation.",
+    "sourceAnchors": [{ "artifactId": "lecture-02-data-structures", "locator": "Amortized Analysis section", "excerpt": "Inserting into a dynamic array takes Theta(1) amortized time" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-array-contrasts-linked-list",
+    "sourceConceptId": "concept-array-sequence",
+    "targetConceptId": "concept-linked-list-sequence",
+    "relationType": "contrasts_with",
+    "explanation": "Array gives O(1) static get_at/set_at but O(n) dynamic ops; Linked List gives the opposite tradeoff -- O(1) front insert/delete but O(n) get_at/set_at.",
+    "sourceAnchors": [{ "artifactId": "lecture-02-data-structures", "locator": "Summary table (worst-case, from the lecture)", "excerpt": "Array: get_at 1, insert_first n. Linked List: get_at n, insert_first 1" }],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "edge-dynamic-array-used-in-pq",
+    "sourceConceptId": "concept-dynamic-array-sequence",
+    "targetConceptId": "concept-priority-queue-interface",
+    "relationType": "used_in",
+    "explanation": "The naive unordered/sorted Priority Queue implementations in Lecture 8 are both built directly on a Dynamic Array.",
+    "sourceAnchors": [{ "artifactId": "lecture-08-binary-heaps", "locator": "Priority Queue: Array section", "excerpt": "Store elements in an unordered dynamic array" }],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "edge-binary-tree-generalizes-bst",
+    "sourceConceptId": "concept-binary-tree",
+    "targetConceptId": "concept-bst",
+    "relationType": "generalizes_to",
+    "explanation": "A Binary Search Tree is a binary tree whose traversal order is additionally constrained to sorted key order -- BST specializes the general binary tree structure.",
+    "sourceAnchors": [{ "artifactId": "lecture-06-binary-trees-1", "locator": "Application: Set section", "excerpt": "Set Binary Tree (a.k.a. Binary Search Tree / BST): Traversal order is sorted order increasing by key" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-traversal-order-mechanism-bst",
+    "sourceConceptId": "concept-traversal-order",
+    "targetConceptId": "concept-bst",
+    "relationType": "mechanism_for",
+    "explanation": "The BST property is defined entirely in terms of traversal order matching sorted key order -- traversal order is the mechanism the BST property rests on.",
+    "sourceAnchors": [{ "artifactId": "lecture-06-binary-trees-1", "locator": "Application: Set section", "excerpt": "Equivalent to BST Property: for every node, every key in left subtree <= node's key <= every key in right subtree" }],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "edge-tree-height-used-in-successor",
+    "sourceConceptId": "concept-tree-height-depth",
+    "targetConceptId": "concept-successor-predecessor-navigation",
+    "relationType": "used_in",
+    "explanation": "Successor/predecessor navigation's running time is stated directly in terms of tree height: O(h).",
+    "sourceAnchors": [{ "artifactId": "lecture-06-binary-trees-1", "locator": "Tree Navigation section", "excerpt": "Running time is O(h) where h is the height of the tree" }],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "edge-subtree-augmentation-used-in-binary-tree",
+    "sourceConceptId": "concept-subtree-size-augmentation",
+    "targetConceptId": "concept-binary-tree",
+    "relationType": "used_in",
+    "explanation": "Subtree size augmentation is a technique applied to binary tree nodes to support fast Sequence-style operations like subtree_at(i).",
+    "sourceAnchors": [{ "artifactId": "lecture-06-binary-trees-1", "locator": "Application: Sequence section", "excerpt": "Maintain the size of each node's subtree at the node via augmentation" }],
+    "status": "confirmed",
+    "confidence": 0.8
+  },
+  {
+    "id": "edge-set-generalizes-pq",
+    "sourceConceptId": "concept-set-interface",
+    "targetConceptId": "concept-priority-queue-interface",
+    "relationType": "generalizes_to",
+    "explanation": "The Priority Queue interface is explicitly described as a Set interface optimized for a particular subset of Set operations.",
+    "sourceAnchors": [{ "artifactId": "lecture-08-binary-heaps", "locator": "Priority Queue Interface section", "excerpt": "Order items by key = priority so Set interface (not Sequence interface)" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-implicit-tree-mechanism-max-heap",
+    "sourceConceptId": "concept-implicit-complete-binary-tree",
+    "targetConceptId": "concept-max-heap-property",
+    "relationType": "mechanism_for",
+    "explanation": "The Max-Heap Property is defined over the implicit complete-binary-tree interpretation of an array -- without that indexing scheme there is no 'parent'/'child' to compare.",
+    "sourceAnchors": [{ "artifactId": "lecture-08-binary-heaps", "locator": "Binary Heaps section", "excerpt": "Idea: keep larger elements higher in tree, but only locally" }],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "edge-max-heap-mechanism-heap-insert",
+    "sourceConceptId": "concept-max-heap-property",
+    "targetConceptId": "concept-heap-insert",
+    "relationType": "mechanism_for",
+    "explanation": "Heap insert's correctness argument is stated directly in terms of restoring the Max-Heap Property after appending a new leaf.",
+    "sourceAnchors": [{ "artifactId": "lecture-08-binary-heaps", "locator": "Heap Insert section", "excerpt": "Max-Heap Property guarantees all nodes >= descendants, except Q[i] might be > some of its ancestors" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-max-heap-mechanism-heap-delete-max",
+    "sourceConceptId": "concept-max-heap-property",
+    "targetConceptId": "concept-heap-delete-max",
+    "relationType": "mechanism_for",
+    "explanation": "Heap delete_max's correctness argument is stated directly in terms of restoring the Max-Heap Property after moving the last item to the root.",
+    "sourceAnchors": [{ "artifactId": "lecture-08-binary-heaps", "locator": "Heap Delete Max section", "excerpt": "Max-Heap Property guarantees all nodes >= descendants, except Q[i] might be < some descendants" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-heap-insert-used-in-heap-sort",
+    "sourceConceptId": "concept-heap-insert",
+    "targetConceptId": "concept-heap-sort",
+    "relationType": "used_in",
+    "explanation": "Heap Sort's build phase repeatedly calls heap insert (or the equivalent linear-build variant).",
+    "sourceAnchors": [{ "artifactId": "lecture-08-binary-heaps", "locator": "Priority Queue Sort section", "excerpt": "build(A), e.g., insert items one by one in input order" }],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "edge-heap-delete-max-used-in-heap-sort",
+    "sourceConceptId": "concept-heap-delete-max",
+    "targetConceptId": "concept-heap-sort",
+    "relationType": "used_in",
+    "explanation": "Heap Sort's output phase repeatedly calls delete_max to produce (reverse) sorted order.",
+    "sourceAnchors": [{ "artifactId": "lecture-08-binary-heaps", "locator": "Priority Queue Sort section", "excerpt": "Repeatedly delete_min() (or delete_max()) to determine (reverse) sorted order" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-pq-other-heap-sort",
+    "sourceConceptId": "concept-priority-queue-interface",
+    "targetConceptId": "concept-heap-sort",
+    "relationType": "other",
+    "relationTypeNote": "Heap Sort is the specific sorting algorithm produced by plugging a binary heap into the generic Priority Queue Sort pattern -- not quite 'mechanism_for' (the heap doesn't explain why the interface works, it instantiates it) or 'example_of' (Heap Sort is an algorithm, not a priority queue). No standard relation type captures 'is instantiated by/produces an instance', so this is recorded as 'other' per spec.md's required edge case.",
+    "explanation": "Plugging a max-heap into the generic priority-queue-sort pattern produces the specific algorithm Heap Sort.",
+    "sourceAnchors": [{ "artifactId": "lecture-08-binary-heaps", "locator": "Heap Sort section", "excerpt": "Plugging max-heap into priority queue sort gives us a new sorting algorithm" }],
+    "status": "confirmed",
+    "confidence": 0.75
+  },
+  {
+    "id": "edge-linear-build-contrasts-heap-insert",
+    "sourceConceptId": "concept-linear-build-heap",
+    "targetConceptId": "concept-heap-insert",
+    "relationType": "contrasts_with",
+    "explanation": "Linear-time build (leaves-up max_heapify_down) is explicitly contrasted with naive repeated heap insert (root-down max_heapify_up), which costs Omega(n log n) worst case.",
+    "sourceAnchors": [{ "artifactId": "lecture-08-binary-heaps", "locator": "Linear Build Heap section", "excerpt": "Inserting n items into heap calls max_heapify_up(i) for i from 0 to n-1 (root down)" }],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "edge-adjacency-list-used-in-graph",
+    "sourceConceptId": "concept-adjacency-list",
+    "targetConceptId": "concept-graph",
+    "relationType": "used_in",
+    "explanation": "Adjacency lists are the representation used to actually store a graph's edges in memory.",
+    "sourceAnchors": [{ "artifactId": "lecture-09-breadth-first-search", "locator": "Graph Representations section", "excerpt": "To store a graph G = (V, E), we need to store the outgoing edges Adj(u) for all u" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-path-distance-used-in-shortest-paths-tree",
+    "sourceConceptId": "concept-path-distance",
+    "targetConceptId": "concept-shortest-paths-tree",
+    "relationType": "used_in",
+    "explanation": "The shortest paths tree is defined using the distance function: each vertex's parent is the second-to-last vertex on a shortest (i.e. distance-minimizing) path from the source.",
+    "sourceAnchors": [{ "artifactId": "lecture-09-breadth-first-search", "locator": "Shortest Paths Tree section", "excerpt": "for all v in V, store its parent P(v): second to last vertex on a shortest path from s" }],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "edge-bfs-mechanism-shortest-paths-tree",
+    "sourceConceptId": "concept-bfs",
+    "targetConceptId": "concept-shortest-paths-tree",
+    "relationType": "mechanism_for",
+    "explanation": "BFS is the algorithm that computes delta(s,v) and P(v) for every v, i.e. it produces the shortest paths tree.",
+    "sourceAnchors": [{ "artifactId": "lecture-09-breadth-first-search", "locator": "Breadth-First Search (BFS) section", "excerpt": "How to compute delta(s, v) and P(v) for all v in V?" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-level-sets-mechanism-bfs",
+    "sourceConceptId": "concept-level-sets",
+    "targetConceptId": "concept-bfs",
+    "relationType": "mechanism_for",
+    "explanation": "BFS is defined as the process of computing level sets L_i in increasing order of i -- level sets are the mechanism that makes BFS work.",
+    "sourceAnchors": [{ "artifactId": "lecture-09-breadth-first-search", "locator": "Breadth-First Search (BFS) section", "excerpt": "Inductive Step: To compute L_i: for every vertex u in L_{i-1}..." }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-graph-prerequisite-bfs",
+    "sourceConceptId": "concept-graph",
+    "targetConceptId": "concept-bfs",
+    "relationType": "prerequisite_for",
+    "explanation": "BFS operates on a graph G=(V,E); the graph definition is a direct prerequisite for stating what BFS does.",
+    "sourceAnchors": [{ "artifactId": "lecture-09-breadth-first-search", "locator": "Graph Definitions / Breadth-First Search (BFS) sections", "excerpt": "New Unit: Graphs! ... Breadth-First Search" }],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "edge-graph-prerequisite-dfs",
+    "sourceConceptId": "concept-graph",
+    "targetConceptId": "concept-dfs",
+    "relationType": "prerequisite_for",
+    "explanation": "DFS operates on a graph G=(V,E); the graph definition is a direct prerequisite for stating what DFS does.",
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Previously section", "excerpt": "Graph definitions (directed/undirected, simple, neighbors, degree)" }],
+    "status": "confirmed",
+    "confidence": 0.85
+  },
+  {
+    "id": "edge-bfs-contrasts-dfs",
+    "sourceConceptId": "concept-bfs",
+    "targetConceptId": "concept-dfs",
+    "relationType": "contrasts_with",
+    "explanation": "BFS solves Single Source Shortest Paths in O(|V|+|E|) time; DFS solves only Single Source Reachability, not shortest paths, in O(|E|) time -- an explicit contrast drawn in Lecture 10.",
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Depth-First Search (DFS) section", "excerpt": "Solves Single Source Reachability, not SSSP. Useful for solving other problems (later!)" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-dfs-mechanism-full-bfs-dfs",
+    "sourceConceptId": "concept-dfs",
+    "targetConceptId": "concept-full-bfs-dfs",
+    "relationType": "mechanism_for",
+    "explanation": "Full-DFS is defined as repeating DFS from every unvisited vertex.",
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Full-BFS and Full-DFS section", "excerpt": "We call this algorithm Full-A, specifically Full-BFS or Full-DFS if A is BFS or DFS" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-bfs-mechanism-full-bfs-dfs",
+    "sourceConceptId": "concept-bfs",
+    "targetConceptId": "concept-full-bfs-dfs",
+    "relationType": "mechanism_for",
+    "explanation": "Full-BFS is defined as repeating BFS from every unvisited vertex.",
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Full-BFS and Full-DFS section", "excerpt": "We call this algorithm Full-A, specifically Full-BFS or Full-DFS if A is BFS or DFS" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-full-bfs-dfs-mechanism-connected-components",
+    "sourceConceptId": "concept-full-bfs-dfs",
+    "targetConceptId": "concept-connected-components",
+    "relationType": "mechanism_for",
+    "explanation": "Connected components are computed directly by running Full-A and grouping each run's visited vertices into one component.",
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Graph Connectivity section", "excerpt": "Run Full-A. For each run of A, put visited vertices in a connected component" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-dfs-mechanism-topological-sort",
+    "sourceConceptId": "concept-dfs",
+    "targetConceptId": "concept-topological-sort",
+    "relationType": "mechanism_for",
+    "explanation": "A topological order is obtained directly from the reverse of Full-DFS's finishing order.",
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Topological Sort section", "excerpt": "Claim: If G = (V, E) is a DAG, the reverse of a finishing order is a topological order" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  },
+  {
+    "id": "edge-dfs-mechanism-cycle-detection",
+    "sourceConceptId": "concept-dfs",
+    "targetConceptId": "concept-cycle-detection",
+    "relationType": "mechanism_for",
+    "explanation": "Cycle detection is performed by checking whether Full-DFS's reverse finishing order fails to be a topological order, or equivalently whether DFS traverses an edge to an ancestor.",
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Cycle Detection section", "excerpt": "Claim: If G contains a cycle, Full-DFS will traverse an edge from v to an ancestor of v" }],
+    "status": "confirmed",
+    "confidence": 0.9
+  }
+]

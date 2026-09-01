@@ -1,0 +1,202 @@
+[
+  {
+    "id": "qa-ps4-4-1a-skew",
+    "question": "Given a Set Binary Tree that satisfies the BST property but is not height-balanced, identify which nodes are not height-balanced and compute their skew.",
+    "answer": "Skew of a node is the difference between its left and right subtree heights. Walk the tree computing height bottom-up; any node whose |left height - right height| > 1 is unbalanced and its skew is that difference.",
+    "targetConceptIds": ["concept-bst"],
+    "targetEdgeIds": [],
+    "assessmentType": "retrieval",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-1(a)", "excerpt": "Indicate the keys of all nodes that are not height-balanced and compute their skew" }]
+  },
+  {
+    "id": "qa-ps4-4-1b-insert-delete",
+    "question": "Perform a sequence of insert/delete operations on a BST by adding or removing leaves (swapping a key down into a leaf when deleting an internal node), without using rotations. Draw the tree after each step.",
+    "answer": "Insert always adds a new leaf that preserves the BST property. Delete of a leaf simply detaches it; delete of an internal node swaps its key with its predecessor or successor (which is guaranteed to be a leaf or have only one child) and recurses, per the Delete algorithm in Lecture 6.",
+    "targetConceptIds": ["concept-bst"],
+    "targetEdgeIds": [],
+    "assessmentType": "application",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-1(b)", "excerpt": "adding or removing a leaf while maintaining the binary search tree property" }]
+  },
+  {
+    "id": "qa-ps4-4-1c-rotations",
+    "question": "For each unbalanced node found above, draw the trees resulting from rotating it left and right in the original tree, and state whether each result is height-balanced (satisfies the AVL property).",
+    "answer": "A rotation at an unbalanced node redistributes one subtree level between it and its child; whether the result is height-balanced depends on the skew values of both the node and its child before rotation -- not every single rotation is guaranteed to fix balance if a double rotation is required.",
+    "targetConceptIds": ["concept-bst", "concept-tree-height-depth"],
+    "targetEdgeIds": [],
+    "assessmentType": "application",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-1(c)", "excerpt": "draw the two trees that result from rotating the node in the original tree left and right" }]
+  },
+  {
+    "id": "qa-ps4-4-2-classify",
+    "question": "For the array [4, 12, 8, 21, 14, 9, 17], draw it as a complete binary tree and state whether it is a max-heap, a min-heap, or neither.",
+    "answer": "Neither: as a complete tree, node 4 (root) has children 12 and 8, both larger, violating the Max-Heap Property; and node 4 is smaller than only some descendants while other pairs (e.g. 21 at index 3 vs its parent 12) violate the Min-Heap Property too.",
+    "targetConceptIds": ["concept-max-heap-property"],
+    "targetEdgeIds": [],
+    "assessmentType": "retrieval",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-2(a)", "excerpt": "state whether the tree is a max-heap, a min-heap, or neither" }]
+  },
+  {
+    "id": "qa-ps4-4-2-closer-to-ambiguous",
+    "question": "Is the array [4, 12, 8, 21, 14, 9, 17] from Problem 4-2(a) 'closer to' being a max-heap or a min-heap?",
+    "answer": "Ambiguous as phrased: 'closer to' is not a metric defined anywhere in Lecture 8 (which only defines the Max-Heap Property as a strict yes/no per-node condition). The array satisfies neither property exactly, and there is no course-defined distance measure to compare 'how heap-like' it is in either direction -- a well-formed question would instead ask for the minimum number of swaps to reach each, which the source problem doesn't ask.",
+    "targetConceptIds": ["concept-max-heap-property"],
+    "targetEdgeIds": [],
+    "assessmentType": "retrieval",
+    "isAmbiguous": true,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-2(a) array", "excerpt": "[4, 12, 8, 21, 14, 9, 17]" }]
+  },
+  {
+    "id": "qa-ps4-4-3a-top-k",
+    "question": "Given an unsorted array of (score, registration-number) pairs and integer k, describe an O(|A| + k log|A|)-time algorithm to return the registration numbers of the k highest-scoring entries.",
+    "answer": "Build a max-heap from A in O(|A|) time using the linear-build-heap technique, then call delete_max k times (each O(log|A|)), collecting the registration numbers -- total O(|A| + k log|A|).",
+    "targetConceptIds": ["concept-heap-delete-max", "concept-priority-queue-interface"],
+    "targetEdgeIds": ["edge-max-heap-mechanism-heap-delete-max"],
+    "assessmentType": "application",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-3(a)", "excerpt": "describe an O(|A| + k log |A|)-time algorithm to return the registration numbers of k gardens" }]
+  },
+  {
+    "id": "qa-ps4-4-3b-threshold-prune",
+    "question": "Given a max-heap A of (score, id) pairs and a threshold x, why can an O(n_x)-time algorithm (n_x = number of results) find every entry scoring above x by pruning subtrees, and what property makes this correct?",
+    "answer": "The Max-Heap Property guarantees every descendant of a node is <= that node's score. So the moment a node's score is <= x, none of its descendants can exceed x either, and that entire subtree can be skipped -- the algorithm only ever visits nodes that are themselves > x (or their O(1)-cost ancestors), bounding the work by n_x.",
+    "targetConceptIds": ["concept-max-heap-property"],
+    "targetEdgeIds": ["edge-max-heap-mechanism-heap-delete-max"],
+    "assessmentType": "connection",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-3(b)", "excerpt": "describe an O(nx)-time algorithm to return the registration numbers of all gardens with score larger than x" }]
+  },
+  {
+    "id": "qa-ps4-4-4-solar-supply",
+    "question": "Design a database (initialize, power_on, power_off, customers) for assigning buildings with power demand to solar farms with limited capacity, matching the stated O(n)/O(log n)/O(k) worst-case bounds. What underlying structure choice does this problem transfer from lecture?",
+    "answer": "A Set AVL Tree (or equivalent balanced BST) keyed by available capacity, augmented to support fast max-capacity lookup, gives O(log n) power_on/power_off; a per-farm Sequence (e.g. linked list) of connected building names gives O(k) customers() -- the same balanced-tree-plus-augmentation toolkit from Lectures 6-8, applied to a new domain rather than reused verbatim.",
+    "targetConceptIds": ["concept-bst"],
+    "targetEdgeIds": [],
+    "assessmentType": "transfer",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-4", "excerpt": "Describe a database supporting the following operations" }]
+  },
+  {
+    "id": "qa-ps4-4-5-robot-wrangling",
+    "question": "Design a structure supporting O(n) init, O(log n) single-joint matrix updates, and O(1) full-product queries over an array of non-commutative transformation matrices. What tree concept generalizes to solve this?",
+    "answer": "Subtree size augmentation generalizes here: instead of maintaining a subtree's item count at each node, maintain the ordered product of its subtree's matrices (respecting left-to-right order since matrix multiplication is non-commutative). A balanced binary tree over the joints gives O(log n) point updates and the root's stored product gives O(1) full-product queries.",
+    "targetConceptIds": ["concept-subtree-size-augmentation"],
+    "targetEdgeIds": [],
+    "assessmentType": "transfer",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-5", "excerpt": "Describe a database to support the following worst-case operations" }]
+  },
+  {
+    "id": "qa-ps4-4-6b-max-prefix",
+    "question": "Modify a Set AVL Tree so it supports a new max_prefix() operation returning, in worst-case O(1) time, a key k* maximizing the prefix sum of values for keys <= k*, while keeping all other Set AVL operations' running times unchanged.",
+    "answer": "Augment each node with the max prefix-sum achievable within its own subtree (and which key achieves it), computed from its children's stored max-prefix values and its own key's value in O(1) time per node during rebalancing -- the same subtree-augmentation pattern as node.size, generalized to a different combining function.",
+    "targetConceptIds": ["concept-bst", "concept-subtree-size-augmentation"],
+    "targetEdgeIds": [],
+    "assessmentType": "transfer",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-6(b)", "excerpt": "it supports a new tree-level operation max_prefix() which returns in worst-case O(1) time a pair" }]
+  },
+  {
+    "id": "qa-ps4-4-6c-tastiest-slice",
+    "question": "Using the augmented Set AVL Tree from part (b) as a black box, describe a worst-case O(n log n)-time algorithm to find a maximum-tastiness rectangular slice of a topping-covered disc.",
+    "answer": "Insert each topping's y-coordinate/tastiness into the augmented tree keyed by y, sweep x-coordinates left to right inserting toppings as their x is reached, and at each candidate x-cut query max_prefix() to get the best y-cut in O(1) -- O(n log n) total across n insertions and n queries.",
+    "targetConceptIds": ["concept-bst"],
+    "targetEdgeIds": [],
+    "assessmentType": "transfer",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-4", "locator": "Problem 4-6(c)", "excerpt": "describe a worst-case O(n log n)-time algorithm to return a triple (x, y, t)" }]
+  },
+  {
+    "id": "qa-ps3-3-4a-close-pair",
+    "question": "Given an array B of unique box ream-counts and a target r, describe an expected O(n)-time algorithm to find a 'close' pair (indices within n/10) summing to r.",
+    "answer": "Store each box's ream count mapped to its index in a hash table (Set interface, dictionary form) in expected amortized O(1) time per insert; then for each b_i, look up r - b_i in expected O(1) time and check index closeness in O(1) -- expected O(n) total.",
+    "targetConceptIds": ["concept-set-interface"],
+    "targetEdgeIds": [],
+    "assessmentType": "application",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "problem-set-3", "locator": "Problem 3-4(a)", "excerpt": "store the elements of B in a hash table H along with their index" }]
+  },
+  {
+    "id": "qa-lecture-bfs-running-time",
+    "question": "What is the running time of Breadth-First Search, and why?",
+    "answer": "O(|V| + |E|): each vertex is added to at most one level set, and the algorithm spends O(1) time per outgoing edge examined, bounding total work by O(1) * sum of deg(u) = O(|E|) via the handshaking lemma, plus Theta(|V|) to assign delta(s,v)=infinity for unreached vertices.",
+    "targetConceptIds": ["concept-bfs"],
+    "targetEdgeIds": [],
+    "assessmentType": "mechanism",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "lecture-09-breadth-first-search", "locator": "Breadth-First Search (BFS) section, Running time analysis", "excerpt": "So breadth-first search runs in linear time! O(|V| + |E|)" }]
+  },
+  {
+    "id": "qa-lecture-shortest-paths-tree-size",
+    "question": "Why does the shortest paths tree have only O(|V|) size, even though a graph could require returning shortest paths of total length Omega(|V|^2)?",
+    "answer": "Instead of storing each vertex's full shortest path, the tree stores just one parent pointer P(v) per vertex (the second-to-last vertex on a shortest path from s), so the whole structure is exactly |V| pointers -- any individual path can be reconstructed by following parent pointers back to s, without ever materializing all paths at once.",
+    "targetConceptIds": ["concept-shortest-paths-tree", "concept-path-distance"],
+    "targetEdgeIds": ["edge-path-distance-used-in-shortest-paths-tree"],
+    "assessmentType": "mechanism",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "lecture-09-breadth-first-search", "locator": "Shortest Paths Tree section", "excerpt": "Many paths could have length Omega(|V|), so returning every path could require Omega(|V|^2) time" }]
+  },
+  {
+    "id": "qa-lecture-dfs-topological-connection",
+    "question": "How does Full-DFS's finishing order relate to a topological order of a DAG?",
+    "answer": "The reverse of Full-DFS's finishing order (the order in which each vertex's recursive visit call returns) is a valid topological order: for every edge (u,v), the proof shows the visit to v always finishes before the visit to u, whether u or v is visited first.",
+    "targetConceptIds": ["concept-dfs", "concept-topological-sort"],
+    "targetEdgeIds": ["edge-dfs-mechanism-topological-sort"],
+    "assessmentType": "connection",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Topological Sort section", "excerpt": "the reverse of a finishing order is a topological order" }]
+  },
+  {
+    "id": "qa-lecture-bfs-dfs-contrast",
+    "question": "A classmate says 'BFS and DFS are basically the same algorithm, just with a different data structure for the frontier.' What is wrong with treating them as interchangeable for the single-source-shortest-path problem specifically?",
+    "answer": "They solve different problems: BFS solves Single Source Shortest Paths and provably returns correct distances delta(s,v); DFS only solves Single Source Reachability -- its parent tree is a valid reachability tree but not necessarily a shortest-path tree, since DFS can take an arbitrarily long path to reach a vertex before a shorter one is discovered.",
+    "targetConceptIds": ["concept-bfs", "concept-dfs"],
+    "targetEdgeIds": ["edge-bfs-contrasts-dfs"],
+    "assessmentType": "connection",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Depth-First Search (DFS) section", "excerpt": "Solves Single Source Reachability, not SSSP" }]
+  },
+  {
+    "id": "qa-lecture-cycle-detection-mechanism",
+    "question": "How can Full-DFS be used to detect whether a directed graph contains a cycle?",
+    "answer": "Compute Full-DFS's reverse finishing order; if it is not a valid topological order, the graph must contain a cycle. To actually extract a cycle, track the set of ancestors along the current DFS path -- if DFS ever traverses an edge from a vertex to one of its own ancestors, that identifies a cycle.",
+    "targetConceptIds": ["concept-dfs", "concept-cycle-detection"],
+    "targetEdgeIds": ["edge-dfs-mechanism-cycle-detection"],
+    "assessmentType": "mechanism",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Cycle Detection section", "excerpt": "Full-DFS will traverse an edge from v to an ancestor of v" }]
+  },
+  {
+    "id": "qa-lecture-full-dfs-connected-components",
+    "question": "How do you compute all connected components of an undirected graph using a single-source reachability algorithm?",
+    "answer": "Run Full-A (repeating the reachability algorithm A, such as BFS or DFS, from every still-unvisited vertex); each individual run's set of newly-visited vertices is exactly one connected component, since within a run every visited vertex is mutually reachable and different runs never share edges by definition of connectivity.",
+    "targetConceptIds": ["concept-full-bfs-dfs", "concept-connected-components"],
+    "targetEdgeIds": ["edge-full-bfs-dfs-mechanism-connected-components"],
+    "assessmentType": "connection",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Graph Connectivity section", "excerpt": "Run Full-A. For each run of A, put visited vertices in a connected component" }]
+  },
+  {
+    "id": "qa-lecture-amortized-dynamic-array",
+    "question": "Why is a single insert_last on a Dynamic Array sometimes Theta(n), yet the operation is still described as 'Theta(1) amortized'?",
+    "answer": "Reallocation (the Theta(n) case) only happens once the fill ratio reaches 1, and each reallocation buys enough slack that Theta(n) more cheap Theta(1) insertions must happen before the next reallocation -- so across any sequence of n operations, total cost is Theta(n), i.e. Theta(1) per operation 'on average', even though no single operation is individually bounded by a constant.",
+    "targetConceptIds": ["concept-amortized-analysis", "concept-dynamic-array-sequence"],
+    "targetEdgeIds": ["edge-amortized-mechanism-dynamic-array"],
+    "assessmentType": "mechanism",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "lecture-02-data-structures", "locator": "Amortized Analysis section", "excerpt": "Inserting into a dynamic array takes Theta(1) amortized time" }]
+  },
+  {
+    "id": "qa-lecture-dfs-not-shortest-path",
+    "question": "If DFS successfully reaches every vertex reachable from a source s, does the resulting parent tree give the shortest path from s to each vertex? Explain, and describe a graph where DFS's path to some vertex is not the shortest one.",
+    "answer": "No -- DFS only guarantees reachability, not shortest distance. For example, in a graph with a direct edge s->v and also a longer path s->a->b->v, if DFS happens to explore a before v directly, it will record P(v)=b even though the true shortest path is the single edge s->v; only BFS's level-by-level exploration guarantees the parent tree matches delta(s,v).",
+    "targetConceptIds": ["concept-dfs", "concept-bfs"],
+    "targetEdgeIds": ["edge-bfs-contrasts-dfs"],
+    "assessmentType": "transfer",
+    "isAmbiguous": false,
+    "sourceAnchors": [{ "artifactId": "lecture-10-depth-first-search", "locator": "Depth-First Search (DFS) section", "excerpt": "Return (not necessarily shortest) parent tree of parent pointers back to s" }]
+  }
+]

@@ -1,0 +1,51 @@
+[
+  {
+    "id": "lecture-02-data-structures",
+    "title": "Lecture 2: Data Structures",
+    "artifactType": "lecture",
+    "unit": "Foundations",
+    "date": "2020-02-06"
+  },
+  {
+    "id": "lecture-06-binary-trees-1",
+    "title": "Lecture 6: Binary Trees, Part 1",
+    "artifactType": "lecture",
+    "unit": "Trees",
+    "date": "2020-02-25"
+  },
+  {
+    "id": "lecture-08-binary-heaps",
+    "title": "Lecture 8: Binary Heaps",
+    "artifactType": "lecture",
+    "unit": "Trees",
+    "date": "2020-03-03"
+  },
+  {
+    "id": "lecture-09-breadth-first-search",
+    "title": "Lecture 9: Breadth-First Search",
+    "artifactType": "lecture",
+    "unit": "Graphs",
+    "date": "2020-03-05"
+  },
+  {
+    "id": "lecture-10-depth-first-search",
+    "title": "Lecture 10: Depth-First Search",
+    "artifactType": "lecture",
+    "unit": "Graphs",
+    "date": "2020-03-10"
+  },
+  {
+    "id": "problem-set-3",
+    "title": "Problem Set 3",
+    "artifactType": "homework",
+    "unit": "Foundations",
+    "date": "2020-02-28"
+  },
+  {
+    "id": "problem-set-4",
+    "title": "Problem Set 4",
+    "artifactType": "homework",
+    "unit": "Trees",
+    "date": "2020-03-13"
+  }
+]
