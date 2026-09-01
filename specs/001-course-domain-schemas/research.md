@@ -77,16 +77,27 @@ Alternatives format for traceability.
 
 ## Source course material
 
-- **Decision**: real lecture/homework material for the benchmark corpus is
-  supplied by the project owner (Amanda), not synthesized — deferred as an
-  explicit input needed before the corpus-building tasks in `tasks.md` can
-  be completed.
-- **Rationale**: spec.md Assumptions state the course is "the builder's own
-  coursework or an equivalent real syllabus"; fabricating placeholder
-  course content would defeat the benchmark's purpose (grounding labels in
-  real material, per spec SC-004) and risks producing a corpus that has to
-  be redone once real material arrives.
-- **Alternatives considered**: generating synthetic DSA lecture content
-  now to unblock corpus-building immediately (rejected — directly
+- **Decision**: MIT OpenCourseWare's *6.006 Introduction to Algorithms*
+  (Spring 2020) — specifically Lectures 2 (Data Structures), 6 (Binary
+  Trees I), 8 (Binary Heaps), 9 (Breadth-First Search), and 10 (Depth-First
+  Search), plus Problem Sets 3 and 4. Condensed, attributed source notes
+  are saved at `benchmark/dsa-course/sources/` (see that directory's
+  `README.md` for the full citation and license).
+- **Rationale**: spec.md Assumptions require real, non-fabricated course
+  material (per SC-004, grounding labels in actual source, not invented
+  content). MIT OCW publishes this course under a Creative Commons
+  Attribution-NonCommercial-ShareAlike 4.0 license, which permits this
+  non-commercial, attributed, educational reuse. The five chosen lectures
+  map directly onto the PRD's own worked demo domain (§28: BFS, FIFO
+  queues, graph traversal, trees) — the same concepts `docs/technical-prd.md`
+  already uses as its running example — so the benchmark corpus and the
+  PRD's demo story stay grounded in the same material. Problem Sets 3 and 4
+  supply real homework-style questions spanning retrieval through
+  transfer-tier difficulty (PRD §15.2), satisfying spec FR-008.
+- **Alternatives considered**: Stanford's CS161/CS166 (rejected — lecture
+  notes are not uniformly published under an open license, unlike MIT
+  OCW); generating synthetic DSA lecture content (rejected — directly
   contradicts spec.md User Story 2's requirement that labels be grounded in
-  real source artifacts, not invented ones).
+  real source artifacts, not invented ones); using MIT 6.006's Fall 2011
+  offering instead (rejected — Spring 2020's notes are more complete and
+  already the version OCW's current resource index highlights).

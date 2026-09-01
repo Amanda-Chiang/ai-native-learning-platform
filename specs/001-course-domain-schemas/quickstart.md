@@ -9,10 +9,10 @@ definitions and `tasks.md` for the actual build steps.
 - Node.js 20+ active (`nvm use 24` per `brain/lessons/setup-gotchas.md`).
 - Repo dependencies installed: `npm install` (no new dependencies are
   added by this feature — see `research.md`).
-- Real source material for one data-structures-and-algorithms course
-  (5 lecture artifacts + 2 homework sets) available to reference while
-  authoring `benchmark/dsa-course/*.json` — supplied by the project owner,
-  per `research.md`'s "Source course material" decision.
+- Real source material for one data-structures-and-algorithms course: MIT
+  OCW 6.006 (Spring 2020), Lectures 2/6/8/9/10 + Problem Sets 3/4, already
+  saved at `benchmark/dsa-course/sources/` — see `research.md`'s "Source
+  course material" decision.
 
 ## Validation scenario 1 — schemas compile and typecheck
 
