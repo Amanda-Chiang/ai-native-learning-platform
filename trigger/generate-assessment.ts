@@ -177,6 +177,95 @@ async function markUnfulfilled(requestId: string, reason: string) {
   return { status: "failed" as const, reason, requestId };
 }
 
+/**
+ * The task's real work, factored out of `run` so it can be invoked
+ * directly (no live Trigger.dev project exists yet -- trigger.config.ts's
+ * own documented placeholder-project caveat, same gap
+ * course-graph-ingestion's extractCourseGraphTask already has) for live
+ * verification against real Supabase/OpenAI per quickstart.md Group B,
+ * without needing a real queue to exercise the real generate-validate-
+ * persist mechanism end to end.
+ */
+export async function executeGeneration(payload: GenerateAssessmentPayload) {
+  const supabase = createAdminClient();
+
+  if (!isOpenAiConfigured()) {
+    return markUnfulfilled(payload.requestId, MISSING_OPENAI_KEY_REASON);
+  }
+  const openai = getOpenAiClient();
+
+  const material = await fetchTargetMaterial(supabase, payload.blueprint);
+  if (material.concepts.length === 0 && material.edges.length === 0) {
+    return markUnfulfilled(payload.requestId, NO_SOURCE_MATERIAL_REASON);
+  }
+  const courseSourceExcerpts = extractSourceExcerpts(material);
+
+  const { data: course, error: courseError } = await supabase
+    .from("courses")
+    .select("owner_id")
+    .eq("id", payload.courseId)
+    .single();
+  if (courseError || !course) {
+    throw new Error(`Course ${payload.courseId} not found -- cannot record generation runs.`);
+  }
+
+  for (let attemptNumber = 1; attemptNumber <= MAX_GENERATION_ATTEMPTS; attemptNumber += 1) {
+    const candidate = await generateCandidate(openai, payload.blueprint, material);
+    const runners = buildRealRunners(openai, candidate, payload.blueprint, courseSourceExcerpts);
+    const validationReport = await runValidationLayers(runners);
+    const outcome = Object.values(validationReport).every((layer) => layer.passed) ? "passed" : "failed";
+
+    const { data: runRow, error: runInsertError } = await supabase
+      .from("assessment_generation_runs")
+      .insert({
+        request_id: payload.requestId,
+        course_id: payload.courseId,
+        owner_id: course.owner_id,
+        attempt_number: attemptNumber,
+        blueprint: payload.blueprint as unknown as Record<string, unknown>,
+        candidate: candidate as unknown as Record<string, unknown>,
+        validation_report: validationReport as unknown as Record<string, unknown>,
+        outcome,
+      })
+      .select("id")
+      .single();
+
+    if (runInsertError || !runRow) {
+      throw new Error(`Failed to record generation attempt ${attemptNumber}: ${runInsertError?.message}`);
+    }
+
+    if (outcome === "passed") {
+      const { error: bankInsertError } = await supabase.from("question_bank").insert({
+        course_id: payload.courseId,
+        owner_id: course.owner_id,
+        generation_run_id: runRow.id,
+        question_text: candidate.questionText,
+        rubric: candidate.rubric,
+        hints: candidate.hints,
+        common_mistakes: candidate.commonMistakes,
+        source_anchors: candidate.sourceAnchors,
+        response_modality: candidate.responseModality,
+        checker_domain: candidate.checkerDomain,
+        checker_input: candidate.checkerInput as Record<string, unknown> | null,
+        validation_report: validationReport as unknown as Record<string, unknown>,
+      });
+      if (bankInsertError) {
+        throw new Error(`Failed to insert question_bank entry for run ${runRow.id}: ${bankInsertError.message}`);
+      }
+      return { status: "succeeded" as const, requestId: payload.requestId, attemptNumber };
+    }
+  }
+
+  // Bound reached with no passing attempt -- request ends unfulfilled
+  // (spec.md Edge Cases), never a silently-published best-of-a-bad-lot
+  // candidate.
+  return {
+    status: "failed" as const,
+    requestId: payload.requestId,
+    reason: "MAX_GENERATION_ATTEMPTS reached with no passing attempt",
+  };
+}
+
 export const generateAssessmentTask = task({
   id: "generate-assessment",
   // Up to MAX_GENERATION_ATTEMPTS attempts, each with several sequential
@@ -185,83 +274,5 @@ export const generateAssessmentTask = task({
   // over trigger.config.ts's tight 60s default for deterministic-only
   // tasks.
   maxDuration: 600,
-  run: async (payload: GenerateAssessmentPayload) => {
-    const supabase = createAdminClient();
-
-    if (!isOpenAiConfigured()) {
-      return markUnfulfilled(payload.requestId, MISSING_OPENAI_KEY_REASON);
-    }
-    const openai = getOpenAiClient();
-
-    const material = await fetchTargetMaterial(supabase, payload.blueprint);
-    if (material.concepts.length === 0 && material.edges.length === 0) {
-      return markUnfulfilled(payload.requestId, NO_SOURCE_MATERIAL_REASON);
-    }
-    const courseSourceExcerpts = extractSourceExcerpts(material);
-
-    const { data: course, error: courseError } = await supabase
-      .from("courses")
-      .select("owner_id")
-      .eq("id", payload.courseId)
-      .single();
-    if (courseError || !course) {
-      throw new Error(`Course ${payload.courseId} not found -- cannot record generation runs.`);
-    }
-
-    for (let attemptNumber = 1; attemptNumber <= MAX_GENERATION_ATTEMPTS; attemptNumber += 1) {
-      const candidate = await generateCandidate(openai, payload.blueprint, material);
-      const runners = buildRealRunners(openai, candidate, payload.blueprint, courseSourceExcerpts);
-      const validationReport = await runValidationLayers(runners);
-      const outcome = Object.values(validationReport).every((layer) => layer.passed) ? "passed" : "failed";
-
-      const { data: runRow, error: runInsertError } = await supabase
-        .from("assessment_generation_runs")
-        .insert({
-          request_id: payload.requestId,
-          course_id: payload.courseId,
-          owner_id: course.owner_id,
-          attempt_number: attemptNumber,
-          blueprint: payload.blueprint as unknown as Record<string, unknown>,
-          candidate: candidate as unknown as Record<string, unknown>,
-          validation_report: validationReport as unknown as Record<string, unknown>,
-          outcome,
-        })
-        .select("id")
-        .single();
-
-      if (runInsertError || !runRow) {
-        throw new Error(`Failed to record generation attempt ${attemptNumber}: ${runInsertError?.message}`);
-      }
-
-      if (outcome === "passed") {
-        const { error: bankInsertError } = await supabase.from("question_bank").insert({
-          course_id: payload.courseId,
-          owner_id: course.owner_id,
-          generation_run_id: runRow.id,
-          question_text: candidate.questionText,
-          rubric: candidate.rubric,
-          hints: candidate.hints,
-          common_mistakes: candidate.commonMistakes,
-          source_anchors: candidate.sourceAnchors,
-          response_modality: candidate.responseModality,
-          checker_domain: candidate.checkerDomain,
-          checker_input: candidate.checkerInput as Record<string, unknown> | null,
-          validation_report: validationReport as unknown as Record<string, unknown>,
-        });
-        if (bankInsertError) {
-          throw new Error(`Failed to insert question_bank entry for run ${runRow.id}: ${bankInsertError.message}`);
-        }
-        return { status: "succeeded" as const, requestId: payload.requestId, attemptNumber };
-      }
-    }
-
-    // Bound reached with no passing attempt -- request ends unfulfilled
-    // (spec.md Edge Cases), never a silently-published best-of-a-bad-lot
-    // candidate.
-    return {
-      status: "failed" as const,
-      requestId: payload.requestId,
-      reason: "MAX_GENERATION_ATTEMPTS reached with no passing attempt",
-    };
-  },
+  run: executeGeneration,
 });
