@@ -51,7 +51,7 @@ Single Next.js project (per plan.md's Project Structure):
 
 **⚠️ CRITICAL**: No user story task can begin until T003 is complete.
 
-- [ ] T003 Implement the `CourseGraph`/`Unit`/`Concept`/`Relationship` types
+- [X] T003 Implement the `CourseGraph`/`Unit`/`Concept`/`Relationship` types
   in `src/types/graph/course-graph.ts`, exactly per data-model.md's DTO
   tables — no coordinate, style, or renderer-specific field anywhere in
   these types (Constitution Principle I)
