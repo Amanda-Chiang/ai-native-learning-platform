@@ -82,3 +82,26 @@ test("clicking a weak relationship shows why it's rated weak", async ({ page }) 
 
   await expect(page).toHaveScreenshot("weak-relationship.png");
 });
+
+test("the atlas stays usable at a phone-sized viewport: readable zoom, reachable detail view", async ({
+  page,
+}) => {
+  // Below ConceptDetailPanel.tsx's own 768px breakpoint -- confirms both
+  // halves of FR-013 at once: the canvas doesn't fitView-shrink the whole
+  // multi-unit graph unreadably small (ConceptAtlas.tsx's isMobile branch),
+  // and the detail panel renders as a bottom sheet, not a side panel.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/courses/demo/atlas");
+  await page.waitForSelector(".react-flow__node", { state: "visible" });
+  await page.waitForTimeout(300);
+
+  await expect(page).toHaveScreenshot("mobile-breakpoint.png");
+
+  // A concept in the first (leftmost) unit is on-screen at the default
+  // mobile viewport without any manual panning -- confirms the detail
+  // view is actually reachable, not just present in the DOM.
+  await page.getByText("Big-O Notation", { exact: true }).click();
+  await page.waitForTimeout(300);
+
+  await expect(page).toHaveScreenshot("mobile-breakpoint-detail-panel.png");
+});

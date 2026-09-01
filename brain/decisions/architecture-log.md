@@ -249,3 +249,22 @@ checklist is a setup gate, not a retrofit. Applies to
   wins.
 - Full reasoning: `specs/003-concept-atlas-renderer/research.md`
   ("Relationship-edge click targeting: three real bugs, not one").
+
+## 2026-09-01 — Mobile breakpoint: disable fitView rather than let it shrink everything
+
+- Below 768px, `ConceptAtlas.tsx` disables React Flow's `fitView` and
+  sets a `defaultViewport` centered on the leftmost unit at zoom 1.0
+  instead. `fitView` fits every node in the viewport, which on a phone
+  width forces the whole 5-unit graph down to unreadably small text —
+  exactly what spec FR-013 forbids. Pan/zoom `Controls` (already
+  rendered) let the student reach the rest.
+- "Leftmost unit" is picked by `position.x`, not array order — the
+  first unit in `graph.units` isn't necessarily where ELK places it
+  visually, and picking by data order landed on the wrong unit in
+  testing.
+- **Known limitation, accepted**: `defaultViewport` is read once at
+  mount (uncontrolled), so it won't recenter on a live window resize
+  across the breakpoint — only a fresh load at a narrow width applies
+  it. Treated as a device-class decision, not a live-resize feature.
+- Full reasoning: `specs/003-concept-atlas-renderer/research.md`
+  ("Mobile breakpoint: disable fitView, don't just shrink it").

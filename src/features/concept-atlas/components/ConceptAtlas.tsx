@@ -47,6 +47,11 @@ const EDGE_LABEL_STACKING_FIX = `
 // (contracts/layout-actions.md).
 const SAVE_DEBOUNCE_MS = 500;
 
+// Same breakpoint ConceptDetailPanel.tsx already uses for its own
+// side-panel/bottom-sheet switch -- one viewport threshold for the whole
+// feature, not two independently-tuned ones.
+const MOBILE_BREAKPOINT_QUERY = "(max-width: 768px)";
+
 function buildFocused(graph: CourseGraph, target: FocusTarget): Focused | null {
   if (target.kind === "relationship") {
     const relationship = graph.relationships.find((r) => r.id === target.id);
@@ -103,6 +108,15 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
   );
   const [preferences, setPreferences] = useState<LayoutPreference[]>([]);
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
+    setIsMobile(mql.matches);
+    const onChange = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,6 +167,31 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
     () => (focusTarget ? buildFocused(graph, focusTarget) : null),
     [graph, focusTarget],
   );
+
+  // On a phone/tablet-sized viewport, fitView would still zoom the whole
+  // multi-unit graph down to fit the narrow width -- exactly the
+  // "shrinking the desktop layout until it's unreadable" spec FR-013
+  // forbids. Instead, start centered on the first unit at a readable
+  // zoom and let the student pan/zoom manually (Controls are already
+  // rendered) to reach the rest -- pan/zoom-primary navigation, per
+  // FR-013's stated alternative to shrinking everything into view.
+  const mobileDefaultViewport = useMemo(() => {
+    const unitNodes = nodes.filter((n) => n.type === "unitGroup");
+    // Array order follows graph.units, not layout position -- ELK is
+    // free to place the first-listed unit anywhere. Pick by leftmost x
+    // so "first" matches what a student actually sees first when
+    // panning left-to-right, not an arbitrary data-order accident
+    // (found while testing: array-order-first landed on a unit other
+    // than the atlas's visually leftmost one).
+    const leftmostUnit = unitNodes.reduce<Node | null>(
+      (leftmost, n) => (!leftmost || n.position.x < leftmost.position.x ? n : leftmost),
+      null,
+    );
+    if (!leftmostUnit) {
+      return { x: 20, y: 20, zoom: 1 };
+    }
+    return { x: -leftmostUnit.position.x + 20, y: -leftmostUnit.position.y + 20, zoom: 1 };
+  }, [nodes]);
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingEntriesRef = useRef<Map<string, LayoutPreference>>(new Map());
@@ -255,7 +294,7 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
         edgeTypes={edgeTypes}
         onNodeClick={onNodeClick}
         onNodeDragStop={onNodeDragStop}
-        fitView
+        fitView={!isMobile}
         // Default fitView has zero margin, which clips edge-adjacent
         // unit regions right at the viewport boundary (spec SC-001
         // forbids clipped nodes) -- 12% padding keeps every region fully
@@ -267,6 +306,7 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
         // rather than zooming out further, which is what actually caused
         // the clipped edges (not the padding, which was a red herring).
         minZoom={0.05}
+        defaultViewport={isMobile ? mobileDefaultViewport : undefined}
       >
         <Background />
         <Controls />

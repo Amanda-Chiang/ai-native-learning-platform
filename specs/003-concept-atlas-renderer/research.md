@@ -237,3 +237,41 @@ edge-offsetting layout strategy for parallel/multi-edges — out of scope
 for this task. Fixture-level workaround: reordered the two entries so
 the relationship carrying the real `explanation` (the one the test and
 a real student would want to reach) paints on top.
+
+## Mobile breakpoint: disable fitView, don't just shrink it
+
+- **Decision**: below the same 768px breakpoint `ConceptDetailPanel.tsx`
+  already uses, `ConceptAtlas.tsx` disables React Flow's `fitView` and
+  instead sets a `defaultViewport` centered on the visually leftmost
+  unit at zoom 1.0, relying on the already-rendered pan/zoom `Controls`
+  for the rest.
+- **Rationale**: `fitView` computes a zoom level that fits every node in
+  the viewport. On a wide 5-unit course graph, a 390px-wide phone
+  viewport forces a very small zoom — all text becomes unreadable. Spec
+  FR-013 explicitly forbids "shrinking the desktop layout until it's
+  unreadable" and names pan/zoom navigation as the alternative, so the
+  fix is to stop trying to fit everything and instead show one readable
+  region by default.
+- **"Leftmost unit," not "first unit in the data."** The first pass
+  picked `nodes.find(n => n.type === "unitGroup")`, which follows
+  `graph.units` array order — an accident of the fixture's authoring
+  order, not the layout ELK actually produced. It landed on a unit that
+  wasn't the one a student scanning left-to-right would see first
+  (found while testing: a Playwright click on "Big-O Notation" timed
+  out because that concept's unit wasn't the one centered). Fixed by
+  picking the unit node with the smallest `position.x` instead.
+- **Known limitation**: `defaultViewport` is read once at mount by React
+  Flow (it's not a controlled prop), so resizing an already-open browser
+  window across the breakpoint won't recenter the view — only a fresh
+  page load at a narrow width does. Acceptable for now: this is a
+  hydration-time device-class decision (phone vs. desktop), not a
+  live-resize feature the spec asked for.
+- **Alternatives considered**: keep `fitView` everywhere and rely on
+  React Flow's own pinch-to-zoom for readability (rejected — the
+  student would land on an unreadably tiny view every single time and
+  have to zoom in manually before doing anything, which is worse than
+  starting at a readable default and panning); stack unit regions
+  vertically in a completely separate mobile layout (rejected — bigger
+  change for the same outcome; the canonical graph and its ELK-computed
+  positions stay identical, only the initial camera differs, which is
+  more in keeping with Constitution Principle I's renderer/state split).

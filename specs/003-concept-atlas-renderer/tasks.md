@@ -273,14 +273,23 @@ and closes gaps in the canvas layout itself).
 
 ### Implementation for User Story 5
 
-- [ ] T029 [US5] Add a responsive breakpoint to `ConceptAtlas.tsx`: below
+- [X] T029 [US5] Add a responsive breakpoint to `ConceptAtlas.tsx`: below
   a tablet-width threshold, unit regions stack and/or the canvas becomes
   pan/zoom-primary rather than rendering the desktop grid layout (spec
-  FR-013) — depends on T010
-- [ ] T030 [P] [US5] Add the mobile/tablet-breakpoint screenshot to
+  FR-013) — depends on T010. Implemented as pan/zoom-primary: below the
+  768px breakpoint (same one `ConceptDetailPanel.tsx` already uses),
+  `fitView` is disabled — it would otherwise still shrink the whole
+  multi-unit graph to fit the narrow width, which is exactly what
+  FR-013 forbids — and a `defaultViewport` centers on the visually
+  leftmost unit at a readable zoom (1.0), leaving the rest reachable via
+  the already-rendered pan/zoom `Controls`.
+- [X] T030 [P] [US5] Add the mobile/tablet-breakpoint screenshot to
   `tests/visual/concept-atlas.spec.ts` — depends on T029, T022 (detail
   panel's responsive container, to confirm it also renders correctly at
-  this breakpoint)
+  this breakpoint). Two screenshots at a 390×844 phone viewport: initial
+  load (readable zoom, no shrink-to-fit) and after opening a concept's
+  detail panel (confirms the bottom-sheet container from T022 also
+  renders correctly at this breakpoint, not just in isolation).
 
 **Checkpoint**: All 5 required screenshots from
 `.claude/skills/concept-atlas/references/testing.md` now exist.
@@ -289,18 +298,31 @@ and closes gaps in the canvas layout itself).
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T031 Run `npm run typecheck` across the whole repository — expect
-  PASS with no regressions outside this feature
-- [ ] T032 Run `npm run test:unit` — expect PASS (Phases 0-1's existing
-  tests plus this feature's adapter/layout-preference tests)
-- [ ] T033 Run the full `tests/visual/concept-atlas.spec.ts` suite (all 5
+- [X] T031 Run `npm run typecheck` across the whole repository — expect
+  PASS with no regressions outside this feature. Exits 0.
+- [X] T032 Run `npm run test:unit` — expect PASS (Phases 0-1's existing
+  tests plus this feature's adapter/layout-preference tests). 57/57 pass.
+- [X] T033 Run the full `tests/visual/concept-atlas.spec.ts` suite (all 5
   screenshots) and manually open each diff image before accepting any
   baseline — per `.claude/skills/concept-atlas/references/testing.md`'s
-  "never approve blindly" rule
-- [ ] T034 Walk through `quickstart.md` Group A (A1-A3) end to end and
+  "never approve blindly" rule. All 5 pass; every new/changed baseline
+  (whole-course-atlas, expanded-unit, focused-concept subpixel diffs from
+  the edge-label z-index fix; weak-relationship, mobile-breakpoint,
+  mobile-breakpoint-detail-panel as new baselines) was opened and
+  visually confirmed before accepting, not blind-approved.
+- [X] T034 Walk through `quickstart.md` Group A (A1-A3) end to end and
   confirm every expected outcome holds; re-read Group B against final file
   paths for accuracy (same T025-style check as Phase 1) without needing
-  live credentials to confirm the instructions themselves are correct
+  live credentials to confirm the instructions themselves are correct.
+  A1-A3 confirmed accurate as written (see T031-T033 above — same
+  commands, same results). Group B's file paths
+  (`supabase/migrations/0002_graph_layouts.sql`, `graph_layouts` table)
+  still match current code. One gap found and worth noting: `npm run
+  lint` is broken by a pre-existing ESLint flat-config/Node
+  incompatibility with `eslint-config-next`, unrelated to this feature
+  — not part of quickstart Group A, so it didn't block this checkpoint,
+  but it's a real gap in the repo's verification surface worth a
+  separate fix.
 
 ---
 
