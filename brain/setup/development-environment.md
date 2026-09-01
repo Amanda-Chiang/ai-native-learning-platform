@@ -25,12 +25,28 @@ decisions and reasoning.
 - `.claude/skills/concept-atlas/`, `.claude/skills/learner-graph/`,
   `.claude/skills/assessment-pipeline/` project skills.
 
-## Deferred / not installed
+## Intentionally not installed / deferred
 
-- gstack (global Bun runtime + six tools' home-dir configs; `bun` not
-  present in this environment). See ADR-0001.
-- Poteto Brainmaxxing as a package (built `brain/` by hand instead).
-- Caveman's proxy component (credential-passthrough proxy).
+Full rationale in ADR-0001. Short version:
+
+- **Poteto Brainmaxxing — not installed, by design.** `brain/`, the
+  `ADR-*` structure, and the project-memory rules in `CLAUDE.md` already
+  cover what Brainmaxxing would provide. Don't install it unless a future
+  need names a specific Brainmaxxing workflow this setup lacks.
+- **Caveman proxy — not installed, by design.** Only the local compression
+  skill is installed. The proxy adds a credential/network trust boundary
+  (all provider traffic, including OAuth pass-through, through a local
+  intercepting proxy). Reconsider only if token cost becomes a *demonstrated*
+  bottleneck **and** the proxy's data/credential path is explicitly audited
+  first.
+- **gstack — deferred, not rejected.** Do not install Bun solely to unblock
+  it. Its responsibilities are already covered: Spec Kit (planning),
+  `frontend-design` (design quality), Playwright + `qa-engineer` (QA),
+  CI (release gating), Superpowers (debugging/review discipline).
+  Reevaluate if a concrete gap appears in design review, exploratory
+  browser QA, or engineering-plan review that this stack doesn't cover —
+  and consider reproducing just the needed workflow before installing the
+  whole tool.
 - Supermemory (per playbook Section 8 — add only if semantic recall becomes
   a proven bottleneck).
 - BMAD (explicitly excluded by playbook).
