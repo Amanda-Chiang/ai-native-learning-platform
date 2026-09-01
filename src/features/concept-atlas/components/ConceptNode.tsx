@@ -20,6 +20,7 @@ export type ConceptNodeData = {
   canonicalLabel: string;
   aliases: string[];
   masteryState: MasteryState;
+  hasUnresolvedMisconception?: boolean;
 };
 
 export function ConceptNode({ data }: NodeProps & { data: ConceptNodeData }) {
@@ -35,7 +36,8 @@ export function ConceptNode({ data }: NodeProps & { data: ConceptNodeData }) {
         width: "100%",
         height: "100%",
         boxSizing: "border-box",
-        overflow: "hidden",
+        overflow: "visible",
+        position: "relative",
         borderStyle: mastery.borderStyle,
         borderWidth: mastery.borderWidth,
         borderColor: mastery.color,
@@ -45,6 +47,30 @@ export function ConceptNode({ data }: NodeProps & { data: ConceptNodeData }) {
       }}
     >
       <Handle type="target" position={Position.Top} />
+      {data.hasUnresolvedMisconception && (
+        // PRD S13.9: "Node badge: unresolved misconception or explicit
+        // annotation signal" -- visible only when true, never a default.
+        <div
+          title="Unresolved misconception"
+          aria-label="Unresolved misconception"
+          style={{
+            position: "absolute",
+            top: -6,
+            right: -6,
+            width: 16,
+            height: 16,
+            borderRadius: "50%",
+            background: "#dc2626",
+            color: "white",
+            fontSize: 11,
+            fontWeight: 700,
+            lineHeight: "16px",
+            textAlign: "center",
+          }}
+        >
+          !
+        </div>
+      )}
       <div style={{ fontWeight: 600 }}>{data.canonicalLabel}</div>
       <div style={{ fontSize: 11, color: mastery.color }}>{mastery.label}</div>
       <Handle type="source" position={Position.Bottom} />

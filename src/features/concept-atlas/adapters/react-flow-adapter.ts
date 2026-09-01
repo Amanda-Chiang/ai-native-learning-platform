@@ -200,6 +200,7 @@ export function courseGraphToReactFlowElements(
           canonicalLabel: concept.canonicalLabel,
           aliases: concept.aliases,
           masteryState: concept.masteryState,
+          hasUnresolvedMisconception: concept.hasUnresolvedMisconception,
         },
       },
     ];

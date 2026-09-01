@@ -31,6 +31,15 @@ export type Concept = {
   /** Display/search only -- an alias never becomes a separate concept. */
   aliases: string[];
   masteryState: MasteryState;
+  /**
+   * FR-011/FR-012: two or more confident, incorrect, independent
+   * responses on this concept with no later resolving correct response
+   * (learner-graph-evidence's computeLearnerState). Optional/undefined
+   * at ingestion-time baseline, same reasoning as Relationship.explanation
+   * -- real evidence isn't wired in until learner-graph-evidence's US5
+   * overlay runs.
+   */
+  hasUnresolvedMisconception?: boolean;
 };
 
 export type Relationship = {

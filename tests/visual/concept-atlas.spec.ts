@@ -101,6 +101,23 @@ test("clicking a weak relationship shows why it's rated weak", async ({ page }) 
   await expect(page).toHaveScreenshot("weak-relationship.png");
 });
 
+test("a concept with an unresolved misconception shows its badge (learner-graph-evidence US5)", async ({
+  page,
+}) => {
+  await page.goto("/courses/demo/atlas");
+  await page.waitForSelector(".react-flow__node", { state: "visible" });
+  await page.waitForTimeout(300);
+
+  // "Depth-First Search" carries hasUnresolvedMisconception: true in the
+  // demo fixture (tests/fixtures/concept-atlas-demo.json) specifically
+  // for this scenario. Focusing it dims unrelated content so the badge
+  // reads clearly against the rest of the graph.
+  await page.getByText("Depth-First Search", { exact: true }).click();
+  await page.waitForTimeout(300);
+
+  await expect(page).toHaveScreenshot("misconception-badge.png");
+});
+
 test("the atlas stays usable at a phone-sized viewport: readable zoom, reachable detail view", async ({
   page,
 }) => {
