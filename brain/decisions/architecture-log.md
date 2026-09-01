@@ -483,3 +483,48 @@ checklist is a setup gate, not a retrofit. Applies to
   test nothing real; its correctness is proven entirely by the live
   walkthrough above, called out explicitly in tasks.md rather than
   silently skipped.
+
+## assessment-generation-pipeline (008) — US1/US2 (MVP) implemented
+
+- `assessment_generation_runs`/`question_bank` are RLS-keyed on
+  `owner_id`, not `user_id` — a deliberate *return* to the
+  `course_units`/`course_concepts`/`concept_edges`/`extraction_runs`
+  pattern, reversing the last three features' `user_id` convention,
+  because a question-bank entry is course content (generated once,
+  reused across students), not one student's own data. Same "the right
+  key depends on what the data describes" reasoning
+  `learner-graph-evidence` used in the opposite direction.
+- `runValidationLayers` (`validation-pipeline.ts`) takes an injected
+  `LayerRunners` object rather than calling the six real layers
+  directly — this is what lets the bounded-regeneration/short-circuit
+  control flow (never a fabricated pass for a layer that didn't run)
+  be exhaustively unit tested with canned per-layer results, while
+  `trigger/generate-assessment.ts` supplies the real runners bound to
+  live OpenAI/Supabase clients. Same "pure control flow, injectable
+  dependencies" shape as `deterministic-grading`'s
+  `toCommitEvidenceInput`, one level up.
+- Independent-solve dispatches directly to one of
+  `deterministic-grading`'s five existing checkers when the candidate
+  declares a `checkerDomain` (never re-solving with a model call for a
+  domain an exact checker already covers, FR-007) — the checker call on
+  the candidate's own `checkerInput` doubles as the "is this claim
+  actually correct" verification, so `answerAgreement` for a
+  checker-domain candidate is a pure comparison against that same
+  checker result, not a second model call. Only a `checkerDomain: null`
+  candidate (no exact checker applies) falls back to a blind-solver
+  model call, shown only the question text, never the rubric.
+- `trigger/generate-assessment.ts`'s real work is exported as a plain
+  `executeGeneration(payload)` function, with the Trigger.dev `task()`
+  wrapper just calling it — `trigger.config.ts` still has no real
+  Trigger.dev project (same placeholder gap
+  `course-graph-ingestion`'s `extractCourseGraphTask` already has), so
+  this is what lets the real generate-validate-persist mechanism be
+  invoked directly for live verification against real Supabase/OpenAI
+  without needing a real queue.
+- Verification run so far: whole-repo typecheck clean; the full
+  189-test unit suite passes (15 new); migration `0007` pushed and
+  RLS-verified live (anon query against both new tables:
+  `status=200, rows=0` signed out). Still pending: quickstart.md Group
+  B's live generate-to-bank walkthrough (B2/B3/B4) and US3/US4's
+  exhaustive live ambiguity/similarity scenario checks (T020/T021) —
+  none of that has been run yet as of this entry.
