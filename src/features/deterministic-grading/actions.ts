@@ -19,6 +19,7 @@ import {
   type ShortestPathCheckInput,
 } from "@/features/deterministic-grading/checkers/shortest-path-checker.ts";
 import { toCommitEvidenceInput, type ResponseMeta } from "@/features/deterministic-grading/grading-evidence.ts";
+import { gradeCode } from "@/features/deterministic-grading/code-sandbox-grader.ts";
 
 /**
  * Server action contracts: specs/007-deterministic-grading/contracts/grading-actions.md
@@ -113,6 +114,81 @@ export async function gradeStructuredResponse(
     // record of what was attempted), but there is nothing real to
     // commit as evidence (FR-002/FR-003).
     const reason = "reason" in result ? result.reason : "invalid input";
+    return { result, error: `No evidence committed: ${reason}` };
+  }
+
+  const { error } = await commitEvidence(evidenceInput);
+  return { result, error };
+}
+
+export type GradeCodeResponseInput = {
+  courseId: string;
+  conceptIds: string[];
+  edgeIds: string[];
+  code: string;
+  language: "javascript" | "python";
+  tests: { name: string; assertion: string }[];
+  evidenceType: ResponseMeta["evidenceType"];
+  assistanceLevel: number;
+  difficulty: number;
+  transferDistance: number;
+  studentConfidence?: number;
+};
+
+export async function gradeCodeResponse(
+  input: GradeCodeResponseInput,
+): Promise<{ result: Awaited<ReturnType<typeof gradeCode>>; error: string | null }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      result: { outcome: "did_not_complete", reason: "sandbox_error", detail: "not signed in" },
+      error: "You must be signed in to submit a graded response.",
+    };
+  }
+
+  const result = await gradeCode({ code: input.code, language: input.language, tests: input.tests });
+
+  const { data: attempt, error: attemptError } = await supabase
+    .from("assessment_attempts")
+    .insert({
+      user_id: user.id,
+      course_id: input.courseId,
+      response_modality: "code",
+      question_snapshot: { language: input.language, tests: input.tests },
+      response: { code: input.code },
+      grading_result: result,
+    })
+    .select()
+    .single();
+  if (attemptError || !attempt) {
+    return { result, error: attemptError?.message ?? "Could not record the attempt." };
+  }
+
+  const evidenceInput = toCommitEvidenceInput(
+    {
+      courseId: input.courseId,
+      conceptIds: input.conceptIds,
+      edgeIds: input.edgeIds,
+      assessmentAttemptId: attempt.id,
+    },
+    result,
+    {
+      evidenceType: input.evidenceType,
+      assistanceLevel: input.assistanceLevel,
+      difficulty: input.difficulty,
+      transferDistance: input.transferDistance,
+      studentConfidence: input.studentConfidence,
+    },
+  );
+
+  if (!evidenceInput) {
+    // did_not_complete -- the attempt is still recorded above, but a
+    // timeout/sandbox error is never recorded as an ordinary pass or
+    // fail (FR-008).
+    const reason = "reason" in result ? result.reason : "did not complete";
     return { result, error: `No evidence committed: ${reason}` };
   }
 
