@@ -323,3 +323,112 @@ checklist is a setup gate, not a retrofit. Applies to
   live end-to-end — only its individual pieces have (extraction itself,
   called directly; the review queue, against a seeded fixture). Same
   category of gap Phase 1 shipped with for `ingest-artifact.ts`.
+
+## 2026-09-01 — learner-graph-evidence built end to end (all 5 user stories)
+
+- `learner-graph-evidence` (Phase 3) implemented per
+  `specs/005-learner-graph-evidence/`: `evidence_events`,
+  `learner_concept_state`, `learner_edge_state` (migration
+  `0004_learner_evidence.sql`, RLS keyed on `user_id`, not `owner_id` —
+  the first table in this project keyed that way, since this data is
+  about who the evidence describes, not who owns the course); a pure
+  `computeLearnerState` recompute-from-full-history algorithm; a
+  `commitEvidence` server action that always inserts the evidence row
+  before any state upsert (Constitution Principle II, structurally, one
+  operation); `applyLearnerState` overlaying real per-student state onto
+  `course-graph-ingestion`'s baseline `CourseGraph` without touching that
+  feature's own logic; evidence-provenance display and a misconception
+  badge added to the existing Concept Atlas renderer via its established
+  optional-prop pattern (`onFlag`'s precedent), keeping that renderer
+  unaware of this feature by name (Constitution Principle I).
+- Two real, documented divergences from the original design docs (full
+  reasoning in `specs/005-learner-graph-evidence/data-model.md`'s new
+  "Divergences from this document" section): `ContributingFactor`
+  gained an `evidenceType` field beyond the original 5-field sketch
+  (needed for FR-009's provenance display), and
+  `tierCutoffs.exposed` (0.15) was set **above**
+  `strengthByType.exposure`'s ceiling (0.1) rather than below a lower
+  cutoff — meaning exposure-only evidence never crosses into the
+  "exposed" tier itself, staying at "unverified" indefinitely no matter
+  how much accumulates. This is the strictest reading of the literal
+  invariant tasks.md's T001/T012 require
+  (`strengthByType.exposure < tierCutoffs.exposed`), verified directly by
+  a dedicated test, not just implied by it.
+- `difficultyFactor` is deliberately bounded to `[0.5, 1]` (never
+  amplifies above `strengthByType[evidenceType]`) — this is what makes
+  Constitution Principle III a structural guarantee that holds for any
+  future weight recalibration, not just true for today's shipped
+  defaults by coincidence.
+- Migration pushed and RLS verified live (`status=200, rows=0` on all
+  three new tables for a signed-out anon query). Group B of
+  `quickstart.md` was run live against the real Supabase project (two
+  real throwaway accounts, real insert/read/cleanup) confirming: an
+  evidence commit is readable back immediately by its own student, a
+  second signed-in account sees zero rows for the same concept (SC-005
+  isolation), and exposure-only evidence inserts cleanly. All 110 unit
+  tests and the Concept Atlas visual regression suite pass (diffs opened
+  and confirmed as the intended new provenance text / misconception
+  badge, not regressions, before accepting new baselines).
+- **Known, pre-existing gap, not new to this feature**: the mobile
+  Playwright project has never had passing baselines for the
+  unit-collapse, weak-relationship-focus, or (now) misconception-badge
+  interaction tests — elements land outside the 390px mobile viewport
+  without a scroll step the test never added. Same category of
+  pre-existing gap as `course-graph-ingestion`'s un-run Trigger.dev path;
+  not fixed here since it predates this feature and isn't in scope for
+  it.
+
+## 2026-09-01 — tutor-agent built end to end (all 4 user stories)
+
+- `tutor-agent` (Phase 3's other half) implemented per
+  `specs/006-tutor-agent/`: a single primary tutor agent driving a
+  tool-calling loop directly on the existing `openai` Responses API
+  client (no `@openai/agents` package added — see research.md's
+  reasoning: that package's headline feature, named-agent handoffs, is
+  constitutionally forbidden here anyway). New tables
+  `tutor_conversations`/`tutor_conversation_turns`/`tutor_tool_calls`
+  (migration `0005_tutor_agent.sql`, RLS keyed on `user_id`, matching
+  `learner-graph-evidence`'s precedent) — this migration also attaches
+  the real FK on `evidence_events.conversation_turn_id` that
+  `0004_learner_evidence.sql` deliberately left unconstrained.
+- Grounding (`search_course_materials`) needed no new retrieval
+  infrastructure at all: confirmed `course_concepts`/`concept_edges`
+  already carry real `source_anchors` from ingestion, so it's a plain
+  Postgres `ilike` query over existing data — no embeddings, no vector
+  store, no `pgvector`.
+- The assistance ladder (`computeLadderStep`) is recomputed from a
+  conversation's own turn history every call, same recompute-from-log
+  reasoning as `learner-graph-evidence`'s `computeLearnerState` — no
+  persisted ladder-step counter anywhere.
+- Every learner-state effect of a conversation goes through
+  `learner-graph-evidence`'s existing `commitEvidence`, called from
+  `record_exposure`/`record_misconception_candidate` tool executions —
+  those are staged during the tool-calling loop and actually committed
+  only after the student's turn is inserted (its real id is the required
+  `conversationTurnId` origin), never a second evidence-writing path.
+- A real sequencing subtlety worth remembering: a turn's `concept_ids`/
+  `ladder_step_used` can only be known once the loop resolves them via a
+  tool call, so both the student and tutor turns for one exchange are
+  inserted *after* the loop completes, not before — this keeps
+  `tutor_conversation_turns` genuinely append-only (no update policy
+  needed) at the cost of not having a turn id to reference mid-loop,
+  which is exactly why evidence commits had to be staged rather than
+  committed inline.
+- Verification actually run, not just typechecked: 136 unit tests pass;
+  migration pushed and RLS verified live; a full Playwright E2E suite
+  (7 scenarios, the first authenticated Playwright coverage in this
+  project — `tests/e2e/global-setup.ts` provisions a real throwaway
+  student + course + seeded evidence and captures a real signed-in
+  session) covers all four user stories against real Supabase data using
+  a scripted test-double model response
+  (`test-double-openai-client.ts`, gated by `TUTOR_AGENT_USE_TEST_DOUBLE`,
+  never on by accident); separately, one real live `gpt-4.1` call through
+  the actual conversation flow was run manually (no test double) and
+  produced a correctly grounded, source-cited answer — confirming the
+  tool schemas and response-parsing work against the real API, not only
+  the double.
+- Concept Atlas's own visual regression suite was re-run alongside this
+  feature's E2E suite and shows no new regressions from this work (one
+  flaky ~1%-pixel diff on `expanded-unit.png`, confirmed by inspection to
+  be pre-existing node-selection-highlight jitter unrelated to
+  tutor-agent, left as-is).

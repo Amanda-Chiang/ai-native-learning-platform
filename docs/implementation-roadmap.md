@@ -93,10 +93,12 @@ restating per-feature:
   implemented — every task in their `specs/NNN-*/tasks.md` is checked off,
   migrations pushed and RLS-verified live, visual regression suites
   passing.
-- Phase 3's `learner-graph-evidence` has a complete spec, plan, and task
-  breakdown (`specs/005-learner-graph-evidence/`) but implementation
-  (`/speckit-implement`) has not started. `tutor-agent`, Phase 3's other
-  feature, has not been specified yet.
+- Phase 3 is fully implemented — both `learner-graph-evidence` and
+  `tutor-agent` have every task in their `specs/NNN-*/tasks.md` checked
+  off, migrations pushed and RLS-verified live (including a live
+  two-account isolation check for evidence, and a live real-`gpt-4.1`
+  conversation check for the tutor agent), unit tests and an E2E suite
+  (the project's first authenticated Playwright coverage) passing.
 - Phases 4-6 have not been touched.
 
 **This section will go stale the moment more work lands** — it is a
