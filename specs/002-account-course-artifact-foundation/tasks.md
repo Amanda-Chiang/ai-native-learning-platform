@@ -219,17 +219,22 @@ waits for `quickstart.md` Group B3–B4 once credentials exist.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T022 Run `npm run typecheck` across the whole repository — expect
+- [X] T022 Run `npm run typecheck` across the whole repository — expect
   PASS with no regressions outside this feature
-- [ ] T023 Run `npm run test:unit` — expect PASS (Phase 0's 26 existing
+- [X] T023 Run `npm run test:unit` — expect PASS (Phase 0's 26 existing
   tests plus this feature's new `status.test.ts` tests)
-- [ ] T024 Walk through `quickstart.md` Group A (A1–A3) end to end and
+- [X] T024 Walk through `quickstart.md` Group A (A1–A3) end to end and
   confirm every expected outcome holds
-- [ ] T025 Re-read `quickstart.md` Group B against the final file paths
+- [X] T025 Re-read `quickstart.md` Group B against the final file paths
   and confirm its instructions are accurate and ready for the product
   owner to run once Supabase/Trigger.dev credentials are provisioned —
   this task does not itself require live credentials, only confirms the
-  handoff document is correct
+  handoff document is correct. **This check found a real gap**: no
+  `trigger.config.ts` existed, so Group B1's `npx trigger.dev@latest dev`
+  instruction would have failed even with real credentials, since the
+  Trigger.dev CLI has no way to know which project or task directory to
+  use without it. Added `trigger.config.ts` (project ref placeholder +
+  `dirs: ["./trigger"]` + `maxDuration: 60`) and updated B1 to say so.
 
 ---
 

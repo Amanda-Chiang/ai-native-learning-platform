@@ -44,6 +44,22 @@ does not require a live Supabase project, just the CLI tool.) Manually
 cross-check the migration's tables/columns/policies against
 `data-model.md`'s tables.
 
+**Status as of this implementation pass**: the Supabase CLI isn't
+installed in this environment, and installing a new global CLI tool
+wasn't done unprompted for a one-time syntax check (same caution
+`brain/decisions/ADR-0001-dev-tooling-selection.md` already applied to
+similar tooling). A manual read-through of the migration substituted for
+this command — every table, index, and policy matches `data-model.md`,
+and the syntax (foreign keys, `using`/`with check` clauses,
+`storage.foldername()`) is standard Postgres/Supabase DDL. One note from
+that review: `create policy` has no `if not exists` form (unlike the
+`create table`/`create index` statements above it in the same file), so
+this migration isn't safe to run twice manually — fine under Supabase's
+own migration model (each file runs exactly once, tracked in a migration
+history table via `supabase db push`), but worth knowing if it's ever
+applied by hand via `psql`. Run the real `supabase db lint` command once
+the CLI is installed, as a final confirmation.
+
 ## Group B — requires a real Supabase project and Trigger.dev account
 
 These are the actual end-to-end proof that the feature works — run them
@@ -55,8 +71,11 @@ once accounts exist and `.env.local` is filled in from
 1. Create a Supabase project; run
    `supabase link` and `supabase db push` to apply
    `supabase/migrations/0001_courses_artifacts.sql`.
-2. Create a Trigger.dev project; run `npx trigger.dev@latest dev` to
-   register the `ingest-artifact` task locally.
+2. Create a Trigger.dev project, then replace the placeholder
+   `project: "REPLACE_WITH_REAL_TRIGGER_DEV_PROJECT_REF"` in
+   `trigger.config.ts` with the real project ref from the Trigger.dev
+   dashboard. Run `npx trigger.dev@latest dev` to register the
+   `ingest-artifact` task locally.
 3. Copy `.env.example` to `.env.local` and fill in the real
    `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
    `SUPABASE_SERVICE_ROLE_KEY`, and `TRIGGER_SECRET_KEY` values from each

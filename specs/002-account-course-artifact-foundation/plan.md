@@ -143,6 +143,8 @@ src/
 │       ├── page.tsx                 # course list + create form
 │       └── [courseId]/page.tsx      # Server Component: fetches initial artifact list, renders ArtifactBoard
 
+trigger.config.ts          # (added during implementation, caught by T025's accuracy check) Trigger.dev CLI config -- project ref + task directory
+
 trigger/
 └── ingest-artifact.ts      # Trigger.dev task: queued -> processing -> ready|failed
 
