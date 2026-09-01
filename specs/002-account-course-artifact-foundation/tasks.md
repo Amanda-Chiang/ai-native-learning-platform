@@ -103,15 +103,15 @@ back in, land on the same account, not a fresh one).
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implement `signUp`, `signIn`, `signOut` server actions in
+- [X] T009 [US1] Implement `signUp`, `signIn`, `signOut` server actions in
   `src/features/auth/actions.ts` per contracts/server-actions.md — depends
   on T007
-- [ ] T010 [US1] Implement `src/app/sign-up/page.tsx`: email/password form
+- [X] T010 [US1] Implement `src/app/sign-up/page.tsx`: email/password form
   calling `signUp`, redirecting to `/courses` on success, showing
   `{error}` inline on failure
-- [ ] T011 [US1] Implement `src/app/sign-in/page.tsx`: same pattern as
+- [X] T011 [US1] Implement `src/app/sign-in/page.tsx`: same pattern as
   T010, calling `signIn`
-- [ ] T012 [US1] Add a sign-out control (calls `signOut`) to
+- [X] T012 [US1] Add a sign-out control (calls `signOut`) to
   `src/app/layout.tsx` or a shared header component, visible only when
   signed in
 
