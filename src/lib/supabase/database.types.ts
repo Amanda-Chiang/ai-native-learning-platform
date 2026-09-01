@@ -3,6 +3,12 @@
  * Replace with `supabase gen types typescript` output once a live
  * project exists (research.md) -- keep this file's shape in sync with
  * the migration until then.
+ *
+ * Shape matches what @supabase/postgrest-js's GenericTable/GenericSchema
+ * require (Row/Insert/Update/Relationships per table; Tables/Views/
+ * Functions per schema) -- omitting any of these makes TypeScript fall
+ * back to `never` for every `.from(...)` call instead of erroring
+ * loudly, which is what happened here before this was fixed.
  */
 
 export type ArtifactStatus = "queued" | "processing" | "ready" | "failed";
@@ -45,6 +51,7 @@ export type Database = {
         Row: CourseRow;
         Insert: Omit<CourseRow, "id" | "created_at">;
         Update: Partial<Omit<CourseRow, "id">>;
+        Relationships: [];
       };
       artifacts: {
         Row: ArtifactRow;
@@ -52,12 +59,16 @@ export type Database = {
           status?: ArtifactStatus;
         };
         Update: Partial<Omit<ArtifactRow, "id">>;
+        Relationships: [];
       };
       artifact_processing_runs: {
         Row: ArtifactProcessingRunRow;
         Insert: Omit<ArtifactProcessingRunRow, "id" | "created_at">;
         Update: Partial<Omit<ArtifactProcessingRunRow, "id">>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
   };
 };

@@ -136,10 +136,10 @@ account.
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Implement `createCourse`, `listCourses` server actions in
+- [X] T013 [US2] Implement `createCourse`, `listCourses` server actions in
   `src/features/courses/actions.ts` per contracts/server-actions.md —
   depends on T007, T009
-- [ ] T014 [US2] Implement `src/app/courses/page.tsx`: lists the signed-in
+- [X] T014 [US2] Implement `src/app/courses/page.tsx`: lists the signed-in
   student's courses (via `listCourses`) and a create-course form (via
   `createCourse`)
 
