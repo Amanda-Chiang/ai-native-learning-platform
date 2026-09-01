@@ -166,24 +166,24 @@ course.
 > The only automated tests in this feature — pure logic, no live Supabase
 > needed. Write first; confirm failing before implementation.
 
-- [ ] T015 [P] [US3] Write `tests/unit/artifacts/status.test.ts`: valid
+- [X] T015 [P] [US3] Write `tests/unit/artifacts/status.test.ts`: valid
   transitions (`queued→processing`, `processing→ready`,
   `processing→failed`) are accepted; invalid transitions
   (`queued→ready` skipping a state, any transition *out of* `ready` or
   `failed`) are rejected; an unsupported `mimeType` or `sizeBytes` over
   the configured max is rejected by the upload-validation rule (spec
   FR-005, quickstart.md A2)
-- [ ] T016 [US3] Run `node --test tests/unit/artifacts/status.test.ts` —
+- [X] T016 [US3] Run `node --test tests/unit/artifacts/status.test.ts` —
   expect FAIL (`Cannot find module '../../../src/features/artifacts/status.ts'`)
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Implement `src/features/artifacts/status.ts`:
+- [X] T017 [US3] Implement `src/features/artifacts/status.ts`:
   `ArtifactStatus` type (`"queued" | "processing" | "ready" | "failed"`),
   `isValidStatusTransition(from, to): boolean`, and
   `validateUpload(mimeType, sizeBytes): { valid: true } | { valid: false; reason: string }`
   per data-model.md's state machine and validation rules — depends on T015
-- [ ] T018 [US3] Run `node --test tests/unit/artifacts/status.test.ts` —
+- [X] T018 [US3] Run `node --test tests/unit/artifacts/status.test.ts` —
   expect PASS
 - [ ] T019 [US3] Implement `uploadArtifact`, `listArtifacts` server
   actions in `src/features/artifacts/actions.ts` per
