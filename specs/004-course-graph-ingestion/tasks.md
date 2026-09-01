@@ -302,13 +302,13 @@ from).
 
 ### Implementation for User Story 4
 
-- [ ] T031 [US4] In `actions.ts`: `submitFlag(targetKind, targetId, reason)`
+- [X] T031 [US4] In `actions.ts`: `submitFlag(targetKind, targetId, reason)`
   per contracts/ingestion-actions.md — rejects an empty/whitespace-only
   reason client- and server-side, sets `reporter_id` from the
   authenticated session only (never accepted as a parameter, matching
   `courses/actions.ts`'s `owner_id` convention), does not touch
   `course_concepts`/`concept_edges` in any way
-- [ ] T032 [US4] Add a flag affordance to
+- [X] T032 [US4] Add a flag affordance to
   `src/features/concept-atlas/components/ConceptDetailPanel.tsx`: an
   optional `onFlag?: (reason: string) => void` prop (same optional-prop
   pattern already used for `onFlagEdge`-style extensions in that file),
@@ -317,11 +317,14 @@ from).
   not hardcoded into the renderer feature itself (keeps
   `concept-atlas-renderer` unaware of `course-graph-ingestion`,
   consistent with Constitution Principle I's renderer-neutral boundary)
-- [ ] T033 [US4] Update `ReviewQueue.tsx` (T029) to visibly surface a
+- [X] T033 [US4] Update `ReviewQueue.tsx` (T029) to visibly surface a
   candidate's flag count/reasons if any exist by the time it's reviewed
   (data already included via `getReviewQueue`'s join from T023 — this
-  task is the UI rendering of it, not new data plumbing)
-- [ ] T034 [P] [US4] Write
+  task is the UI rendering of it, not new data plumbing). Already built
+  in T029 — `ReviewQueue.tsx` rendered flags from the start since
+  `ReviewQueueItem`'s shape always included them; no separate change
+  needed here.
+- [X] T034 [P] [US4] Write
   `tests/unit/course-graph-ingestion/submit-flag.test.ts` (or an
   integration-style test against a seeded Supabase project, per this
   feature's Testing conventions): submitting a flag inserts exactly one

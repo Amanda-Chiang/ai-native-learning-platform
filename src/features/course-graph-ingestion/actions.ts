@@ -10,6 +10,7 @@ import type {
   ReconciliationDecisionRow,
   ConceptFlagRow,
 } from "@/lib/supabase/database.types.ts";
+import { validateFlagReason } from "@/features/course-graph-ingestion/flag-validation.ts";
 
 /**
  * Server action contracts: specs/004-course-graph-ingestion/contracts/ingestion-actions.md
@@ -279,4 +280,71 @@ export async function getCourseGraph(courseId: string): Promise<CourseGraph> {
   // the two, but that's a pre-existing project-wide pattern, not
   // something invented here.
   return materializeCourseGraph(unitsRes.data ?? [], conceptsRes.data ?? [], edgesRes.data ?? []);
+}
+
+export async function submitFlag(
+  targetKind: "concept" | "edge",
+  targetId: string,
+  reason: string,
+): Promise<{ error: string | null }> {
+  const validation = validateFlagReason(reason);
+  if (!validation.valid) {
+    return { error: validation.error };
+  }
+  const trimmedReason = validation.trimmed;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in to flag a concept or relationship." };
+  }
+
+  // concept_flags.course_id can't be supplied by the caller (it isn't
+  // part of this action's public parameters, matching FR-009's "a
+  // student flags a concept/relationship" -- the student doesn't need
+  // to already know or supply the course id) -- looked up from the
+  // target itself instead.
+  const table = targetKind === "concept" ? "course_concepts" : "concept_edges";
+  const { data: target, error: targetError } = await supabase
+    .from(table)
+    .select("course_id")
+    .eq("id", targetId)
+    .single();
+
+  if (targetError || !target) {
+    return { error: `No ${targetKind} found with id "${targetId}" to flag.` };
+  }
+
+  // reporter_id comes from the authenticated session only, never
+  // accepted as a parameter -- same reasoning as courses/actions.ts's
+  // owner_id comment. This insert never touches course_concepts/
+  // concept_edges in any way (FR-010).
+  const { error } = await supabase.from("concept_flags").insert({
+    course_id: target.course_id,
+    target_kind: targetKind,
+    target_id: targetId,
+    reporter_id: user.id,
+    reason: trimmedReason,
+  });
+
+  return { error: error?.message ?? null };
+}
+
+/**
+ * Thin wrapper around submitFlag matching concept-atlas-renderer's own
+ * vocabulary ("relationship", not "edge") so it can be passed directly
+ * as a Server Action reference into ConceptAtlas's onFlag prop
+ * (src/app/courses/[courseId]/atlas/page.tsx) without that renderer
+ * feature importing anything from course-graph-ingestion by name --
+ * Constitution Principle I's renderer-neutral boundary.
+ */
+export async function submitConceptAtlasFlag(
+  kind: "concept" | "relationship",
+  id: string,
+  reason: string,
+): Promise<{ error: string | null }> {
+  return submitFlag(kind === "concept" ? "concept" : "edge", id, reason);
 }

@@ -102,7 +102,21 @@ function buildFocused(graph: CourseGraph, target: FocusTarget): Focused | null {
   };
 }
 
-export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId: string }) {
+export function ConceptAtlas({
+  graph,
+  courseId,
+  onFlag,
+}: {
+  graph: CourseGraph;
+  courseId: string;
+  /**
+   * course-graph-ingestion's User Story 4. Optional -- this renderer
+   * feature stays unaware of that feature's server actions by name
+   * (Constitution Principle I); the page passes a matching function
+   * (typically a direct Server Action reference) in.
+   */
+  onFlag?: (kind: "concept" | "relationship", id: string, reason: string) => Promise<{ error: string | null }>;
+}) {
   const [defaultPositions, setDefaultPositions] = useState<Map<string, LayoutPosition> | null>(
     null,
   );
@@ -318,7 +332,13 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
         <Background />
         <Controls />
       </ReactFlow>
-      {focused && <ConceptDetailPanel focused={focused} onClose={() => setFocusTarget(null)} />}
+      {focused && (
+        <ConceptDetailPanel
+          focused={focused}
+          onClose={() => setFocusTarget(null)}
+          onFlag={onFlag ? (reason) => onFlag(focused.kind, focused.id, reason) : undefined}
+        />
+      )}
     </div>
   );
 }

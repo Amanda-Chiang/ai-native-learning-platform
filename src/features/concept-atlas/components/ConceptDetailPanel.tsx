@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { MasteryState, RelationshipType } from "@/types/graph/course-graph.ts";
 
 /**
@@ -77,7 +80,23 @@ const PANEL_STYLE = `
   }
 `;
 
-export function ConceptDetailPanel({ focused, onClose }: { focused: Focused; onClose: () => void }) {
+export function ConceptDetailPanel({
+  focused,
+  onClose,
+  onFlag,
+}: {
+  focused: Focused;
+  onClose: () => void;
+  /**
+   * Submits a student flag for the currently-focused concept/relationship
+   * (course-graph-ingestion's User Story 4). Optional and undefined by
+   * default -- this renderer feature stays unaware of
+   * course-graph-ingestion's server actions (Constitution Principle I's
+   * renderer-neutral boundary); the page/course level wires this to
+   * submitFlag.
+   */
+  onFlag?: (reason: string) => Promise<{ error: string | null }>;
+}) {
   return (
     <>
       <style>{PANEL_STYLE}</style>
@@ -86,16 +105,62 @@ export function ConceptDetailPanel({ focused, onClose }: { focused: Focused; onC
           ×
         </button>
         {focused.kind === "concept" ? (
-          <ConceptDetail focused={focused} />
+          <ConceptDetail focused={focused} onFlag={onFlag} />
         ) : (
-          <RelationshipDetail focused={focused} />
+          <RelationshipDetail focused={focused} onFlag={onFlag} />
         )}
       </aside>
     </>
   );
 }
 
-function ConceptDetail({ focused }: { focused: FocusedConcept }) {
+function FlagControl({ onFlag }: { onFlag: (reason: string) => Promise<{ error: string | null }> }) {
+  const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const reason = (new FormData(form).get("reason") as string | null)?.trim() ?? "";
+        if (reason.length === 0) return;
+        const result = await onFlag(reason);
+        if (result.error) {
+          setError(result.error);
+          setSubmitted(false);
+          return;
+        }
+        setError(null);
+        setSubmitted(true);
+        form.reset();
+      }}
+      style={{ marginTop: 12, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}
+    >
+      <label style={{ fontSize: 12, color: "#6b7280" }}>
+        Something wrong here?
+        <input
+          name="reason"
+          placeholder="e.g. this looks like a duplicate"
+          style={{ display: "block", width: "100%", marginTop: 4, fontSize: 12 }}
+        />
+      </label>
+      <button type="submit" style={{ fontSize: 12, marginTop: 4 }}>
+        Flag
+      </button>
+      {error && <p style={{ color: "#dc2626", fontSize: 11 }}>{error}</p>}
+      {submitted && <p style={{ color: "#16a34a", fontSize: 11 }}>Flag submitted.</p>}
+    </form>
+  );
+}
+
+function ConceptDetail({
+  focused,
+  onFlag,
+}: {
+  focused: FocusedConcept;
+  onFlag?: (reason: string) => Promise<{ error: string | null }>;
+}) {
   return (
     <>
       <h2>{focused.canonicalLabel}</h2>
@@ -122,11 +187,18 @@ function ConceptDetail({ focused }: { focused: FocusedConcept }) {
           ))}
         </ul>
       )}
+      {onFlag && <FlagControl onFlag={onFlag} />}
     </>
   );
 }
 
-function RelationshipDetail({ focused }: { focused: FocusedRelationship }) {
+function RelationshipDetail({
+  focused,
+  onFlag,
+}: {
+  focused: FocusedRelationship;
+  onFlag?: (reason: string) => Promise<{ error: string | null }>;
+}) {
   const isWeak = focused.learnerState === "weak";
   return (
     <>
@@ -147,6 +219,7 @@ function RelationshipDetail({ focused }: { focused: FocusedRelationship }) {
           </p>
         </>
       )}
+      {onFlag && <FlagControl onFlag={onFlag} />}
     </>
   );
 }

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ConceptAtlas } from "@/features/concept-atlas/components/ConceptAtlas.tsx";
-import { getCourseGraph } from "@/features/course-graph-ingestion/actions.ts";
+import { getCourseGraph, submitConceptAtlasFlag } from "@/features/course-graph-ingestion/actions.ts";
 import type { CourseGraph } from "@/types/graph/course-graph.ts";
 
 /**
@@ -34,7 +34,7 @@ export default async function CourseAtlasPage({
   return (
     <main>
       <h1>Concept Atlas</h1>
-      <ConceptAtlas graph={graph} courseId={courseId} />
+      <ConceptAtlas graph={graph} courseId={courseId} onFlag={submitConceptAtlasFlag} />
     </main>
   );
 }
