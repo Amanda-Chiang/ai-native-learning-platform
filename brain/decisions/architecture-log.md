@@ -268,3 +268,30 @@ checklist is a setup gate, not a retrofit. Applies to
   it. Treated as a device-class decision, not a live-resize feature.
 - Full reasoning: `specs/003-concept-atlas-renderer/research.md`
   ("Mobile breakpoint: disable fitView, don't just shrink it").
+
+## 2026-09-01 — Standing rule: no silent placeholders
+
+- A fallback, default, or unknown value must never be indistinguishable
+  from a genuinely computed/found one. If something can't be computed or
+  found, that absence must be visible — an explicit "missing" state, a
+  loud dev-facing error/warning, or a marker a caller must handle —
+  never a plausible-looking stand-in value.
+- **Why now**: about to build `course-graph-ingestion`, a probabilistic
+  LLM extraction pipeline where "couldn't extract this" and "extracted
+  successfully" must never look the same on the wire (FR-012's distinct
+  failure status is one direct consequence). Applies retroactively, not
+  just going forward.
+- **Retroactive fixes applied**: `react-flow-adapter.ts`'s ELK-position
+  unwrapping used `?? 0` for coordinates that should always be present
+  post-layout (now throws loudly if they're ever actually missing,
+  instead of silently rendering at a fake origin); a concept not listed
+  under any unit's `conceptIds` used to render silently at `(0, 0)`
+  (stacking invisibly under whatever else sits there) — now logged via
+  `console.error` and omitted from the render instead of faked.
+- **Standing rule going forward**: before writing `?? someDefault` or
+  `|| someDefault` for a value that's supposed to be computed/looked up
+  (not a genuine optional field with a meaningful default), ask whether
+  the fallback branch is truly reachable and, if so, whether silently
+  using it could be mistaken for real data. If yes to both, make the
+  gap explicit instead (throw, warn, or an explicit "unknown" UI state)
+  rather than papering over it.

@@ -188,6 +188,13 @@ export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId
       null,
     );
     if (!leftmostUnit) {
+      // Not a "position couldn't be found" fallback -- this only fires
+      // for a course with zero units (a real, valid state: e.g. a
+      // freshly created course with nothing extracted/confirmed yet),
+      // where there is genuinely no unit to center on. (0, 0) is an
+      // honest empty-canvas origin here, not a stand-in for a real
+      // computed position -- see no-silent-placeholders in
+      // brain/decisions/architecture-log.md.
       return { x: 20, y: 20, zoom: 1 };
     }
     return { x: -leftmostUnit.position.x + 20, y: -leftmostUnit.position.y + 20, zoom: 1 };

@@ -73,21 +73,34 @@ export async function computeElkLayout(
   const positions = new Map<string, LayoutPosition>();
 
   for (const unitNode of layouted.children ?? []) {
+    // elkjs's TS types mark x/y/width/height optional (they're unset on
+    // the *input* graph), but elk.layout() always fills them in on the
+    // *output* graph for every node it laid out -- so `?? 0` here would
+    // silently mask a real bug (ELK failing to place a node) as a
+    // plausible-looking coordinate, indistinguishable from a real one.
+    // Per the no-silent-placeholders rule: if this ever fires, that's a
+    // genuine layout failure and must be loud, not quietly zeroed.
+    if (unitNode.x === undefined || unitNode.y === undefined) {
+      throw new Error(`ELK did not compute a position for unit "${unitNode.id}"`);
+    }
     // ELK auto-sizes a container node (no explicit width/height was set
     // on units above) to fit its children plus the configured padding --
     // that computed size is what makes the unit render as a bounded
     // region rather than an arbitrary box (spec FR-001).
     positions.set(unitNode.id, {
-      x: unitNode.x ?? 0,
-      y: unitNode.y ?? 0,
+      x: unitNode.x,
+      y: unitNode.y,
       width: unitNode.width ?? CONCEPT_NODE_WIDTH + 32,
       height: unitNode.height ?? CONCEPT_NODE_HEIGHT + UNIT_HEADER_HEIGHT + 32,
     });
     for (const conceptNode of unitNode.children ?? []) {
+      if (conceptNode.x === undefined || conceptNode.y === undefined) {
+        throw new Error(`ELK did not compute a position for concept "${conceptNode.id}"`);
+      }
       // Concept positions from ELK are relative to their parent unit --
       // React Flow's parentId/extent mechanism expects the same
       // convention, so no re-basing is needed here.
-      positions.set(conceptNode.id, { x: conceptNode.x ?? 0, y: conceptNode.y ?? 0 });
+      positions.set(conceptNode.id, { x: conceptNode.x, y: conceptNode.y });
     }
   }
 
@@ -112,7 +125,16 @@ export function courseGraphToReactFlowElements(
   }
 
   const unitNodes: Node[] = graph.units.map((unit) => {
-    const pos = positions.get(unit.id) ?? { x: 0, y: 0 };
+    const pos = positions.get(unit.id);
+    if (!pos) {
+      // Every unit passed to computeElkLayout gets a position back --
+      // reaching this means positions came from somewhere other than
+      // that function (or a mismatched graph/positions pair). Silently
+      // falling back to (0, 0) would stack this unit invisibly on top
+      // of whatever else sits at the origin, indistinguishable from a
+      // real layout; loud and explicit instead, per no-silent-placeholders.
+      throw new Error(`No layout position found for unit "${unit.id}"`);
+    }
     const isCollapsed = collapsedUnitIds.has(unit.id);
     const width = pos.width ?? CONCEPT_NODE_WIDTH + 32;
     // A collapsed unit shrinks to just its header -- hiding the concept
@@ -145,25 +167,42 @@ export function courseGraphToReactFlowElements(
     };
   });
 
-  const conceptNodes: Node[] = graph.concepts.map((concept) => {
+  // computeElkLayout only assigns a position to concepts reachable from
+  // some unit's conceptIds -- a concept that isn't listed under any unit
+  // (a real, not-yet-forbidden CourseGraph shape) has no ELK position at
+  // all. Silently placing it at (0, 0) would render it stacked invisibly
+  // under whatever else sits there, indistinguishable from a real,
+  // intentional position. Per no-silent-placeholders: surface it loudly
+  // and drop it from the render rather than fabricate a coordinate --
+  // an orphaned concept is a data problem for ingestion/reconciliation
+  // to fix, not something this renderer should paper over.
+  const conceptNodes: Node[] = graph.concepts.flatMap((concept) => {
     const unitId = conceptToUnit.get(concept.id);
-    const pos = positions.get(concept.id) ?? { x: 0, y: 0 };
+    const pos = positions.get(concept.id);
+    if (!pos) {
+      console.error(
+        `concept-atlas: concept "${concept.id}" has no layout position (not listed under any unit's conceptIds) -- omitted from render`,
+      );
+      return [];
+    }
     const inCollapsedUnit = unitId !== undefined && collapsedUnitIds.has(unitId);
-    return {
-      id: concept.id,
-      type: "conceptNode",
-      position: pos,
-      parentId: unitId,
-      extent: unitId ? ("parent" as const) : undefined,
-      hidden: inCollapsedUnit,
-      width: CONCEPT_NODE_WIDTH,
-      height: CONCEPT_NODE_HEIGHT,
-      data: {
-        canonicalLabel: concept.canonicalLabel,
-        aliases: concept.aliases,
-        masteryState: concept.masteryState,
+    return [
+      {
+        id: concept.id,
+        type: "conceptNode",
+        position: pos,
+        parentId: unitId,
+        extent: unitId ? ("parent" as const) : undefined,
+        hidden: inCollapsedUnit,
+        width: CONCEPT_NODE_WIDTH,
+        height: CONCEPT_NODE_HEIGHT,
+        data: {
+          canonicalLabel: concept.canonicalLabel,
+          aliases: concept.aliases,
+          masteryState: concept.masteryState,
+        },
       },
-    };
+    ];
   });
 
   const edges: Edge[] = graph.relationships.map((relationship) => ({
