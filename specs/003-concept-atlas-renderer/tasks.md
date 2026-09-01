@@ -35,9 +35,9 @@ Single Next.js project (per plan.md's Project Structure):
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `@xyflow/react` and `elkjs` to `package.json` dependencies
+- [X] T001 Add `@xyflow/react` and `elkjs` to `package.json` dependencies
   (`npm install @xyflow/react elkjs`)
-- [ ] T002 [P] Create `src/types/graph/`, `src/features/concept-atlas/adapters/`,
+- [X] T002 [P] Create `src/types/graph/`, `src/features/concept-atlas/adapters/`,
   `src/features/concept-atlas/components/`, `src/app/courses/[courseId]/atlas/`,
   and `tests/unit/concept-atlas/` directories
 
