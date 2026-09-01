@@ -289,6 +289,52 @@ export type AssessmentAttemptRow = {
   created_at: string;
 };
 
+/** Matches supabase/migrations/0007_assessment_generation.sql. */
+export type GenerationRunOutcome = "passed" | "failed";
+
+export type AssessmentGenerationRunRow = {
+  id: string;
+  request_id: string;
+  course_id: string;
+  owner_id: string;
+  attempt_number: number;
+  blueprint: Record<string, unknown>;
+  candidate: Record<string, unknown>;
+  validation_report: Record<string, unknown>;
+  outcome: GenerationRunOutcome;
+  created_at: string;
+};
+
+/** Assessment domain's own ResponseModality (text/code/graph/tree/diagram) --
+ * distinct from this file's ResponseModality above (deterministic-grading's
+ * structured/code/text), which describes a different table. */
+export type QuestionResponseModality = "text" | "code" | "graph" | "tree" | "diagram";
+
+export type QuestionBankCheckerDomain =
+  | "bfs-dfs"
+  | "heap"
+  | "tree-traversal"
+  | "tree-insertion"
+  | "topological-sort"
+  | "shortest-path";
+
+export type QuestionBankRow = {
+  id: string;
+  course_id: string;
+  owner_id: string;
+  generation_run_id: string;
+  question_text: string;
+  rubric: Record<string, unknown>;
+  hints: string[];
+  common_mistakes: string[];
+  source_anchors: Record<string, unknown>[];
+  response_modality: QuestionResponseModality;
+  checker_domain: QuestionBankCheckerDomain | null;
+  checker_input: Record<string, unknown> | null;
+  validation_report: Record<string, unknown>;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -407,6 +453,18 @@ export type Database = {
         Row: AssessmentAttemptRow;
         Insert: Omit<AssessmentAttemptRow, "id" | "created_at">;
         Update: Partial<Omit<AssessmentAttemptRow, "id">>;
+        Relationships: [];
+      };
+      assessment_generation_runs: {
+        Row: AssessmentGenerationRunRow;
+        Insert: Omit<AssessmentGenerationRunRow, "id" | "created_at">;
+        Update: Partial<Omit<AssessmentGenerationRunRow, "id">>;
+        Relationships: [];
+      };
+      question_bank: {
+        Row: QuestionBankRow;
+        Insert: Omit<QuestionBankRow, "id" | "created_at">;
+        Update: Partial<Omit<QuestionBankRow, "id">>;
         Relationships: [];
       };
     };
