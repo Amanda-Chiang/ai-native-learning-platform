@@ -89,6 +89,19 @@ queued ──▶ processing ──▶ ready
   `processing` doesn't create a duplicate `queued` state or silently skip
   updating the artifact.
 
+## Storage: `course-artifacts` bucket
+
+**Added during implementation** (not in the original design pass — surfaced
+once the upload form in T021 needed somewhere real to upload to). A
+single private Supabase Storage bucket, `course-artifacts`. Objects are
+keyed `${owner_id}/${artifact_id}/${original_filename}`, and two RLS
+policies on `storage.objects` (Supabase Storage's own RLS-backed access
+model, same mechanism as the Postgres tables above) restrict `SELECT`/
+`INSERT` to objects whose first path segment matches `auth.uid()`. This
+keeps file-level isolation enforced the same way as the row-level
+isolation above — one mechanism, not two different security models for
+"the file" versus "the record about the file."
+
 ## Relationships
 
 ```text

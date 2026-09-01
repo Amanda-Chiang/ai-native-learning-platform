@@ -133,14 +133,15 @@ src/
 │   ├── courses/
 │   │   └── actions.ts      # createCourse, listCourses server actions
 │   └── artifacts/
-│       ├── actions.ts      # uploadArtifact, listArtifacts server actions
-│       └── status.ts       # ArtifactStatus type + pure transition-validation helpers (unit-testable without a live DB)
+│       ├── actions.ts        # uploadArtifact, listArtifacts server actions
+│       ├── status.ts         # ArtifactStatus type + pure transition-validation helpers (unit-testable without a live DB)
+│       └── artifact-board.tsx  # (added during implementation) client component: upload form + Realtime-subscribed live list
 ├── app/
 │   ├── sign-up/page.tsx
 │   ├── sign-in/page.tsx
 │   └── courses/
 │       ├── page.tsx                 # course list + create form
-│       └── [courseId]/page.tsx      # artifact list + upload form + live status
+│       └── [courseId]/page.tsx      # Server Component: fetches initial artifact list, renders ArtifactBoard
 
 trigger/
 └── ingest-artifact.ts      # Trigger.dev task: queued -> processing -> ready|failed

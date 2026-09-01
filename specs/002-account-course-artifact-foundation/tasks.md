@@ -185,20 +185,31 @@ course.
   per data-model.md's state machine and validation rules — depends on T015
 - [X] T018 [US3] Run `node --test tests/unit/artifacts/status.test.ts` —
   expect PASS
-- [ ] T019 [US3] Implement `uploadArtifact`, `listArtifacts` server
+- [X] T019 [US3] Implement `uploadArtifact`, `listArtifacts` server
   actions in `src/features/artifacts/actions.ts` per
   contracts/server-actions.md, using `validateUpload` from T017 before
   any database write — depends on T007, T013, T017
-- [ ] T020 [US3] Implement `trigger/ingest-artifact.ts`: the Trigger.dev
+- [X] T020 [US3] Implement `trigger/ingest-artifact.ts`: the Trigger.dev
   task per contracts/server-actions.md's Trigger.dev task contract —
   idempotency guard (re-read current run status before proceeding),
   deterministic validation, terminal status write to both the run and
   parent artifact in one transaction — depends on T005
-- [ ] T021 [US3] Implement `src/app/courses/[courseId]/page.tsx`:
+- [X] T021 [US3] Implement `src/app/courses/[courseId]/page.tsx`:
   artifact list (via `listArtifacts`) with live status display (polling
   or Supabase Realtime subscription, satisfying FR-011's "no manual
   reload" requirement) and an upload form (direct-to-Storage upload per
-  research.md, then calling `uploadArtifact`) — depends on T006, T019
+  research.md, then calling `uploadArtifact`) — depends on T006, T019.
+  **Note (implementation-time addition, not in the original plan.md file
+  list)**: the interactive parts (upload form, live list) were split into
+  a client component, `src/features/artifacts/artifact-board.tsx`, with
+  `page.tsx` staying a Server Component that only fetches the initial
+  list — see the design-decision writeup for why. Chose Supabase Realtime
+  (`postgres_changes` subscription) over polling for FR-011. Also
+  discovered the upload flow needs a Storage bucket to actually exist —
+  added `course-artifacts` bucket creation + RLS policies to
+  `supabase/migrations/0001_courses_artifacts.sql` (folded into this
+  task rather than tracked as a separate one, since it's a direct
+  prerequisite of this task's own upload form).
 
 **Checkpoint**: Upload + durable status is code-complete; live
 verification (the feature's actual exit criterion, spec SC-002/SC-003)

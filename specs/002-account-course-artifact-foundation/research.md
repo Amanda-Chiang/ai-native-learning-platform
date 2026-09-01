@@ -136,6 +136,25 @@ file records the resolutions in Decision/Rationale/Alternatives format.
   revisit if either advisory is later shown to be reachable from
   student-facing input rather than internal tracing/transport.
 
+## Live status updates: Supabase Realtime, not polling
+
+- **Decision** (made during implementation, T021): the artifact list
+  subscribes to Postgres changes on the `artifacts` table via Supabase
+  Realtime (`supabase.channel(...).on("postgres_changes", ...)`),
+  filtered to the current course, instead of polling `listArtifacts` on
+  an interval.
+- **Rationale**: Realtime is part of the same Supabase project this
+  feature already depends on (no new service), and it reports a status
+  change the moment the Trigger.dev task writes it — polling would add
+  either latency (long interval) or wasted requests (short interval) for
+  no benefit, and FR-011 only requires "no manual reload," which Realtime
+  satisfies more directly.
+- **Alternatives considered**: polling on a fixed interval (rejected —
+  strictly worse on both latency and request volume for a service already
+  available); Server-Sent Events via a custom Next.js route (rejected —
+  reimplements what Supabase Realtime already provides, adding a new code
+  path to maintain for no capability gain).
+
 ## Environment variable contract
 
 - **Decision**: `.env.example` lists `NEXT_PUBLIC_SUPABASE_URL`,

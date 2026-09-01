@@ -104,3 +104,29 @@ create policy "artifact_processing_runs_select_own" on public.artifact_processin
 
 -- INSERT/UPDATE are performed only by the Trigger.dev task's
 -- service-role client (bypasses RLS) -- no student-facing write policy.
+
+-- ============================================================
+-- Storage: course-artifacts bucket
+-- ============================================================
+-- Private bucket for uploaded files (research.md: client uploads
+-- directly to Storage, server only records the metadata row). Objects
+-- are stored under `${owner_id}/${artifact_id}/${original_filename}`,
+-- which is what the RLS policies below key off of.
+
+insert into storage.buckets (id, name, public)
+values ('course-artifacts', 'course-artifacts', false)
+on conflict (id) do nothing;
+
+create policy "course_artifacts_select_own" on storage.objects
+  for select
+  using (
+    bucket_id = 'course-artifacts'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "course_artifacts_insert_own" on storage.objects
+  for insert
+  with check (
+    bucket_id = 'course-artifacts'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
