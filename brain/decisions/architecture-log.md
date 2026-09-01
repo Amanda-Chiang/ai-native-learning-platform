@@ -295,3 +295,31 @@ checklist is a setup gate, not a retrofit. Applies to
   using it could be mistaken for real data. If yes to both, make the
   gap explicit instead (throw, warn, or an explicit "unknown" UI state)
   rather than papering over it.
+
+## 2026-09-01 — course-graph-ingestion built end to end; first live extraction-quality numbers exist
+
+- `course-graph-ingestion` (Phase 2's ingestion half) is fully
+  implemented: OpenAI Structured Outputs extraction, LLM-based
+  reconciliation against existing course ontology, a review queue gating
+  what reaches the rendered atlas, student flags as feedback-only
+  evidence, and `scripts/score-extraction.ts` as the offline scoring
+  harness Constitution Principle IV requires.
+- The scoring harness was run live (not just typechecked) against all 7
+  `benchmark/dsa-course/` artifacts with real `gpt-4.1` calls. First real
+  numbers, recorded as the baseline: **concept recall 96.8%, edge recall
+  10.0%**. Edge recall is low partly because the harness requires exact
+  `relationType` match between extracted and expected edges — a stricter
+  bar than concept matching allows, and real edge quality may be
+  better than the number alone suggests. Concept precision (40%) is
+  dragged down by problem-set artifacts having 0 expected concepts in
+  the corpus (concepts are anchored to the lectures that introduced
+  them, not the problem sets that exercise them) — a corpus-construction
+  fact, not an extraction defect. Recorded honestly rather than adjusted
+  to look better; full reasoning in
+  `specs/004-course-graph-ingestion/research.md`.
+- **Known, pre-existing gap, not new to this feature**: `trigger.config.ts`
+  still has a placeholder Trigger.dev project ref, so the full upload →
+  Trigger.dev-triggered-extraction → review → render path has never run
+  live end-to-end — only its individual pieces have (extraction itself,
+  called directly; the review queue, against a seeded fixture). Same
+  category of gap Phase 1 shipped with for `ingest-artifact.ts`.

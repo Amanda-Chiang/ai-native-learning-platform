@@ -200,3 +200,40 @@
   extraction alone can't produce one against concepts that don't exist
   yet, but merging two *originally distinct* candidate endpoints into the
   same existing concept can.
+
+## First real run of scripts/score-extraction.ts: honest findings, not smoothed over
+
+Ran the scoring harness live (`gpt-4.1`, all 7 `benchmark/dsa-course/`
+artifacts) to confirm it actually works end-to-end before treating T035
+as done, not just typechecking it. Recorded baseline: **concept recall
+96.8%, edge recall 10.0%**. Two real findings worth keeping, not
+smoothing into a single "it works" line:
+
+- **Edge recall is genuinely low, and the harness's matching is at least
+  partly why.** Edge matching requires the candidate's `relationType` to
+  exactly equal the expected edge's `relationType`. The corpus's curated
+  edges and the model's own edges frequently describe the same real
+  relationship using a different (also defensible) type from the
+  seven-value taxonomy — e.g. `mechanism_for` vs. `part_of` for the same
+  pair. That's a stricter bar than concept matching (which already
+  tolerates alias/reconciliation-based matches), and it's plausible real
+  edge quality is better than 10% suggests. Not fixed here: loosening
+  the match would need a real judgment call about which relationType
+  substitutions are "close enough," which isn't a decision to make
+  inside a scoring script — worth a follow-up investigation, not a
+  silent threshold tweak to make the number look better.
+- **Concept precision (40%) is dragged down by `problem-set-3`/`problem-set-4`
+  showing 0 expected concepts each**, even though the model extracted
+  real, legitimate concepts from them (11 and 15 respectively). This is
+  a corpus-construction fact, not an extraction quality problem: expected
+  concepts in `concepts.json` are anchored to the *lecture* artifacts
+  that introduced them, not also to the problem sets that exercise them
+  — so a problem set will always show artificially low precision under
+  this per-artifact scoring method, regardless of how good extraction
+  is. Reported as-is rather than excluding problem sets from scoring
+  (which would hide a real methodology gap instead of naming it).
+
+Both are recorded here rather than adjusted away because the point of
+this harness is to be an honest instrument, not a passing one — a
+scoring script that quietly compensates for its own known blind spots
+stops being a check on anything.

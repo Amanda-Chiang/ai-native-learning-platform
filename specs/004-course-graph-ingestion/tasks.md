@@ -340,26 +340,54 @@ closing the loop spec.md's exit criterion describes.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T035 Create `scripts/score-extraction.ts` per research.md's
+- [X] T035 Create `scripts/score-extraction.ts` per research.md's
   "Extraction scoring" decision: runs extraction (via the same
   `extract-course-graph.ts`/`reconciliation.ts` logic, not a parallel
   reimplementation) against `benchmark/dsa-course/sources/*.md`, computes
   precision/recall against `concepts.json`/`edges.json` using
   reconciliation itself as the matching function, writes/reads a recorded
   baseline file, exits non-zero only on regression — requires `US1` and
-  `US2` both complete since it exercises both
-- [ ] T036 Run `npm run typecheck` across the whole repository — expect
-  PASS with no regressions outside this feature
-- [ ] T037 Run `npm run test:unit` — expect PASS (all prior phases' tests
+  `US2` both complete since it exercises both. Actually run live twice
+  (real `gpt-4.1` calls against all 7 corpus artifacts): first run
+  bootstrapped `scripts/extraction-score-baseline.json` (concept recall
+  96.8%, edge recall 10.0%); second run correctly detected no regression
+  and left the baseline unchanged, confirming both code paths work, not
+  just the bootstrap one. Two honest findings recorded in research.md
+  rather than smoothed over: edge recall is low partly because matching
+  requires exact `relationType` equality, a stricter bar than the
+  corpus's own edges vs. the model's differ on; concept precision is
+  dragged down by problem-set artifacts showing 0 expected concepts
+  (a corpus-construction fact — expected concepts are anchored to
+  lectures, not problem sets — not an extraction defect).
+- [X] T036 Run `npm run typecheck` across the whole repository — expect
+  PASS with no regressions outside this feature. Exits 0.
+- [X] T037 Run `npm run test:unit` — expect PASS (all prior phases' tests
   plus this feature's extraction-schema/reconciliation/materialization/
-  self-referential-edge/submit-flag tests)
-- [ ] T038 Run `tests/visual/review-queue.spec.ts` and manually open each
+  self-referential-edge/submit-flag tests). 83/83 pass.
+- [X] T038 Run `tests/visual/review-queue.spec.ts` and manually open each
   diff image before accepting any baseline — per the same "never approve
-  blindly" rule already followed throughout `concept-atlas-renderer`
-- [ ] T039 Walk through `quickstart.md` Groups A and B end to end
+  blindly" rule already followed throughout `concept-atlas-renderer`. All
+  7 tests across both visual suites pass (concept-atlas-renderer's 5 plus
+  this feature's 2); 3 concept-atlas baselines and 1 review-queue
+  baseline were regenerated and visually confirmed after US4 added the
+  flag control to the shared detail panel, each diff opened before
+  accepting. One recurring flake reconfirmed as environmental (a Next.js
+  dev-overlay badge caught mid-render), not a regression — passes in
+  isolation every time.
+- [X] T039 Walk through `quickstart.md` Groups A and B end to end
   (Group C requires a live `OPENAI_API_KEY` and is documented as a manual
   verification step, not automated here — do not claim it was run
-  without actually running it against a live key)
+  without actually running it against a live key). A1-A3 and B1
+  confirmed accurate (same commands as T036-T038 above, migration
+  already pushed and RLS-verified in Phase 2). C1 actually run live (see
+  T035). C2/C3 (the full upload → extract → review → render flow through
+  a real Trigger.dev-triggered task) were NOT run — this project's
+  `trigger.config.ts` still has a placeholder project ref
+  (`REPLACE_WITH_REAL_TRIGGER_DEV_PROJECT_REF`, unchanged since Phase 1),
+  so no live Trigger.dev deployment exists to trigger against. This is
+  the same pre-existing, already-documented gap Phase 1 shipped with, not
+  something new to this feature — noted here rather than silently
+  claimed as verified.
 
 ---
 

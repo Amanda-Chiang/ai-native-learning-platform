@@ -3,11 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { toFile } from "openai";
 import type { Database } from "../src/lib/supabase/database.types.ts";
 import { getOpenAiClient, isOpenAiConfigured } from "../src/lib/openai/client.ts";
-import {
-  EXTRACTION_RESPONSE_SCHEMA,
-  parseExtractionResult,
-  type ExtractionResult,
-} from "../src/features/course-graph-ingestion/extraction-schema.ts";
+import { parseExtractionResult, type ExtractionResult } from "../src/features/course-graph-ingestion/extraction-schema.ts";
+import { EXTRACTION_PROMPT, callExtractionModel } from "../src/features/course-graph-ingestion/openai-extraction-call.ts";
 import {
   createOpenAiReconciliationClassifier,
   reconcileConcept,
@@ -59,17 +56,6 @@ const EXTRACTION_MODEL = process.env.OPENAI_EXTRACTION_MODEL ?? "gpt-4.1";
 // point of a "distinct failure status" (research.md, FR-012).
 export const MISSING_OPENAI_KEY_REASON = "OpenAI is not configured for this environment.";
 export const UNREADABLE_ARTIFACT_REASON = "The uploaded file could not be found in storage.";
-
-const EXTRACTION_PROMPT = `You are extracting a course concept graph from one course artifact for a data-structures-and-algorithms course.
-
-Read the attached file and identify the distinct teachable concepts it introduces or discusses, and the relationships between them.
-
-Rules:
-- Only extract concepts and relationships that are actually present in this artifact. If the artifact has no extractable course content, return empty concepts and edges arrays -- do not invent placeholder content.
-- Every concept and every edge MUST include at least one sourceAnchor (locator + a short excerpt or close paraphrase) grounding it in this specific artifact. Never omit this.
-- Use the standard relationType taxonomy (prerequisite_for, part_of, mechanism_for, contrasts_with, used_in, generalizes_to, example_of) wherever one fits. Only use "other" when none of these genuinely fit, and in that case you MUST fill in relationTypeNote explaining why.
-- Assign each concept a short, stable localId (e.g. "c1", "c2") and reference those localIds from edges -- do not invent ids that look like database ids.
-- confidence and importanceScore are your own honest 0-1 estimates, not fixed defaults.`;
 
 async function markFailed(
   supabase: ReturnType<typeof createAdminClient>,
@@ -171,28 +157,10 @@ export const extractCourseGraphTask = task({
         purpose: "user_data",
       });
 
-      const response = await openai.responses.create({
-        model: EXTRACTION_MODEL,
-        input: [
-          {
-            role: "user",
-            content: [
-              { type: "input_file", file_id: uploaded.id },
-              { type: "input_text", text: EXTRACTION_PROMPT },
-            ],
-          },
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: EXTRACTION_RESPONSE_SCHEMA.name,
-            strict: EXTRACTION_RESPONSE_SCHEMA.strict,
-            schema: EXTRACTION_RESPONSE_SCHEMA.schema,
-          },
-        },
-      });
-
-      rawResult = JSON.parse(response.output_text);
+      rawResult = await callExtractionModel(openai, EXTRACTION_MODEL, [
+        { type: "input_file", file_id: uploaded.id },
+        { type: "input_text", text: EXTRACTION_PROMPT },
+      ]);
     } catch (err) {
       return markFailed(
         supabase,
