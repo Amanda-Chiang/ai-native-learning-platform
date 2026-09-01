@@ -162,6 +162,119 @@ export type ConceptFlagRow = {
   created_at: string;
 };
 
+/** Matches supabase/migrations/0004_learner_evidence.sql. */
+export const EVIDENCE_TYPES_DB = [
+  "exposure",
+  "retrieval",
+  "explanation",
+  "application",
+  "transfer",
+  "relationship_explanation",
+  "misconception",
+  "annotation_confusion_signal",
+  "instructor_feedback",
+] as const;
+
+export type EvidenceTypeDb = (typeof EVIDENCE_TYPES_DB)[number];
+
+export type EvidenceEventRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  concept_ids: string[];
+  edge_ids: string[];
+  evidence_type: EvidenceTypeDb;
+  correctness: boolean | null;
+  grader_confidence: number;
+  assistance_level: number;
+  difficulty: number;
+  transfer_distance: number;
+  student_confidence: number | null;
+  source_artifact_id: string | null;
+  assessment_attempt_id: string | null;
+  conversation_turn_id: string | null;
+  created_at: string;
+};
+
+export type MasteryStateDb = "unverified" | "exposed" | "weak" | "solid";
+export type LearnerRelationshipStateDb = "weak" | "strong";
+
+export type ContributingFactorJson = {
+  evidenceType: EvidenceTypeDb;
+  evidenceStrength: number;
+  recencyDecay: number;
+  independenceFactor: number;
+  graderConfidence: number;
+  difficultyFactor: number;
+};
+
+export type LearnerConceptStateRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  concept_id: string;
+  mastery_state: MasteryStateDb;
+  score: number;
+  has_unresolved_misconception: boolean;
+  contributing_factors: ContributingFactorJson[];
+  last_evidence_at: string;
+  updated_at: string;
+};
+
+export type LearnerEdgeStateRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  edge_id: string;
+  learner_state: LearnerRelationshipStateDb;
+  score: number;
+  has_unresolved_misconception: boolean;
+  contributing_factors: ContributingFactorJson[];
+  last_evidence_at: string;
+  updated_at: string;
+};
+
+/** Matches supabase/migrations/0005_tutor_agent.sql. */
+export type TutorConversationRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TutorTurnRole = "student" | "tutor";
+
+export type TutorConversationTurnRow = {
+  id: string;
+  conversation_id: string;
+  user_id: string;
+  role: TutorTurnRole;
+  content: string;
+  concept_ids: string[];
+  correct: boolean | null;
+  requested_direct_answer: boolean;
+  ladder_step_used: number | null;
+  created_at: string;
+};
+
+export type TutorToolName =
+  | "search_course_materials"
+  | "get_concept_state"
+  | "get_concept_neighbors"
+  | "record_exposure"
+  | "record_misconception_candidate";
+
+export type TutorToolCallRow = {
+  id: string;
+  turn_id: string;
+  user_id: string;
+  tool_name: TutorToolName;
+  arguments: Record<string, unknown>;
+  result: Record<string, unknown>;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -225,6 +338,55 @@ export type Database = {
         Row: ConceptFlagRow;
         Insert: Omit<ConceptFlagRow, "id" | "created_at">;
         Update: Partial<Omit<ConceptFlagRow, "id">>;
+        Relationships: [];
+      };
+      evidence_events: {
+        Row: EvidenceEventRow;
+        Insert: Omit<EvidenceEventRow, "id" | "created_at">;
+        Update: Partial<Omit<EvidenceEventRow, "id">>;
+        Relationships: [];
+      };
+      learner_concept_state: {
+        Row: LearnerConceptStateRow;
+        Insert: Omit<LearnerConceptStateRow, "id" | "updated_at"> & { updated_at?: string };
+        Update: Partial<Omit<LearnerConceptStateRow, "id">>;
+        Relationships: [];
+      };
+      learner_edge_state: {
+        Row: LearnerEdgeStateRow;
+        Insert: Omit<LearnerEdgeStateRow, "id" | "updated_at"> & { updated_at?: string };
+        Update: Partial<Omit<LearnerEdgeStateRow, "id">>;
+        Relationships: [];
+      };
+      tutor_conversations: {
+        Row: TutorConversationRow;
+        Insert: Omit<TutorConversationRow, "id" | "created_at" | "updated_at"> & {
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<TutorConversationRow, "id">>;
+        Relationships: [];
+      };
+      tutor_conversation_turns: {
+        Row: TutorConversationTurnRow;
+        Insert: Omit<
+          TutorConversationTurnRow,
+          "id" | "created_at" | "concept_ids" | "correct" | "requested_direct_answer" | "ladder_step_used"
+        > & {
+          id?: string;
+          created_at?: string;
+          concept_ids?: string[];
+          correct?: boolean | null;
+          requested_direct_answer?: boolean;
+          ladder_step_used?: number | null;
+        };
+        Update: Partial<Omit<TutorConversationTurnRow, "id">>;
+        Relationships: [];
+      };
+      tutor_tool_calls: {
+        Row: TutorToolCallRow;
+        Insert: Omit<TutorToolCallRow, "id" | "created_at">;
+        Update: Partial<Omit<TutorToolCallRow, "id">>;
         Relationships: [];
       };
     };
