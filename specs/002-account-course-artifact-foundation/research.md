@@ -111,9 +111,34 @@ file records the resolutions in Decision/Rationale/Alternatives format.
   logic-tested without live credentials, so waiting would waste the time
   between now and when the product owner provisions the accounts).
 
+## Known transitive vulnerabilities in `@trigger.dev/sdk` (accepted, tracked)
+
+- **Decision**: install `@trigger.dev/sdk` as specified despite `npm audit`
+  reporting 1 high (`ws`: uninitialized memory disclosure / memory
+  exhaustion DoS) and several moderate (`@opentelemetry/core` and
+  related packages: unbounded memory allocation parsing W3C Baggage
+  headers) advisories, all transitive dependencies of the SDK itself.
+- **Rationale**: both are denial-of-service/memory-disclosure class
+  issues in packages used for tracing/websocket transport inside a
+  server-side background-job runtime, not credential leakage or remote
+  code execution, and not reachable from student-facing request paths.
+  `npm audit fix --force` only offers a downgrade to
+  `@trigger.dev/sdk@3.3.17` (a breaking major-version change), which
+  trades a moderate transitive DoS risk for an old, likely-differently-
+  vulnerable, unsupported SDK version — not an actual improvement.
+- **Alternatives considered**: pinning an older `@trigger.dev/sdk`
+  (rejected, reasoning above); dropping Trigger.dev entirely (rejected —
+  it's the constitution-ratified stack choice, and PRD §26's own risk
+  table already flags "AI usage cost" and integration risk, not this);
+  vendoring/patching the transitive deps directly (rejected — disproportionate
+  effort for a moderate/high DoS-class issue in a background-job context).
+- **Follow-up**: re-run `npm audit` after any `@trigger.dev/sdk` upgrade;
+  revisit if either advisory is later shown to be reachable from
+  student-facing input rather than internal tracing/transport.
+
 ## Environment variable contract
 
-- **Decision**: `.env.local.example` lists `NEXT_PUBLIC_SUPABASE_URL`,
+- **Decision**: `.env.example` lists `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only,
   never exposed to the client), and `TRIGGER_SECRET_KEY`, each with a
   comment explaining where to find it in the respective service's

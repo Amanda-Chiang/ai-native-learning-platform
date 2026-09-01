@@ -228,8 +228,8 @@ held only in the browser's memory.
   concept/edge merges belongs to Phase 2, `course-graph-ingestion`).
 - No live Supabase or Trigger.dev account exists yet (confirmed with the
   product owner 2026-09-01). This feature's code is written completely
-  and correctly against those services' documented interfaces, with a
-  `.env.local.example`-style template listing every required variable,
+  and correctly against those services' documented interfaces, with an
+  `.env.example`-style template listing every required variable,
   but end-to-end verification (actually creating an account, uploading a
   real file, watching a real background job run) is blocked until real
   credentials are provisioned — this is a deployment/verification gap,

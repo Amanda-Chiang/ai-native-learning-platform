@@ -48,7 +48,7 @@ cross-check the migration's tables/columns/policies against
 
 These are the actual end-to-end proof that the feature works — run them
 once accounts exist and `.env.local` is filled in from
-`.env.local.example`.
+`.env.example`.
 
 ### B1. Provision the services
 
@@ -57,7 +57,7 @@ once accounts exist and `.env.local` is filled in from
    `supabase/migrations/0001_courses_artifacts.sql`.
 2. Create a Trigger.dev project; run `npx trigger.dev@latest dev` to
    register the `ingest-artifact` task locally.
-3. Copy `.env.local.example` to `.env.local` and fill in the real
+3. Copy `.env.example` to `.env.local` and fill in the real
    `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
    `SUPABASE_SERVICE_ROLE_KEY`, and `TRIGGER_SECRET_KEY` values from each
    service's dashboard.

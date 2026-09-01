@@ -38,15 +38,17 @@ Single Next.js project (per plan.md's Project Structure):
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `@supabase/supabase-js`, `@supabase/ssr`, and
+- [X] T001 Add `@supabase/supabase-js`, `@supabase/ssr`, and
   `@trigger.dev/sdk` to `package.json` dependencies (`npm install
   @supabase/supabase-js @supabase/ssr @trigger.dev/sdk`)
-- [ ] T002 [P] Create `.env.local.example` documenting
-  `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+- [X] T002 [P] Extend the repo's existing (already-tracked)
+  `.env.example` — not a new `.env.local.example` file, which the repo's
+  `.gitignore` only exempts `.env.example` from, not other `.env*` names —
+  documenting `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
   `SUPABASE_SERVICE_ROLE_KEY`, and `TRIGGER_SECRET_KEY`, each with a
   comment pointing at where to find it once an account exists (no values)
   — per research.md's Environment variable contract decision
-- [ ] T003 [P] Create `supabase/migrations/`, `trigger/`,
+- [X] T003 [P] Create `supabase/migrations/`, `trigger/`,
   `src/lib/supabase/`, `src/features/auth/`, `src/features/courses/`,
   `src/features/artifacts/`, `src/app/sign-up/`, `src/app/sign-in/`,
   `src/app/courses/`, and `tests/unit/artifacts/` directories

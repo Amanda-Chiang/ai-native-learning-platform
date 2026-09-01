@@ -65,7 +65,7 @@ by Postgres row-level security policies, not only by application-layer
 `WHERE` clauses — RLS is the deterministic boundary that holds even if an
 application code path forgets a filter. No secret/key may be hardcoded;
 every credential is read from environment variables, with
-`.env.local.example` documenting every required variable without values.
+`.env.example` documenting every required variable without values.
 
 **Scale/Scope**: Single-developer dogfooding scale for this phase (PRD
 §6.1's "10 minutes to first usable course graph" scenario) — not a
@@ -150,7 +150,7 @@ tests/
     └── artifacts/
         └── status.test.ts   # pure status-transition rule tests (no live Supabase needed)
 
-.env.local.example           # documents every required env var, no values
+.env.example           # documents every required env var, no values
 ```
 
 **Structure Decision**: Single Next.js project (Option 1, extended from
