@@ -236,48 +236,48 @@ story's UI is meaningless with nothing in the queue, and its
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] Create `src/features/course-graph-ingestion/materialize-course-graph.ts`
+- [X] T021 [US3] Create `src/features/course-graph-ingestion/materialize-course-graph.ts`
   per data-model.md: pure function, `course_units` + `status: "confirmed"`
   concepts/edges only → `CourseGraph` DTO, baseline `masteryState:
   "unverified"` / `learnerState: "strong"` for every entry, `crossUnit`
   computed from differing `unit_id`s, throws if a confirmed concept's
   `unit_id` doesn't resolve to any given unit (never silently omits or
   defaults it)
-- [ ] T022 [P] [US3] Write `tests/unit/course-graph-ingestion/materialize-course-graph.test.ts`:
+- [X] T022 [P] [US3] Write `tests/unit/course-graph-ingestion/materialize-course-graph.test.ts`:
   a confirmed concept/edge appear in the output at the baseline states
   above (never a higher/fabricated state); a `proposed` or `archived`
   concept/edge is excluded; zero confirmed units/concepts/edges produces
   `{ units: [], concepts: [], relationships: [] }`, not an error; a
   confirmed concept with an unresolvable `unit_id` throws
-- [ ] T023 [US3] Create `src/features/course-graph-ingestion/actions.ts`
+- [X] T023 [US3] Create `src/features/course-graph-ingestion/actions.ts`
   with `getReviewQueue(courseId)` per contracts/ingestion-actions.md:
   RLS-scoped read of `proposed` concepts/edges, each joined with its
   `reconciliation_decisions` entry (if any) and any `concept_flags`
   referencing it
-- [ ] T024 [US3] In `actions.ts`: `confirmCandidate(kind, id)` — sets
+- [X] T024 [US3] In `actions.ts`: `confirmCandidate(kind, id)` — sets
   `status: "confirmed"`, returns a specific error (not generic) if the
   row isn't currently `"proposed"`
-- [ ] T025 [US3] In `actions.ts`: `editCandidate(kind, id, edits)` —
+- [X] T025 [US3] In `actions.ts`: `editCandidate(kind, id, edits)` —
   applies a reviewer correction, re-validates against `isCourseConcept`/
   `isConceptEdge`'s existing rules (never allows editing
   `source_anchors`/`status`/`confidence` directly), rejects an edit that
   would produce an invalid record with the specific validation failure
-- [ ] T026 [US3] In `actions.ts`: `rejectCandidate(kind, id)` — sets
+- [X] T026 [US3] In `actions.ts`: `rejectCandidate(kind, id)` — sets
   `status: "archived"` (never a hard delete, FR-007)
-- [ ] T027 [US3] In `actions.ts`: `getCourseGraph(courseId)` — calls
+- [X] T027 [US3] In `actions.ts`: `getCourseGraph(courseId)` — calls
   `materializeCourseGraph` against that course's confirmed
   units/concepts/edges
-- [ ] T028 [US3] Update `src/app/courses/[courseId]/atlas/page.tsx` to
+- [X] T028 [US3] Update `src/app/courses/[courseId]/atlas/page.tsx` to
   call `getCourseGraph(courseId)` instead of reading
   `tests/fixtures/concept-atlas-demo.json` — the fixture file itself
   stays in place for `concept-atlas-renderer`'s own tests, which
   continue to read it directly and are unaffected by this change
-- [ ] T029 [US3] Create `src/features/course-graph-ingestion/components/ReviewQueue.tsx`:
+- [X] T029 [US3] Create `src/features/course-graph-ingestion/components/ReviewQueue.tsx`:
   lists proposed concepts/edges from `getReviewQueue`, shows each one's
   reconciliation reasoning (when present) and flags (when present)
   visibly distinguished from an item with neither, with confirm/edit/
   reject controls wired to T024-T026
-- [ ] T030 [P] [US3] Write `tests/visual/review-queue.spec.ts`: a
+- [X] T030 [P] [US3] Write `tests/visual/review-queue.spec.ts`: a
   proposed-concepts screenshot (queue populated via a seeded fixture, not
   live OpenAI), and a post-confirm screenshot showing the item removed
   from the queue
