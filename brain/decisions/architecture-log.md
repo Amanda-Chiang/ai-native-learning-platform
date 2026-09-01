@@ -187,3 +187,35 @@ checklist is a setup gate, not a retrofit. Applies to
   project — a separate, heavier workflow this project doesn't currently
   use. The anon-key query above is a more direct verification of the
   thing that actually matters (RLS behavior) anyway.
+
+## 2026-09-01 — Layout preference: view state only, and RLS confirmed live for it too
+
+- `graph_layouts` (per-student expand/collapse + moved positions) is the
+  one table in this project a student can `UPDATE` directly, not just
+  `SELECT`/`INSERT` — it's personal view state, not semantic graph data,
+  so that's the correct RLS shape (unlike `artifacts.status`, which only
+  the Trigger.dev service-role client may write).
+- Pushed and verified live the same way as Phase 1's tables: anon-key
+  query returns `status=200, rows=0`.
+- A unit with no saved preference defaults to **expanded**, not
+  collapsed — corrected during implementation because US1's already-
+  accepted `whole-course-atlas.png` baseline shows every unit expanded
+  with nothing saved yet; matching that fixed point mattered more than
+  the more general "Default" wording in
+  `.claude/skills/concept-atlas/references/interaction-states.md`.
+
+## 2026-09-01 — Edge click-hitboxes must stay narrow, and nodes need an explicit zIndex
+
+- React Flow's default 20px invisible click-hitbox around every edge can
+  sit directly on top of unrelated node content (found: a cross-unit
+  relationship edge routed straight through a unit's header, silently
+  swallowing clicks meant for the header). Narrowed to 6px
+  (`interactionWidth`) and gave unit nodes an explicit `zIndex: 10` so
+  headers reliably win when something routes beneath them.
+- **Standing rule going forward**: any new interactive node/edge type
+  added to the atlas should default to a narrow edge interaction width
+  and consider explicit zIndex if it's meant to be reliably clickable —
+  don't rely on React Flow's defaults for anything the user needs to
+  click precisely.
+- Full reasoning: `specs/003-concept-atlas-renderer/research.md` ("Edge
+  click-hitboxes can block clicks on nearby nodes").

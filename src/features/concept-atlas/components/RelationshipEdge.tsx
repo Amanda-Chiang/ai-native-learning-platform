@@ -52,6 +52,12 @@ export function RelationshipEdge({
       <BaseEdge
         id={id}
         path={edgePath}
+        // React Flow's default invisible click-hitbox around an edge is
+        // 20px wide -- easily wide enough to sit on top of a nearby unit
+        // header and silently swallow clicks meant for it (found while
+        // testing unit-collapse interaction). 6px is still comfortably
+        // clickable for the edge itself without blocking neighbors.
+        interactionWidth={6}
         style={{
           stroke: data.crossUnit ? CROSS_UNIT_COLOR : WITHIN_UNIT_COLOR,
           strokeWidth: data.crossUnit ? 2.5 : 1.5,

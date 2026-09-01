@@ -43,6 +43,25 @@ file records the resolutions in Decision/Rationale/Alternatives format.
   entry (rejected — `elk.bundled.js` is the officially documented fix for
   exactly this bundler scenario, no custom webpack config needed).
 
+## Edge click-hitboxes can block clicks on nearby nodes (US2 finding)
+
+- **Decision**: set `interactionWidth={6}` on `RelationshipEdge` (down
+  from React Flow's default 20px invisible click hitbox around every
+  edge) and an explicit `zIndex: 10` on unit group nodes.
+- **Rationale**: found while wiring unit-collapse clicks (T020/T021): a
+  cross-unit edge's default 20px-wide invisible hitbox routed directly
+  over a unit's header text and silently swallowed clicks meant for the
+  header, in both Playwright and (since this is a real DOM/CSS
+  interaction, not a test-only artifact) actual browser use. Narrowing
+  the hitbox and giving unit headers a higher stacking order fixes the
+  general case; one specific coincidental edge-routing-through-header
+  layout still wasn't fully resolved by either fix alone (see next
+  entry) -- the two are complementary, not redundant.
+- **Alternatives considered**: `pointerEvents: "none"` on edges entirely
+  (rejected -- edges need to stay clickable for US4's "click a weak
+  relationship to see why" requirement, so removing interactivity
+  entirely isn't an option, only narrowing it).
+
 ## Cross-phase fixes discovered while implementing this feature
 
 Two bugs surfaced only once this feature's code actually ran against a

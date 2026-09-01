@@ -113,19 +113,33 @@ export function courseGraphToReactFlowElements(
 
   const unitNodes: Node[] = graph.units.map((unit) => {
     const pos = positions.get(unit.id) ?? { x: 0, y: 0 };
+    const isCollapsed = collapsedUnitIds.has(unit.id);
     const width = pos.width ?? CONCEPT_NODE_WIDTH + 32;
-    const height = pos.height ?? CONCEPT_NODE_HEIGHT + UNIT_HEADER_HEIGHT + 32;
+    // A collapsed unit shrinks to just its header -- hiding the concept
+    // nodes inside (below) without also shrinking the box left an empty,
+    // confusing blank region rather than an actual "collapsed" look.
+    const height = isCollapsed
+      ? UNIT_HEADER_HEIGHT
+      : (pos.height ?? CONCEPT_NODE_HEIGHT + UNIT_HEADER_HEIGHT + 32);
     return {
       id: unit.id,
       type: "unitGroup",
       position: { x: pos.x, y: pos.y },
-      data: { title: unit.title, collapsed: collapsedUnitIds.has(unit.id) },
+      data: { title: unit.title, collapsed: isCollapsed },
       // Both style (visual CSS sizing) AND top-level width/height (what
       // fitView's bounds calculation reads) must be set -- setting only
       // style left fitView computing bounds from unmeasured, effectively
       // zero-size nodes on its first pass, which is what caused clipped
       // unit regions in the initial screenshot attempt.
       style: { width, height },
+      // An edge's path can legitimately cross directly over a unit's
+      // header (found while testing unit-collapse clicks: a
+      // cross-unit edge routed straight through "Dynamic Programming"'s
+      // header and swallowed the click even after narrowing the edge's
+      // interaction hitbox). A node's own zIndex always wins over an
+      // edge's default stacking in React Flow, so this guarantees the
+      // header stays clickable regardless of what routes beneath it.
+      zIndex: 10,
       width,
       height,
     };

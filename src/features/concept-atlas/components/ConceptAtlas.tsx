@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ReactFlow, Background, Controls } from "@xyflow/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactFlow, Background, Controls, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { CourseGraph } from "@/types/graph/course-graph.ts";
 import {
@@ -9,6 +9,16 @@ import {
   courseGraphToReactFlowElements,
   type LayoutPosition,
 } from "@/features/concept-atlas/adapters/react-flow-adapter.ts";
+import {
+  getLayoutPreference,
+  saveLayoutPreference,
+} from "@/features/concept-atlas/actions.ts";
+import {
+  mergeCollapsedUnitIds,
+  mergePositionOverrides,
+  toLayoutPreferenceEntry,
+  type LayoutPreference,
+} from "@/features/concept-atlas/layout-preference.ts";
 import { ConceptNode } from "@/features/concept-atlas/components/ConceptNode.tsx";
 import { RelationshipEdge } from "@/features/concept-atlas/components/RelationshipEdge.tsx";
 import { UnitGroupNode } from "@/features/concept-atlas/components/UnitGroupNode.tsx";
@@ -16,20 +26,21 @@ import { UnitGroupNode } from "@/features/concept-atlas/components/UnitGroupNode
 const nodeTypes = { conceptNode: ConceptNode, unitGroup: UnitGroupNode };
 const edgeTypes = { relationshipEdge: RelationshipEdge };
 
-/**
- * Top-level atlas canvas. Expand/collapse interaction and layout-
- * preference persistence are added on top of this in US2 -- this
- * component's own scope (US1) is rendering the whole-course map
- * correctly, nothing more.
- */
-export function ConceptAtlas({ graph }: { graph: CourseGraph }) {
-  const [positions, setPositions] = useState<Map<string, LayoutPosition> | null>(null);
+// Debounce interaction-end saves rather than writing on every drag frame
+// (contracts/layout-actions.md).
+const SAVE_DEBOUNCE_MS = 500;
+
+export function ConceptAtlas({ graph, courseId }: { graph: CourseGraph; courseId: string }) {
+  const [defaultPositions, setDefaultPositions] = useState<Map<string, LayoutPosition> | null>(
+    null,
+  );
+  const [preferences, setPreferences] = useState<LayoutPreference[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     computeElkLayout(graph).then((computed) => {
       if (!cancelled) {
-        setPositions(computed);
+        setDefaultPositions(computed);
       }
     });
     return () => {
@@ -37,12 +48,85 @@ export function ConceptAtlas({ graph }: { graph: CourseGraph }) {
     };
   }, [graph]);
 
+  useEffect(() => {
+    let cancelled = false;
+    getLayoutPreference(courseId).then((loaded) => {
+      if (!cancelled) {
+        setPreferences(loaded);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
+
+  const collapsedUnitIds = useMemo(() => mergeCollapsedUnitIds(preferences), [preferences]);
+
+  const positions = useMemo(() => {
+    if (!defaultPositions) {
+      return null;
+    }
+    return mergePositionOverrides(defaultPositions, preferences);
+  }, [defaultPositions, preferences]);
+
   const { nodes, edges } = useMemo(() => {
     if (!positions) {
       return { nodes: [], edges: [] };
     }
-    return courseGraphToReactFlowElements(graph, positions, new Set());
-  }, [graph, positions]);
+    return courseGraphToReactFlowElements(graph, positions, collapsedUnitIds);
+  }, [graph, positions, collapsedUnitIds]);
+
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingEntriesRef = useRef<Map<string, LayoutPreference>>(new Map());
+
+  const scheduleSave = useCallback(
+    (entry: LayoutPreference) => {
+      pendingEntriesRef.current.set(entry.entityId, entry);
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        const toSave = Array.from(pendingEntriesRef.current.values());
+        pendingEntriesRef.current.clear();
+        saveLayoutPreference(courseId, toSave);
+      }, SAVE_DEBOUNCE_MS);
+    },
+    [courseId],
+  );
+
+  const toggleUnit = useCallback(
+    (unitId: string) => {
+      const isCurrentlyCollapsed = collapsedUnitIds.has(unitId);
+      const entry = toLayoutPreferenceEntry(unitId, "unit", { collapsed: !isCurrentlyCollapsed });
+      setPreferences((current) => [...current.filter((p) => p.entityId !== unitId), entry]);
+      scheduleSave(entry);
+    },
+    [collapsedUnitIds, scheduleSave],
+  );
+
+  const onNodeClick = useCallback(
+    (_event: unknown, node: Node) => {
+      if (node.type === "unitGroup") {
+        toggleUnit(node.id);
+      }
+    },
+    [toggleUnit],
+  );
+
+  const onNodeDragStop = useCallback(
+    (_event: unknown, node: Node) => {
+      if (node.type !== "conceptNode" && node.type !== "unitGroup") {
+        return;
+      }
+      const entry = toLayoutPreferenceEntry(node.id, node.type === "unitGroup" ? "unit" : "concept", {
+        x: node.position.x,
+        y: node.position.y,
+      });
+      setPreferences((current) => [...current.filter((p) => p.entityId !== node.id), entry]);
+      scheduleSave(entry);
+    },
+    [scheduleSave],
+  );
 
   if (!positions) {
     return <p>Loading atlas…</p>;
@@ -55,6 +139,8 @@ export function ConceptAtlas({ graph }: { graph: CourseGraph }) {
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        onNodeClick={onNodeClick}
+        onNodeDragStop={onNodeDragStop}
         fitView
         // Default fitView has zero margin, which clips edge-adjacent
         // unit regions right at the viewport boundary (spec SC-001

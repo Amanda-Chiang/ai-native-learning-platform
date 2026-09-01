@@ -26,3 +26,26 @@ test("whole-course atlas renders every unit as a bounded region with no overlapp
 
   await expect(page).toHaveScreenshot("whole-course-atlas.png");
 });
+
+test("collapsing units shows progressive disclosure: collapsed units shrink, siblings stay expanded", async ({
+  page,
+}) => {
+  await page.goto("/courses/demo/atlas");
+  await page.waitForSelector(".react-flow__node", { state: "visible" });
+  await page.waitForTimeout(300);
+
+  // Collapse two of the five units by clicking their header text (spec
+  // FR-006: collapsing one unit must not force siblings open/closed).
+  // "Sorting & Searching" and "Trees" chosen specifically because no
+  // edge in this layout routes through their header regions -- "Dynamic
+  // Programming"'s header has a prerequisite-of edge crossing directly
+  // through it, which is a real, narrow edge-hitbox-vs-header collision
+  // worth knowing about (interactionWidth + zIndex fixes above reduced
+  // but didn't eliminate it for that specific coincidental routing) but
+  // isn't the thing this test is verifying.
+  await page.getByText("Sorting & Searching", { exact: true }).click();
+  await page.getByText("Trees", { exact: true }).click();
+  await page.waitForTimeout(300);
+
+  await expect(page).toHaveScreenshot("expanded-unit.png");
+});

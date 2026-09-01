@@ -16,13 +16,18 @@ async function loadDemoCourseGraph(): Promise<CourseGraph> {
   return JSON.parse(raw) as CourseGraph;
 }
 
-export default async function CourseAtlasPage() {
+export default async function CourseAtlasPage({
+  params,
+}: {
+  params: Promise<{ courseId: string }>;
+}) {
+  const { courseId } = await params;
   const graph = await loadDemoCourseGraph();
 
   return (
     <main>
       <h1>Concept Atlas</h1>
-      <ConceptAtlas graph={graph} />
+      <ConceptAtlas graph={graph} courseId={courseId} />
     </main>
   );
 }

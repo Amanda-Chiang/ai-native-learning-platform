@@ -143,35 +143,39 @@ expand/collapse interaction to.
 
 ### Tests for User Story 2
 
-- [ ] T014 [P] [US2] Write `tests/unit/concept-atlas/layout-preference.test.ts`:
+- [X] T014 [P] [US2] Write `tests/unit/concept-atlas/layout-preference.test.ts`:
   a merge helper correctly overlays saved `graph_layouts` entries onto
   ELK-computed default positions without mutating the input; a unit with
-  no saved preference defaults to collapsed (per
-  `.claude/skills/concept-atlas/references/interaction-states.md`'s
-  "Default" state); collapsing one unit produces layout entries for only
-  that unit's entity id, never touching sibling units' entries
-- [ ] T015 [US2] Run `node --test tests/unit/concept-atlas/layout-preference.test.ts`
+  no saved preference defaults to **expanded, not collapsed** (corrected
+  from this task's original wording during implementation — US1's
+  already-accepted `whole-course-atlas.png` baseline shows every unit
+  expanded with no saved preference, so that behavior is the fixed point;
+  matching it, not `interaction-states.md`'s more general "Default"
+  wording, is what keeps this story from silently breaking US1's
+  screenshot); collapsing one unit produces layout entries for only that
+  unit's entity id, never touching sibling units' entries
+- [X] T015 [US2] Run `node --test tests/unit/concept-atlas/layout-preference.test.ts`
   — expect FAIL
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Write `supabase/migrations/0002_graph_layouts.sql`: the
+- [X] T016 [US2] Write `supabase/migrations/0002_graph_layouts.sql`: the
   `graph_layouts` table with RLS, exactly per data-model.md's column/policy
   table (owner can `SELECT`/`INSERT`/`UPDATE` their own rows directly —
   unlike Phase 1's artifact tables, this is the student's own view state)
-- [ ] T017 [US2] Implement `src/features/concept-atlas/layout-preference.ts`:
+- [X] T017 [US2] Implement `src/features/concept-atlas/layout-preference.ts`:
   the pure merge/validation helper tested in T014 — depends on T003
-- [ ] T018 [US2] Run `node --test tests/unit/concept-atlas/layout-preference.test.ts`
+- [X] T018 [US2] Run `node --test tests/unit/concept-atlas/layout-preference.test.ts`
   — expect PASS
-- [ ] T019 [US2] Implement `getLayoutPreference`/`saveLayoutPreference`
+- [X] T019 [US2] Implement `getLayoutPreference`/`saveLayoutPreference`
   server actions in `src/features/concept-atlas/actions.ts` per
   contracts/layout-actions.md — depends on T016
-- [ ] T020 [US2] Wire expand/collapse interaction into `ConceptAtlas.tsx`:
+- [X] T020 [US2] Wire expand/collapse interaction into `ConceptAtlas.tsx`:
   clicking a unit toggles its collapsed state, calls `saveLayoutPreference`
   debounced (not on every interaction), and sibling units do not reflow
   unless space requires it (spec FR-006) — depends on T009 (from US1),
   T017, T019
-- [ ] T021 [P] [US2] Add the expanded-unit screenshot to
+- [X] T021 [P] [US2] Add the expanded-unit screenshot to
   `tests/visual/concept-atlas.spec.ts` — depends on T020
 
 **Checkpoint**: Units expand/collapse independently and the preference is

@@ -44,6 +44,21 @@ export type ArtifactProcessingRunRow = {
   created_at: string;
 };
 
+/** Matches supabase/migrations/0002_graph_layouts.sql. */
+export type GraphLayoutEntityType = "unit" | "concept";
+
+export type GraphLayoutRow = {
+  id: string;
+  owner_id: string;
+  course_id: string;
+  entity_id: string;
+  entity_type: GraphLayoutEntityType;
+  collapsed: boolean | null;
+  x: number | null;
+  y: number | null;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -65,6 +80,12 @@ export type Database = {
         Row: ArtifactProcessingRunRow;
         Insert: Omit<ArtifactProcessingRunRow, "id" | "created_at">;
         Update: Partial<Omit<ArtifactProcessingRunRow, "id">>;
+        Relationships: [];
+      };
+      graph_layouts: {
+        Row: GraphLayoutRow;
+        Insert: Omit<GraphLayoutRow, "id" | "updated_at"> & { updated_at?: string };
+        Update: Partial<Omit<GraphLayoutRow, "id">>;
         Relationships: [];
       };
     };
