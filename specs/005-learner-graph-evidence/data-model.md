@@ -107,6 +107,43 @@ type EvidenceWeights = {
 };
 ```
 
+## Divergences from this document, as actually implemented
+
+Recorded here per this project's "update the doc the moment reality
+diverges" rule, rather than left silently inconsistent with the code:
+
+- `contributing_factors`/`ContributingFactor` carries one more field than
+  listed above: `evidenceType`. FR-009's evidence-provenance display
+  (ConceptDetailPanel's "last evidence type") needs to know which
+  evidence type actually produced the tier, and every other component
+  here is already logged per-event, so this is one more logged
+  component, not a new persistence concern or a second source of truth.
+- `computeLearnerState` takes a 4th parameter, `kind: "concept" | "edge"`,
+  not shown in this doc's original sketch -- the function needs to know
+  which tier vocabulary to map `score` into (`MasteryState`'s 4 values vs
+  `LearnerRelationshipState`'s 2), and the FR-010 baseline itself differs
+  by kind (`"unverified"` for concepts, `"strong"` for edges -- "weak" is
+  an earned state, never a default, matching
+  `materialize-course-graph.ts`'s own baseline convention).
+- `tierCutoffs.exposed` (0.15) sits **above** `strengthByType.exposure`'s
+  ceiling (0.1), not below a lower cutoff -- meaning exposure-only
+  evidence never crosses into the "exposed" tier itself, staying at
+  "unverified" indefinitely no matter how much exposure accumulates.
+  This is the literal, strictest reading of "exposure set strictly below
+  tierCutoffs.exposed" (Constitution Principle III) and is verified
+  directly by `exposure-never-exceeds-exposed.test.ts`. The "exposed"
+  tier is real and reachable, just via other, decayed/low-confidence
+  evidence types (e.g. an old or unconfident retrieval attempt), not
+  exposure alone.
+- `difficultyFactor(difficulty)` is bounded to `[0.5, 1]` specifically so
+  it can only ever reduce a product below `strengthByType[evidenceType]`,
+  never amplify above it -- this is what makes Constitution Principle III
+  a structural guarantee independent of how difficulty/recency/confidence
+  vary, not just true for the shipped default weights by coincidence.
+  `difficulty` is assumed normalized to `[0, 1]`, the same convention
+  already used by `importanceScore`/`confidence` elsewhere in this
+  project's domain types.
+
 ## `computeLearnerState`: the pure algorithm
 
 `src/features/learner-graph-evidence/compute-learner-state.ts`:
