@@ -6,6 +6,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: "html",
+  // tutor-agent's own suite provisions its test user/course and captures
+  // a real signed-in session once (tests/e2e/global-setup.ts) rather than
+  // signing in per test -- the first authenticated Playwright coverage
+  // in this project.
+  globalSetup: "./tests/e2e/global-setup.ts",
+  globalTeardown: "./tests/e2e/global-teardown.ts",
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
@@ -14,15 +20,31 @@ export default defineConfig({
     command: "npm run dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
+    // Scoped to this one feature's tool-calling loop only (research.md
+    // "No streaming"/plan.md's Testing section) -- gated by an explicit
+    // env var so it's never mistakeable for a real model response;
+    // visual/unit suites never call sendTutorMessage so this has no
+    // effect on them.
+    env: { TUTOR_AGENT_USE_TEST_DOUBLE: "true" },
   },
   projects: [
     {
       name: "chromium",
+      testIgnore: "**/tutor-agent.spec.ts",
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "mobile",
+      testIgnore: "**/tutor-agent.spec.ts",
       use: { ...devices["iPhone 13"] },
+    },
+    {
+      name: "tutor-agent-e2e",
+      testMatch: "**/tutor-agent.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "./tests/e2e/.tutor-agent-storage-state.json",
+      },
     },
   ],
 });
