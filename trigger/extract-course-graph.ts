@@ -8,6 +8,12 @@ import {
   parseExtractionResult,
   type ExtractionResult,
 } from "../src/features/course-graph-ingestion/extraction-schema.ts";
+import {
+  createOpenAiReconciliationClassifier,
+  reconcileConcept,
+  type ExistingConceptSummary,
+  type ReconciliationClassifier,
+} from "../src/features/course-graph-ingestion/reconciliation.ts";
 
 /**
  * Trigger.dev task contract: specs/004-course-graph-ingestion/contracts/ingestion-actions.md
@@ -206,9 +212,7 @@ export const extractCourseGraphTask = task({
       );
     }
 
-    // Reconciliation against pre-existing concepts is wired in here by
-    // User Story 2 (src/features/course-graph-ingestion/reconciliation.ts)
-    // -- this call is the seam that logic attaches to.
+    const classify = createOpenAiReconciliationClassifier(openai, EXTRACTION_MODEL);
     const insertResult = await writeExtractionCandidates(
       supabase,
       payload.courseId,
@@ -216,6 +220,7 @@ export const extractCourseGraphTask = task({
       run.id,
       payload.artifactId,
       extraction,
+      classify,
     );
 
     await supabase
@@ -238,14 +243,12 @@ export const extractCourseGraphTask = task({
 });
 
 /**
- * Writes validated candidates as `proposed` rows, resolving each edge's
- * localId references to the real ids just assigned. This is the
- * zero-existing-concepts path (T012): a genuinely new course, or a
- * course whose only prior activity was already-archived candidates, has
- * nothing to reconcile against, so every candidate is written directly
- * rather than through reconciliation.ts's comparison call -- User Story
- * 2 extends this function (not replaces it) to check for existing
- * concepts first and route through reconciliation when there are any.
+ * Writes validated candidates, routing each concept through
+ * reconciliation.ts first (User Story 2). A course with zero existing
+ * concepts short-circuits inside reconcileConcept itself (nothing to
+ * compare against) -- this function doesn't special-case that here, it
+ * just always calls reconcileConcept and trusts that function's own
+ * documented shortcut.
  */
 async function writeExtractionCandidates(
   supabase: ReturnType<typeof createAdminClient>,
@@ -254,6 +257,7 @@ async function writeExtractionCandidates(
   extractionRunId: string,
   artifactId: string,
   extraction: ExtractionResult,
+  classify: ReconciliationClassifier,
 ): Promise<{ conceptsExtracted: number; edgesExtracted: number; edgesDroppedSelfReferential: number }> {
   const { data: units, error: unitsError } = await supabase
     .from("course_units")
@@ -277,10 +281,108 @@ async function writeExtractionCandidates(
     );
   }
 
+  // Only proposed/confirmed concepts are live candidates to reconcile
+  // against -- an archived (rejected) concept is not something a new
+  // extraction should merge onto.
+  const { data: existingRows, error: existingError } = await supabase
+    .from("course_concepts")
+    .select("id, canonical_name, aliases, description")
+    .eq("course_id", courseId)
+    .in("status", ["proposed", "confirmed"]);
+
+  if (existingError) {
+    throw new Error(`Failed to look up existing concepts for course ${courseId}: ${existingError.message}`);
+  }
+
+  const existingConcepts: ExistingConceptSummary[] = (existingRows ?? []).map((row) => ({
+    id: row.id,
+    canonicalName: row.canonical_name,
+    aliases: row.aliases,
+    description: row.description,
+  }));
+
   const localIdToRealId = new Map<string, string>();
 
   let conceptsExtracted = 0;
   for (const concept of extraction.concepts) {
+    const reconciliation = await reconcileConcept(
+      classify,
+      { canonicalName: concept.canonicalName, aliases: concept.aliases, description: concept.description },
+      existingConcepts,
+    );
+
+    // The model's own stated reasoning, kept verbatim (data-model.md
+    // reconciliation_decisions.reasoning) -- never a generic
+    // placeholder like "auto-decided", for both the real-model-call
+    // path and the zero-existing-concepts shortcut alike.
+    const { error: decisionInsertError } = await supabase.from("reconciliation_decisions").insert({
+      course_id: courseId,
+      owner_id: ownerId,
+      extraction_run_id: extractionRunId,
+      candidate_kind: "concept",
+      decision: reconciliation.decision,
+      matched_concept_id: reconciliation.decision === "merge" ? reconciliation.matchedConceptId : null,
+      reasoning: reconciliation.reasoning,
+    });
+    if (decisionInsertError) {
+      throw new Error(`Failed to record reconciliation decision: ${decisionInsertError.message}`);
+    }
+
+    if (reconciliation.decision === "merge") {
+      const matched = existingConcepts.find((c) => c.id === reconciliation.matchedConceptId);
+      if (!matched) {
+        // The classifier returned a matchedConceptId that isn't in the
+        // list it was given -- a real invariant violation (a model
+        // hallucinating an id), not something to silently fall back to
+        // "distinct" for, since that would hide the failure instead of
+        // surfacing it.
+        throw new Error(
+          `Reconciliation returned matchedConceptId "${reconciliation.matchedConceptId}", which is not among this course's existing concepts.`,
+        );
+      }
+
+      const mergedAliases = Array.from(
+        new Set([...matched.aliases, concept.canonicalName, ...concept.aliases].filter(
+          (a) => a !== matched.canonicalName,
+        )),
+      );
+
+      const { data: existingRow, error: fetchAnchorsError } = await supabase
+        .from("course_concepts")
+        .select("source_anchors")
+        .eq("id", matched.id)
+        .single();
+      if (fetchAnchorsError || !existingRow) {
+        throw new Error(`Failed to load existing source_anchors for concept ${matched.id}.`);
+      }
+
+      const { error: updateError } = await supabase
+        .from("course_concepts")
+        .update({
+          aliases: mergedAliases,
+          source_anchors: [
+            ...existingRow.source_anchors,
+            ...concept.sourceAnchors.map((a) => ({ artifactId, ...a })),
+          ],
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", matched.id);
+      if (updateError) {
+        throw new Error(`Failed to merge candidate onto concept ${matched.id}: ${updateError.message}`);
+      }
+
+      localIdToRealId.set(concept.localId, matched.id);
+      // Not counted in conceptsExtracted -- no new course_concepts row
+      // was created; this candidate became additional evidence on an
+      // existing one, not a new candidate for a reviewer to act on.
+      continue;
+    }
+
+    // "distinct" and "uncertain" both get their own proposed row --
+    // "uncertain" is still visible to a reviewer as its own candidate,
+    // distinguished from "distinct" only via its reconciliation_decisions
+    // row (FR-005: never silently auto-merged, but also never silently
+    // dropped).
     const { data: inserted, error: insertError } = await supabase
       .from("course_concepts")
       .insert({
@@ -304,43 +406,27 @@ async function writeExtractionCandidates(
     }
 
     localIdToRealId.set(concept.localId, inserted.id);
+    // existingConcepts is only used to compare THIS extraction run's
+    // remaining candidates against course state as of before this run
+    // started -- a newly-inserted "distinct" concept is intentionally
+    // NOT added to it, so two near-duplicate candidates extracted from
+    // the SAME artifact in the SAME run are each reconciled against the
+    // pre-run baseline, not against each other. Within-run duplication
+    // is a real, separate case this feature doesn't yet handle (not
+    // silently claimed to be handled) -- worth a future task, not
+    // invented here.
     conceptsExtracted += 1;
   }
 
+  const { toInsert, droppedSelfReferential } = resolveEdgeEndpoints(extraction.edges, localIdToRealId);
+
   let edgesExtracted = 0;
-  let edgesDroppedSelfReferential = 0;
-  for (const edge of extraction.edges) {
-    const sourceId = localIdToRealId.get(edge.sourceLocalId);
-    const targetId = localIdToRealId.get(edge.targetLocalId);
-    if (!sourceId || !targetId) {
-      // parseExtractionResult already guarantees every localId
-      // referenced by an edge exists among the concepts array, so this
-      // can only happen if a concept insert above failed without
-      // throwing -- which it can't, given the throw above. Kept as an
-      // explicit invariant check rather than a silent `continue` so a
-      // future change to this function can't quietly reintroduce that
-      // gap (no-silent-placeholders).
-      throw new Error(
-        `Edge references a concept that was never inserted (sourceLocalId=${edge.sourceLocalId}, targetLocalId=${edge.targetLocalId}).`,
-      );
-    }
-
-    // FR-011: self-reference can only appear post-reconciliation (two
-    // originally distinct candidates merging onto the same existing
-    // concept) -- not reachable in this zero-existing-concepts path,
-    // since every concept above got its own fresh id. Checked anyway,
-    // defensively, so this function's own invariant doesn't silently
-    // depend on that reasoning staying true forever.
-    if (sourceId === targetId) {
-      edgesDroppedSelfReferential += 1;
-      continue;
-    }
-
+  for (const edge of toInsert) {
     const { error: edgeInsertError } = await supabase.from("concept_edges").insert({
       course_id: courseId,
       owner_id: ownerId,
-      source_concept_id: sourceId,
-      target_concept_id: targetId,
+      source_concept_id: edge.sourceConceptId,
+      target_concept_id: edge.targetConceptId,
       relation_type: edge.relationType,
       relation_type_note: edge.relationTypeNote,
       explanation: edge.explanation,
@@ -356,5 +442,62 @@ async function writeExtractionCandidates(
     edgesExtracted += 1;
   }
 
-  return { conceptsExtracted, edgesExtracted, edgesDroppedSelfReferential };
+  return { conceptsExtracted, edgesExtracted, edgesDroppedSelfReferential: droppedSelfReferential };
+}
+
+/**
+ * Pure: resolves each candidate edge's localId endpoints to real concept
+ * ids and drops any that became self-referential (FR-011) -- two
+ * originally distinct candidate endpoints can end up pointing at the
+ * same real concept id after reconciliation merges one of them onto an
+ * existing concept the other also merged onto. Factored out from
+ * writeExtractionCandidates specifically so this invariant is testable
+ * without a live Supabase client (tests/unit/course-graph-ingestion/self-referential-edge.test.ts).
+ */
+export function resolveEdgeEndpoints(
+  edges: ExtractionResult["edges"],
+  localIdToRealId: Map<string, string>,
+): {
+  toInsert: Array<
+    Omit<ExtractionResult["edges"][number], "sourceLocalId" | "targetLocalId"> & {
+      sourceConceptId: string;
+      targetConceptId: string;
+    }
+  >;
+  droppedSelfReferential: number;
+} {
+  const toInsert: Array<
+    Omit<ExtractionResult["edges"][number], "sourceLocalId" | "targetLocalId"> & {
+      sourceConceptId: string;
+      targetConceptId: string;
+    }
+  > = [];
+  let droppedSelfReferential = 0;
+
+  for (const edge of edges) {
+    const sourceConceptId = localIdToRealId.get(edge.sourceLocalId);
+    const targetConceptId = localIdToRealId.get(edge.targetLocalId);
+    if (!sourceConceptId || !targetConceptId) {
+      // parseExtractionResult already guarantees every localId
+      // referenced by an edge exists among the concepts array, so this
+      // can only happen if a caller passed a localIdToRealId map that
+      // doesn't cover every concept it processed. Kept as an explicit
+      // invariant check rather than a silent skip so that bug surfaces
+      // immediately instead of quietly dropping an edge
+      // (no-silent-placeholders).
+      throw new Error(
+        `Edge references a concept id not present in localIdToRealId (sourceLocalId=${edge.sourceLocalId}, targetLocalId=${edge.targetLocalId}).`,
+      );
+    }
+
+    if (sourceConceptId === targetConceptId) {
+      droppedSelfReferential += 1;
+      continue;
+    }
+
+    const { sourceLocalId: _s, targetLocalId: _t, ...rest } = edge;
+    toInsert.push({ ...rest, sourceConceptId, targetConceptId });
+  }
+
+  return { toInsert, droppedSelfReferential };
 }

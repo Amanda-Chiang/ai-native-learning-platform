@@ -178,14 +178,14 @@ US1's extraction already produced).
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Create `src/features/course-graph-ingestion/reconciliation.ts`:
+- [X] T016 [US2] Create `src/features/course-graph-ingestion/reconciliation.ts`:
   given one candidate (concept or edge) and the course's current
   concept list (canonical names, aliases, short descriptions — not full
   source text, per research.md), calls OpenAI with a Structured Outputs
   schema constrained to exactly `{ decision: "merge" | "distinct" | "uncertain", matchedConceptId?: string, reasoning: string }`
   and returns that decision — no numeric threshold anywhere in this
   function's contract
-- [ ] T017 [P] [US2] Write `tests/unit/course-graph-ingestion/reconciliation.test.ts`:
+- [X] T017 [P] [US2] Write `tests/unit/course-graph-ingestion/reconciliation.test.ts`:
   using a fixture course concept list built from
   `benchmark/dsa-course/concepts.json`'s "Breadth-First Search"/"BFS"
   pair (the corpus's own `multiAliasConcept` edge case), a mocked
@@ -194,7 +194,7 @@ US1's extraction already produced).
   `"distinct"` (not just a comment — the type itself must make "the
   system wasn't sure" impossible to accidentally treat the same as
   "confidently different")
-- [ ] T018 [US2] Wire `reconciliation.ts` into
+- [X] T018 [US2] Wire `reconciliation.ts` into
   `trigger/extract-course-graph.ts`: when the course already has
   `course_concepts` rows (proposed or confirmed), call reconciliation for
   each candidate concept before writing it; on `"merge"`, update the
@@ -203,13 +203,13 @@ US1's extraction already produced).
   `"distinct"`/`"uncertain"`, insert as a new `proposed` row as in T012;
   write one `reconciliation_decisions` row per candidate evaluated,
   including the model's `reasoning` verbatim
-- [ ] T019 [US2] In `extract-course-graph.ts`: after reconciliation
+- [X] T019 [US2] In `extract-course-graph.ts`: after reconciliation
   resolves both endpoints of a candidate edge to their final concept ids
   (following any merge), if source and target are now equal, drop the
   edge before writing it, increment
   `extraction_runs.edges_dropped_self_referential`, and do not write a
   `concept_edges` row for it (FR-011, research.md)
-- [ ] T020 [P] [US2] Write `tests/unit/course-graph-ingestion/self-referential-edge.test.ts`:
+- [X] T020 [P] [US2] Write `tests/unit/course-graph-ingestion/self-referential-edge.test.ts`:
   a candidate edge whose two endpoints both reconcile (merge) onto the
   same existing concept is dropped and counted, not written; an ordinary
   edge between two genuinely distinct concepts is unaffected by this
