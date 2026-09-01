@@ -110,8 +110,8 @@ Single project (per plan.md's Project Structure): `src/types/domain/`,
 
 ### Implementation for User Story 3
 
-- [ ] T021 [P] [US3] Write `benchmark/dsa-course/rubrics/evaluation-rubrics.md` with 10 `##` sections — concept extraction, concept deduplication, relation classification, homework/course-style extraction, question correctness, question ambiguity, source grounding, text grading, visual-structure extraction, misconception detection — each with at least one concrete pass/fail criterion phrased independently of any specific prompt or model (spec FR-012; e.g. for "source grounding": *"every generated concept's `sourceAnchors[].excerpt` must be a substring, or a close paraphrase confirmable by a human reviewer, of text actually present in the cited artifact — fail if the excerpt cannot be located in the source"*)
-- [ ] T022 [US3] Run `grep -c '^## ' benchmark/dsa-course/rubrics/evaluation-rubrics.md` — expect output `10`
+- [X] T021 [P] [US3] Write `benchmark/dsa-course/rubrics/evaluation-rubrics.md` with 10 `##` sections — concept extraction, concept deduplication, relation classification, homework/course-style extraction, question correctness, question ambiguity, source grounding, text grading, visual-structure extraction, misconception detection — each with at least one concrete pass/fail criterion phrased independently of any specific prompt or model (spec FR-012; e.g. for "source grounding": *"every generated concept's `sourceAnchors[].excerpt` must be a substring, or a close paraphrase confirmable by a human reviewer, of text actually present in the cited artifact — fail if the excerpt cannot be located in the source"*)
+- [X] T022 [US3] Run `grep -c '^## ' benchmark/dsa-course/rubrics/evaluation-rubrics.md` — expect output `10`
 
 **Checkpoint**: All ten rubrics exist and are usable once each later phase's prompts are written.
 
@@ -121,8 +121,8 @@ Single project (per plan.md's Project Structure): `src/types/domain/`,
 
 **Purpose**: Final validation across all three stories together.
 
-- [ ] T023 Run `npm run typecheck` across the whole repository — expect PASS with no regressions outside this feature
-- [ ] T024 Walk through `specs/001-course-domain-schemas/quickstart.md` validation scenarios 1–5 end to end and confirm every expected outcome holds
+- [X] T023 Run `npm run typecheck` across the whole repository — expect PASS with no regressions outside this feature
+- [X] T024 Walk through `specs/001-course-domain-schemas/quickstart.md` validation scenarios 1–5 end to end and confirm every expected outcome holds
 
 ---
 

@@ -27,8 +27,12 @@ the repo breaks by importing them.
 ## Validation scenario 2 — every corpus entry conforms to its schema
 
 ```bash
-node --test tests/unit/domain/
+node --test tests/unit/domain/*.test.ts
 ```
+
+(A bare directory argument, `node --test tests/unit/domain/`, does not
+reliably discover `.test.ts` files on this Node version without further
+flags — the explicit glob above is the form actually verified to work.)
 
 **Expected outcome**: all tests pass, specifically confirming:
 - Every entry in `benchmark/dsa-course/concepts.json` satisfies
