@@ -20,6 +20,9 @@ import {
 } from "@/features/deterministic-grading/checkers/shortest-path-checker.ts";
 import { toCommitEvidenceInput, type ResponseMeta } from "@/features/deterministic-grading/grading-evidence.ts";
 import { gradeCode } from "@/features/deterministic-grading/code-sandbox-grader.ts";
+import { gradeTextResponse as runRubricGrader } from "@/features/deterministic-grading/rubric-grader.ts";
+import type { GradingRubric } from "@/features/deterministic-grading/grading-evidence.ts";
+import OpenAI from "openai";
 
 /**
  * Server action contracts: specs/007-deterministic-grading/contracts/grading-actions.md
@@ -194,4 +197,78 @@ export async function gradeCodeResponse(
 
   const { error } = await commitEvidence(evidenceInput);
   return { result, error };
+}
+
+export type GradeTextResponseInput = {
+  courseId: string;
+  conceptIds: string[];
+  edgeIds: string[];
+  response: string;
+  rubric: GradingRubric;
+  evidenceType: ResponseMeta["evidenceType"];
+  assistanceLevel: number;
+  difficulty: number;
+  transferDistance: number;
+  studentConfidence?: number;
+};
+
+export async function gradeTextResponse(
+  input: GradeTextResponseInput,
+): Promise<{ result: Awaited<ReturnType<typeof runRubricGrader>>; error: string | null }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      result: { outcome: "incorrect", satisfiedCriteria: [], matchedMisconception: null, confidence: 0, isLowConfidence: true },
+      error: "You must be signed in to submit a graded response.",
+    };
+  }
+
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const result = await runRubricGrader(openai, input.response, input.rubric);
+
+  const { data: attempt, error: attemptError } = await supabase
+    .from("assessment_attempts")
+    .insert({
+      user_id: user.id,
+      course_id: input.courseId,
+      response_modality: "text",
+      question_snapshot: { rubric: input.rubric },
+      response: { text: input.response },
+      grading_result: result,
+    })
+    .select()
+    .single();
+  if (attemptError || !attempt) {
+    return { result, error: attemptError?.message ?? "Could not record the attempt." };
+  }
+
+  // isLowConfidence:true still commits evidence (FR-010 requires it be
+  // flagged, not withheld) -- graderConfidence carries the real
+  // (possibly low) value, never inflated to look certain.
+  const evidenceInput = toCommitEvidenceInput(
+    {
+      courseId: input.courseId,
+      conceptIds: input.conceptIds,
+      edgeIds: input.edgeIds,
+      assessmentAttemptId: attempt.id,
+    },
+    result,
+    {
+      evidenceType: input.evidenceType,
+      assistanceLevel: input.assistanceLevel,
+      difficulty: input.difficulty,
+      transferDistance: input.transferDistance,
+      studentConfidence: input.studentConfidence,
+    },
+  );
+
+  if (!evidenceInput) {
+    return { result, error: "No evidence committed." };
+  }
+
+  const { error: commitError } = await commitEvidence(evidenceInput);
+  return { result, error: commitError };
 }
