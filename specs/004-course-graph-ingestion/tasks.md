@@ -38,12 +38,13 @@ Single Next.js project (per plan.md's Project Structure):
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `openai` to `package.json` dependencies (`npm install openai`)
-- [ ] T002 Add `OPENAI_API_KEY` documentation to `.env.example` if not
+- [X] T001 Add `openai` to `package.json` dependencies (`npm install openai`)
+- [X] T002 Add `OPENAI_API_KEY` documentation to `.env.example` if not
   already present from Phase 2's OpenAI-key discussion — confirm the
   comment matches how the key is actually consumed by this feature (not
-  copy-pasted boilerplate)
-- [ ] T003 [P] Create `src/lib/openai/client.ts`: a thin factory
+  copy-pasted boilerplate). Already present from Phase 2's setup;
+  confirmed accurate as written.
+- [X] T003 [P] Create `src/lib/openai/client.ts`: a thin factory
   returning a configured `OpenAI` client, same shape as
   `src/lib/supabase/client.ts`/`server.ts` — must NOT throw at import
   time if `OPENAI_API_KEY` is unset (mirrors Phase 1's "every shared
@@ -60,21 +61,22 @@ feature logic yet.
 **Purpose**: Schema and shared types every user story writes to or reads
 from. No user story can be implemented before this phase completes.
 
-- [ ] T004 Write `supabase/migrations/0003_course_ontology.sql` per
+- [X] T004 Write `supabase/migrations/0003_course_ontology.sql` per
   data-model.md: `course_units`, `course_concepts`, `concept_edges`,
   `extraction_runs`, `reconciliation_decisions`, `concept_flags`, all
   columns/check constraints/RLS policies exactly as specified (including
   the database-level `source_anchors` non-empty check and the
   `concept_edges` self-reference check — these are hard invariants, not
   optional hardening)
-- [ ] T005 Push the migration (`npx supabase db push`) and verify RLS: an
+- [X] T005 Push the migration (`npx supabase db push`) and verify RLS: an
   anon-key query against each new table returns `status=200, rows=0` for
   a signed-out session (quickstart.md B1) — do not proceed until this is
-  confirmed against the live project, not just read from the SQL file
-- [ ] T006 Extend `src/lib/supabase/database.types.ts` with the six new
+  confirmed against the live project, not just read from the SQL file.
+  Pushed and verified live: all six tables return `status=200, rows=0`.
+- [X] T006 Extend `src/lib/supabase/database.types.ts` with the six new
   tables' row/insert/update types, same pattern used for `graph_layouts`
   in Phase 2
-- [ ] T007 [P] Create `src/features/course-graph-ingestion/extraction-schema.ts`:
+- [X] T007 [P] Create `src/features/course-graph-ingestion/extraction-schema.ts`:
   the Structured Outputs JSON schema for one extraction call (candidate
   concepts + candidate edges, matching `CourseConcept`/`ConceptEdge`'s
   shape minus `id`/`status`/`extraction_run_id`, which the pipeline
@@ -82,11 +84,14 @@ from. No user story can be implemented before this phase completes.
   against it before any code treats the response as real data — an
   unparseable/schema-violating response must produce a distinct error,
   never a value that looks like a valid empty result
-- [ ] T008 [P] Write `tests/unit/course-graph-ingestion/extraction-schema.test.ts`:
+- [X] T008 [P] Write `tests/unit/course-graph-ingestion/extraction-schema.test.ts`:
   a well-formed sample response parses into candidates; a response
   missing a required field is rejected, not silently coerced; a response
   with zero candidates parses as a valid empty list (spec Edge Cases —
-  distinguishable from a parse failure)
+  distinguishable from a parse failure). Also found and fixed: the "@/"
+  tsconfig path alias only resolves under Next.js's bundler, not plain
+  `node --test`, for a real (non-type-only) runtime import — switched to
+  a relative import in extraction-schema.ts.
 
 **Checkpoint**: Schema live and RLS-verified; the shape every extraction
 call must conform to is defined and tested. No extraction logic yet.
@@ -106,45 +111,52 @@ non-empty source anchor into that artifact (spec.md).
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Create `trigger/extract-course-graph.ts`: reads the
+- [X] T009 [US1] Create `trigger/extract-course-graph.ts`: reads the
   artifact via Supabase Storage (same admin-client pattern as
   `trigger/ingest-artifact.ts`), calls OpenAI with `extraction-schema.ts`'s
   schema and the artifact's file content (direct file/image input per
   research.md — no separate OCR step), writes an `extraction_runs` row
   tracking status through `queued` → `processing` → `completed`/`failed`
-- [ ] T010 [US1] In `extract-course-graph.ts`: guard on
+- [X] T010 [US1] In `extract-course-graph.ts`: guard on
   `OPENAI_API_KEY` being configured before any OpenAI call — if unset,
   write `extraction_runs.status = "failed"` with the exact
   `failure_reason` string from research.md, and return without a
   fabricated empty-success result
-- [ ] T011 [US1] In `extract-course-graph.ts`: if the artifact can't be
+- [X] T011 [US1] In `extract-course-graph.ts`: if the artifact can't be
   read from Storage, write a distinct `"failed"` status with a specific
   reason (FR-012) — reuse the same file-existence check pattern already
   proven in `trigger/ingest-artifact.ts`, don't reimplement it
   differently
-- [ ] T012 [US1] In `extract-course-graph.ts`: for a course with zero
+- [X] T012 [US1] In `extract-course-graph.ts`: for a course with zero
   existing `course_concepts` rows (the true first-artifact case — nothing
   to reconcile against, not a stubbed-out shortcut), write every
   validated candidate directly as a `proposed` `course_concepts`/
   `concept_edges` row with `extraction_run_id` set and `source_anchors`
   populated from the schema's per-candidate anchor field
-- [ ] T013 [US1] Idempotency guard in `extract-course-graph.ts`: on
+- [X] T013 [US1] Idempotency guard in `extract-course-graph.ts`: on
   start, check for an existing `extraction_runs` row for this
   `artifactId` already in `"completed"` or `"failed"` status; if found,
   return `{ skipped: true, reason: "already terminal" }` without calling
   OpenAI again (research.md)
-- [ ] T014 [US1] In `trigger/ingest-artifact.ts`: after setting an
+- [X] T014 [US1] In `trigger/ingest-artifact.ts`: after setting an
   artifact's status to `"ready"`, trigger `extractCourseGraphTask` with
   `{ artifactId, courseId }` — additive change to the existing task, does
   not alter its own tested status-transition logic
-- [ ] T015 [P] [US1] Write `tests/unit/course-graph-ingestion/extraction-run-status.test.ts`:
+- [X] T015 [P] [US1] Write `tests/unit/course-graph-ingestion/extraction-run-status.test.ts`:
   the missing-key path produces `status: "failed"` with the exact
   documented reason (not empty/zero-concepts indistinguishable from real
   extraction); the unreadable-artifact path produces a distinct `"failed"`
   reason from the missing-key path (two different failures must not
   collapse into one message); zero extractable content produces
   `status: "completed"` with `concepts_extracted: 0` (spec Edge Cases —
-  genuinely different from both failure cases)
+  genuinely different from both failure cases). Note on scope: the task
+  function itself is tightly coupled to a live Supabase admin client and
+  the OpenAI SDK, with no fake/mock for either in this project yet — the
+  test file honestly covers what's unit-testable without one (the two
+  failure-reason constants are distinct strings; a zero-candidate result
+  is a valid non-failure parse) and documents that full status-transition
+  verification is quickstart.md Group C's job (live-credential manual
+  verification), not claimed as covered here.
 
 **Checkpoint**: An uploaded artifact can be turned into source-anchored
 proposed concepts/edges. Nothing is visible to a reviewer yet (that's

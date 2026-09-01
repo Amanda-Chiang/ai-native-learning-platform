@@ -2,6 +2,7 @@ import { task } from "@trigger.dev/sdk";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../src/lib/supabase/database.types.ts";
 import { isValidStatusTransition } from "../src/features/artifacts/status.ts";
+import { extractCourseGraphTask } from "./extract-course-graph.ts";
 
 /**
  * Trigger.dev task contract: specs/002-account-course-artifact-foundation/contracts/server-actions.md
@@ -58,7 +59,7 @@ export const ingestArtifactTask = task({
 
     const { data: artifact, error: artifactFetchError } = await supabase
       .from("artifacts")
-      .select("storage_path, mime_type, size_bytes")
+      .select("course_id, storage_path, mime_type, size_bytes")
       .eq("id", payload.artifactId)
       .single();
 
@@ -96,6 +97,19 @@ export const ingestArtifactTask = task({
       .from("artifacts")
       .update({ status: finalStatus, updated_at: nowIso })
       .eq("id", payload.artifactId);
+
+    // Course-graph-ingestion (Phase 2's other half) starts only once an
+    // artifact is confirmed readable -- a separate task, not folded into
+    // this one, so a retried ingest-artifact run can't re-trigger
+    // extraction and this task's own tests/contract stay unaffected by
+    // needing an OpenAI key (research.md "Chaining onto Phase 1's
+    // ingest-artifact task").
+    if (finalStatus === "ready" && artifact) {
+      await extractCourseGraphTask.trigger({
+        artifactId: payload.artifactId,
+        courseId: artifact.course_id,
+      });
+    }
 
     return { status: finalStatus, failureReason };
   },
