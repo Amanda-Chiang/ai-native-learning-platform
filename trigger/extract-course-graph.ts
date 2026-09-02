@@ -181,15 +181,34 @@ export const extractCourseGraphTask = task({
     }
 
     const classify = createOpenAiReconciliationClassifier(openai, EXTRACTION_MODEL);
-    const insertResult = await writeExtractionCandidates(
-      supabase,
-      payload.courseId,
-      artifact.owner_id,
-      run.id,
-      payload.artifactId,
-      extraction,
-      classify,
-    );
+
+    // A real failure partway through (the reconciliation classifier's
+    // own OpenAI call, looped once per candidate concept) must still
+    // leave extraction_runs with a real, honest terminal status --
+    // found during a hardening-pass audit: without this, a throw here
+    // left the row stuck at "processing" forever, with whatever
+    // concepts/edges had already been inserted left as silent partial
+    // data and no completion signal at all, the same class of gap
+    // already found and fixed in assessment-generation-pipeline's
+    // per-attempt loop.
+    let insertResult: Awaited<ReturnType<typeof writeExtractionCandidates>>;
+    try {
+      insertResult = await writeExtractionCandidates(
+        supabase,
+        payload.courseId,
+        artifact.owner_id,
+        run.id,
+        payload.artifactId,
+        extraction,
+        classify,
+      );
+    } catch (err) {
+      return markFailed(
+        supabase,
+        run.id,
+        `Reconciliation/insert failed partway through: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
 
     await supabase
       .from("extraction_runs")
