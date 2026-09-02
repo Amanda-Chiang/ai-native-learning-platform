@@ -1,11 +1,6 @@
 import Link from "next/link";
 import { createCourse, listCourses } from "@/features/courses/actions.ts";
-
-async function handleCreateCourse(formData: FormData) {
-  "use server";
-  const name = String(formData.get("name") ?? "");
-  await createCourse(name);
-}
+import { CreateCourseForm } from "@/features/courses/components/CreateCourseForm.tsx";
 
 export default async function CoursesPage() {
   const courses = await listCourses();
@@ -26,13 +21,7 @@ export default async function CoursesPage() {
         </ul>
       )}
 
-      <form action={handleCreateCourse}>
-        <label>
-          Course name
-          <input type="text" name="name" required placeholder="e.g. Data Structures & Algorithms" />
-        </label>
-        <button type="submit">Create course</button>
-      </form>
+      <CreateCourseForm createCourse={createCourse} />
     </main>
   );
 }
