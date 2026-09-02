@@ -98,11 +98,14 @@ export const EXTRACTION_SCHEMAS: Record<CheckerDomain, ExtractionSchema> = {
   },
 };
 
+const CONFIDENCE_HONESTY_INSTRUCTION =
+  "Report your own honest confidence (0-1) that you read this correctly. Be strict: if the image is blank, shows no legible marking of the student's actual answer (only the rendered question itself), or the marks are too messy/overlapping to make out a clear order, your confidence MUST be low (below 0.3) -- do not report high confidence just because the image itself is clear if the student's answer within it isn't.";
+
 export const EXTRACTION_PROMPT_BY_DOMAIN: Record<CheckerDomain, string> = {
-  "bfs-dfs": "This image shows a student's hand-drawn traversal order over a graph. Identify the order in which nodes were visited, using the exact node labels shown in the image.",
-  heap: "This image shows a student's hand-drawn heap after a sequence of operations. Identify the sequence of values extracted (in order) and the final remaining heap state (as a flat array), using the exact values shown.",
-  "tree-traversal": "This image shows a student's hand-drawn traversal order over a binary tree. Identify the sequence of values in the order traversed, using the exact values shown.",
-  "tree-insertion": "This image shows a student's hand-drawn binary tree after inserting a value. Identify the resulting tree's exact structure (each node's value and its left/right children, or null where absent).",
-  "topological-sort": "This image shows a student's hand-drawn topological order over a directed graph. Identify the order, using the exact node labels shown in the image.",
-  "shortest-path": "This image shows a student's hand-drawn shortest path between two nodes in a weighted graph. Identify the sequence of nodes on the path and the total distance the student claims, using the exact node labels and weights shown.",
+  "bfs-dfs": `This image shows a student's hand-drawn traversal order over a graph. Identify the order in which nodes were visited, using the exact node labels shown in the image. ${CONFIDENCE_HONESTY_INSTRUCTION}`,
+  heap: `This image shows a student's hand-drawn heap after a sequence of operations. Identify the sequence of values extracted (in order) and the final remaining heap state (as a flat array), using the exact values shown. ${CONFIDENCE_HONESTY_INSTRUCTION}`,
+  "tree-traversal": `This image shows a student's hand-drawn traversal order over a binary tree. Identify the sequence of values in the order traversed, using the exact values shown. ${CONFIDENCE_HONESTY_INSTRUCTION}`,
+  "tree-insertion": `This image shows a student's hand-drawn binary tree after inserting a value. Identify the resulting tree's exact structure (each node's value and its left/right children, or null where absent). ${CONFIDENCE_HONESTY_INSTRUCTION}`,
+  "topological-sort": `This image shows a student's hand-drawn topological order over a directed graph. Identify the order, using the exact node labels shown in the image. ${CONFIDENCE_HONESTY_INSTRUCTION}`,
+  "shortest-path": `This image shows a student's hand-drawn shortest path between two nodes in a weighted graph. Identify the sequence of nodes on the path and the total distance the student claims, using the exact node labels and weights shown. ${CONFIDENCE_HONESTY_INSTRUCTION}`,
 };

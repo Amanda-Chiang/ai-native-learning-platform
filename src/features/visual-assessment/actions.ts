@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server.ts";
 import { getOpenAiClient, isOpenAiConfigured } from "@/lib/openai/client.ts";
 import { extractProblemSetup, type CheckerDomain } from "@/features/visual-assessment/problem-setup.ts";
-import { extractDrawing, needsConfirmation } from "@/features/visual-assessment/vision-extraction.ts";
+import { extractDrawing, needsConfirmation, isImplausibleExtraction } from "@/features/visual-assessment/vision-extraction.ts";
 import { mergeStructure } from "@/features/visual-assessment/merge-structure.ts";
 import { gradeStructuredResponse, type GradeStructuredResponseInput } from "@/features/deterministic-grading/actions.ts";
 
@@ -60,6 +60,8 @@ export async function submitDrawing(
     };
   }
 
+  const problemSetup = extractProblemSetup(entry.checker_input as Record<string, unknown>);
+
   const attemptDraftId = crypto.randomUUID();
   const storagePath = `${user.id}/${attemptDraftId}/drawing.png`;
   const imageBytes = Buffer.from(imageDataUrl.split(",")[1] ?? "", "base64");
@@ -80,6 +82,15 @@ export async function submitDrawing(
       needsConfirmation: false,
       error: `${NO_COHERENT_STRUCTURE_REASON} (${err instanceof Error ? err.message : String(err)})`,
     };
+  }
+
+  // A deterministic backstop independent of the model's own reported
+  // confidence (research.md / vision-extraction.ts's own comment) --
+  // found live: a blank image once produced an empty claimedOrder at
+  // confidence 1.0, which confidence alone would have silently
+  // accepted (FR-007).
+  if (isImplausibleExtraction(entry.checker_domain as CheckerDomain, extraction.claimFields, problemSetup)) {
+    return { attemptDraftId: null, claimFields: null, confidence: null, needsConfirmation: false, error: NO_COHERENT_STRUCTURE_REASON };
   }
 
   return {

@@ -20,6 +20,52 @@ export function needsConfirmation(confidence: number): boolean {
 }
 
 /**
+ * A deterministic backstop, not a replacement for the model's own
+ * confidence -- found live (T017/quickstart.md B5): a blank image
+ * produced an empty claimedOrder with confidence 1.0, which
+ * needsConfirmation alone would have silently accepted as a
+ * legitimate, confident answer. This checks real structural
+ * plausibility against the real problem setup (e.g. an order that
+ * doesn't visit every real node), independent of whatever confidence
+ * value the model happened to report, satisfying FR-007 ("no coherent
+ * structure could be extracted") without trusting the model to always
+ * self-report that case honestly.
+ */
+export function isImplausibleExtraction(
+  domain: CheckerDomain,
+  claimFields: Record<string, unknown>,
+  problemSetup: Record<string, unknown>,
+): boolean {
+  switch (domain) {
+    case "bfs-dfs":
+    case "topological-sort": {
+      const order = claimFields.claimedOrder;
+      const nodeIds = (problemSetup.graph as { nodeIds?: string[] } | undefined)?.nodeIds ?? [];
+      return !Array.isArray(order) || order.length !== nodeIds.length;
+    }
+    case "shortest-path": {
+      const path = claimFields.claimedPath;
+      return !Array.isArray(path) || path.length === 0;
+    }
+    case "tree-traversal": {
+      const result = claimFields.claimedResult;
+      const tree = problemSetup.tree;
+      return tree !== null && (!Array.isArray(result) || result.length === 0);
+    }
+    case "heap": {
+      const sequence = claimFields.claimedExtractedSequence;
+      const finalState = claimFields.claimedFinalState;
+      return !Array.isArray(sequence) || !Array.isArray(finalState);
+    }
+    case "tree-insertion": {
+      // null is a legitimate "empty tree" result -- only a genuinely
+      // missing/malformed value is implausible.
+      return claimFields.claimedResultTree === undefined;
+    }
+  }
+}
+
+/**
  * Calls the vision-capable model with the drawing image + the
  * domain's own claim-fields-only schema (extraction-schemas.ts) --
  * never asked to judge correctness, only to read what was drawn. The
