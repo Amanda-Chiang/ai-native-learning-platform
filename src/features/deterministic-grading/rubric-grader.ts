@@ -54,23 +54,42 @@ ${response}
 Return your own honest confidence (0-1) in this specific grading -- lower it for a genuinely ambiguous response relative to the rubric, don't inflate it to look certain.`;
 }
 
+/**
+ * A real network/API failure here (rate limit, timeout, outage) must
+ * never throw unhandled -- found during a hardening-pass audit: unlike
+ * gradeCode (code-sandbox-grader.ts), which already catches its own
+ * failures into a distinct did_not_complete outcome, this function had
+ * no equivalent guard, so a failed call would crash the calling server
+ * action before an assessment_attempts row was ever recorded. Wrapped
+ * to match that same established pattern -- a failure is now a real,
+ * recorded outcome, never a silent crash with no attempt on record.
+ */
 export async function gradeTextResponse(
   openai: OpenAI,
   response: string,
   rubric: GradingRubric,
 ): Promise<RubricGradingResult> {
-  const apiResponse = await openai.responses.create({
-    model: RUBRIC_GRADING_MODEL,
-    input: [{ role: "user", content: buildPrompt(response, rubric) }],
-    text: {
-      format: {
-        type: "json_schema",
-        name: RUBRIC_GRADING_SCHEMA.name,
-        strict: RUBRIC_GRADING_SCHEMA.strict,
-        schema: RUBRIC_GRADING_SCHEMA.schema,
+  let apiResponse: Awaited<ReturnType<typeof openai.responses.create>>;
+  try {
+    apiResponse = await openai.responses.create({
+      model: RUBRIC_GRADING_MODEL,
+      input: [{ role: "user", content: buildPrompt(response, rubric) }],
+      text: {
+        format: {
+          type: "json_schema",
+          name: RUBRIC_GRADING_SCHEMA.name,
+          strict: RUBRIC_GRADING_SCHEMA.strict,
+          schema: RUBRIC_GRADING_SCHEMA.schema,
+        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    return {
+      outcome: "did_not_complete",
+      reason: "model_call_failed",
+      detail: err instanceof Error ? err.message : String(err),
+    };
+  }
 
   const parsed = JSON.parse(apiResponse.output_text) as {
     outcome: "correct" | "incorrect" | "partial";

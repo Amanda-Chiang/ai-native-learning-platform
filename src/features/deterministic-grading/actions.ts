@@ -266,7 +266,12 @@ export async function gradeTextResponse(
   );
 
   if (!evidenceInput) {
-    return { result, error: "No evidence committed." };
+    // did_not_complete -- the attempt is still recorded above, but a
+    // failed model call is never recorded as an ordinary pass or fail
+    // (same discipline as gradeCodeResponse's own did_not_complete
+    // handling).
+    const reason = "reason" in result ? result.reason : "did not complete";
+    return { result, error: `No evidence committed: ${reason}` };
   }
 
   const { error: commitError } = await commitEvidence(evidenceInput);

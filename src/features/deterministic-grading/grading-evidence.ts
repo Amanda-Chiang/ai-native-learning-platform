@@ -45,13 +45,15 @@ export type GradingRubric = {
   partialCreditCriteria: string[];
 };
 
-export type RubricGradingResult = {
-  outcome: "correct" | "incorrect" | "partial";
-  satisfiedCriteria: string[];
-  matchedMisconception: string | null;
-  confidence: number;
-  isLowConfidence: boolean;
-};
+export type RubricGradingResult =
+  | {
+      outcome: "correct" | "incorrect" | "partial";
+      satisfiedCriteria: string[];
+      matchedMisconception: string | null;
+      confidence: number;
+      isLowConfidence: boolean;
+    }
+  | { outcome: "did_not_complete"; reason: "model_call_failed"; detail: string };
 
 export type AnyGradingResult =
   | TraversalCheckResult
