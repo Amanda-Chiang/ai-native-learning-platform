@@ -125,18 +125,31 @@ export async function sendTutorMessage(
 
   const openai = createOpenAIClient();
 
-  const result = await runTutorTurn({
-    openai,
-    courseId: conversation.course_id,
-    studentMessage: message,
-    systemInstructions: SYSTEM_INSTRUCTIONS,
-    courseMaterials: {
-      concepts: conceptsRes.data ?? [],
-      edges: edgesRes.data ?? [],
-    },
-    priorTurns,
-    requestedDirectAnswer,
-  });
+  // A real model-call failure here must resolve as this action's own
+  // { turn: null, error } shape, never an unhandled rejection -- found
+  // during a hardening-pass audit: TutorChat.tsx's onSubmit has no
+  // try/catch of its own around sendTutorMessage, so a thrown error
+  // here would leave the client's "pending" state stuck forever with
+  // no message shown, the same class of gap already found and fixed in
+  // deterministic-grading's rubric grader and
+  // assessment-generation-pipeline's per-attempt loop.
+  let result: Awaited<ReturnType<typeof runTutorTurn>>;
+  try {
+    result = await runTutorTurn({
+      openai,
+      courseId: conversation.course_id,
+      studentMessage: message,
+      systemInstructions: SYSTEM_INSTRUCTIONS,
+      courseMaterials: {
+        concepts: conceptsRes.data ?? [],
+        edges: edgesRes.data ?? [],
+      },
+      priorTurns,
+      requestedDirectAnswer,
+    });
+  } catch (err) {
+    return { turn: null, error: `The tutor couldn't respond: ${err instanceof Error ? err.message : String(err)}` };
+  }
 
   const { data: studentTurn, error: studentTurnError } = await supabase
     .from("tutor_conversation_turns")
