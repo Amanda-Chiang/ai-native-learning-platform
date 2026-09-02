@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { GraphLayout } from "@/features/visual-assessment/graph-layout.ts";
 import type { TreeLayout } from "@/features/visual-assessment/tree-layout.ts";
 import type { SubmitConfirmedVisualResponseInput } from "@/features/visual-assessment/actions.ts";
+import { ConfirmExtraction } from "@/features/visual-assessment/components/ConfirmExtraction.tsx";
 
 type SubmitDrawingResult = {
   attemptDraftId: string | null;
@@ -168,13 +169,12 @@ export function QuestionCanvas({
       </div>
       {error && <p style={{ color: "#dc2626" }}>{error}</p>}
       {confirmState && (
-        <div style={{ border: "2px solid #b45309", padding: 12 }}>
-          <p>I may have read your drawing incorrectly (confidence: {Math.round(confirmState.confidence * 100)}%). Here&apos;s what I saw:</p>
-          <pre>{JSON.stringify(confirmState.claimFields, null, 2)}</pre>
-          <button type="button" onClick={() => grade(confirmState.claimFields)} disabled={pending}>
-            That&apos;s right, grade it
-          </button>
-        </div>
+        <ConfirmExtraction
+          claimFields={confirmState.claimFields}
+          confidence={confirmState.confidence}
+          onConfirm={grade}
+          pending={pending}
+        />
       )}
       {result !== null && <p>Result: {JSON.stringify(result)}</p>}
     </div>
