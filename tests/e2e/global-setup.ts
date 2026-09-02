@@ -114,6 +114,31 @@ export default async function globalSetup() {
   // produces "solid", not a directly-written learner_concept_state row
   // (that table is only ever a rebuildable cache, never read as
   // authoritative).
+  //
+  // Found live (basic-flows.spec.ts's first real run after
+  // deterministic-grading shipped): assessment_attempt_id used to be a
+  // fake placeholder UUID, fine back when 0004_learner_evidence.sql
+  // left this column deliberately unconstrained -- but
+  // 0006_deterministic_grading.sql later added a real FK on it, which
+  // this fixture was never updated to satisfy. A real
+  // assessment_attempts row is inserted first so the FK is genuinely
+  // satisfied, not just silently retargeted at another placeholder.
+  const { data: attempt, error: attemptError } = await admin
+    .from("assessment_attempts")
+    .insert({
+      user_id: userId,
+      course_id: course.id,
+      response_modality: "text",
+      question_snapshot: {},
+      response: {},
+      grading_result: { outcome: "correct" },
+    })
+    .select()
+    .single();
+  if (attemptError || !attempt) {
+    throw new Error(`tutor-agent E2E setup: could not seed assessment attempt: ${attemptError?.message}`);
+  }
+
   const { error: evidenceError } = await admin.from("evidence_events").insert({
     user_id: userId,
     course_id: course.id,
@@ -125,7 +150,7 @@ export default async function globalSetup() {
     assistance_level: 0,
     difficulty: 0.9,
     transfer_distance: 1,
-    assessment_attempt_id: "00000000-0000-0000-0000-000000000001",
+    assessment_attempt_id: attempt.id,
   });
   if (evidenceError) {
     throw new Error(`tutor-agent E2E setup: could not seed evidence: ${evidenceError.message}`);

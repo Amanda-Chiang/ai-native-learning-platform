@@ -52,3 +52,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# trigger.dev CLI local state (dev.lock/active-runs.json/watchdog.pid --
+# machine/process-specific, regenerated on every `trigger.dev dev` run)
+/.trigger/
+
+# trigger.dev CLI's locally-downloaded agent skills cache
+/.agents/
+
+# editor-local settings (e.g. MCP server config), not project config
+/.vscode/

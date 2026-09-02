@@ -64,7 +64,21 @@ export default async function CourseAtlasPage({
         getEvidenceProvenance={
           courseId === "demo"
             ? demoEvidenceProvenance
-            : (kind, id) => getEvidenceProvenance(kind, courseId, id)
+            : // Found live (basic-flows.spec.ts's first real run against
+              // a non-demo course): a plain inline arrow closure has no
+              // "use server" reference of its own, so React's RSC
+              // boundary rejects passing it to a Client Component at
+              // all -- unlike demoEvidenceProvenance above, this branch
+              // was never actually exercised by the demo-route-only
+              // visual regression suite, so the whole real (non-demo)
+              // atlas page was silently broken until now. An inline
+              // "use server" directive as the function's first
+              // statement makes it a real server reference, the same
+              // way demoEvidenceProvenance already is.
+              async (kind: "concept" | "relationship", id: string) => {
+                "use server";
+                return getEvidenceProvenance(kind, courseId, id);
+              }
         }
       />
     </main>
