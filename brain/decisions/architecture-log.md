@@ -727,3 +727,75 @@ checklist is a setup gate, not a retrofit. Applies to
   above. Feature complete: all 20 tasks (T001-T020) done, whole-repo
   typecheck clean, 243-test unit suite passes. This closes out every
   item on `docs/implementation-roadmap.md`.
+
+## 2026-09-02 — Hardening pass: domain-generality audit + unhandled-external-call sweep
+
+Prompted by a direct question: is the ingestion/tutoring/grading
+pipeline genuinely reusable for a course this project hasn't
+specifically encountered (e.g. a history or biology syllabus), not
+hardcoded to the DSA dogfood domain? Audited by grep, not memory, then
+fixed what was found.
+
+- **Real bug**: `course-graph-ingestion`'s `EXTRACTION_PROMPT` literally
+  told the model "you are extracting... for a data-structures-and-
+  algorithms course" on every single artifact, regardless of subject —
+  a real bias risk for any non-CS upload. Fixed to explicitly instruct
+  the model to infer the subject from the artifact itself. Verified
+  live: a French Revolution history excerpt now extracts clean,
+  subject-appropriate concepts with zero DSA leakage; a DSA excerpt
+  still extracts correctly (BFS, FIFO queue) -- no regression.
+- Confirmed everywhere else already generic on inspection: reconciliation
+  classification, the tutor's system instructions, question generation,
+  rubric grading, ambiguity/similarity checks, blind-solve — none
+  assume a subject. `deterministic-grading`'s 5 DSA-specific checkers
+  are an intentional, documented MVP scope choice (PRD D6), not
+  hardcoding — anything outside those 5 domains already falls back
+  correctly to general LLM-rubric grading, which works for any subject.
+
+While auditing, found the same class of bug independently in four
+different places: **a real external-service call inside a loop/action
+with no try/catch, whose failure silently threw past the code that
+would have recorded an honest failure state**, leaving the affected
+row stuck at a non-terminal status ("processing"/"pending") forever
+instead of an honest "failed":
+
+1. `deterministic-grading`'s `gradeTextResponse` — the rubric-grading
+   OpenAI call had no guard (unlike `gradeCode`, which already caught
+   its own failures). Fixed: `RubricGradingResult` gained a
+   `did_not_complete` variant; the existing `toCommitEvidenceInput`
+   funnel already handled that outcome shape from the code-grading
+   side, so no further changes were needed there. Live-verified with a
+   fake client forcing a throw.
+2. `assessment-generation-pipeline`'s per-attempt loop
+   (`trigger/generate-assessment.ts`) — a failure in candidate
+   generation or any of the six validation layers skipped the
+   `assessment_generation_runs` insert entirely, leaving
+   `getGenerationRun`'s derived status stuck at "pending" forever with
+   zero attempts recorded. Fixed: each attempt is now individually
+   caught and recorded as a real failed row, then the bounded loop
+   continues. Verified live by forcing a real OpenAI auth failure
+   (invalid API key): all 3 attempts were honestly recorded as failed.
+3. `tutor-agent`'s `sendTutorMessage` — no guard around `runTutorTurn`,
+   and `TutorChat.tsx` has none either, so a failure would leave the
+   chat UI's pending spinner stuck forever with no error shown. Fixed
+   at the `actions.ts` boundary (not inside `run-tutor-turn.ts`, keeping
+   that file's return type unchanged) to resolve the same
+   `{ turn: null, error }` shape every other failure path there already
+   produces. Not independently live-verified (same cookies()-based
+   auth limitation as `review-scheduler`/`exam-planner`'s own
+   verification scripts) — typecheck-verified and pattern-matched
+   against the already-tested rubric-grader fix.
+4. `course-graph-ingestion`'s `writeExtractionCandidates` (the
+   reconciliation classifier's per-concept loop) — no guard, so a
+   failure partway through left `extraction_runs` stuck at
+   "processing" forever with partial concepts/edges already inserted
+   and no completion signal. Fixed by routing through this file's own
+   already-proven `markFailed` helper, the same one already used for
+   this task's other three failure modes.
+
+Swept every remaining `openai.responses.create`/`openai.files.create`
+call site in the codebase afterward to confirm no other gap of this
+class remains — each is now either directly guarded or covered by an
+enclosing caller's guard. E2B's sandbox grader was already correctly
+guarded from when it was first built. No fixes needed beyond the four
+above.
