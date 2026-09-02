@@ -5,6 +5,7 @@ export type QuestionBankEntrySummary = {
   conceptId: string;
   questionText: string;
   responseModality: string;
+  rubric: Record<string, unknown>;
 };
 
 export type SessionItem = {
@@ -12,6 +13,7 @@ export type SessionItem = {
   questionBankEntryId: string;
   questionText: string;
   responseModality: string;
+  rubric: Record<string, unknown>;
   /** ConceptPriority.reasons, carried through (FR-007). */
   reasons: string[];
 };
@@ -62,6 +64,7 @@ export function composeDailySession(
       questionBankEntryId: question.id,
       questionText: question.questionText,
       responseModality: question.responseModality,
+      rubric: question.rubric,
       reasons: priority.reasons,
     };
   });

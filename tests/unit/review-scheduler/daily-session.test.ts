@@ -12,7 +12,7 @@ function priority(conceptId: string, priorityScore: number): ConceptPriority {
 }
 
 function question(id: string, conceptId: string): QuestionBankEntrySummary {
-  return { id, conceptId, questionText: `question ${id}`, responseModality: "text" };
+  return { id, conceptId, questionText: `question ${id}`, responseModality: "text", rubric: {} };
 }
 
 test("a due concept with zero available questions is skipped, never fabricated as a placeholder item", () => {

@@ -6,6 +6,8 @@ import { rankConceptsByPriority, DEFAULT_REVIEW_PRIORITY_WEIGHTS } from "@/featu
 import { isDue } from "@/features/review-scheduler/next-review-date.ts";
 import { composeDailySession, type DailySessionResult, type QuestionBankEntrySummary } from "@/features/review-scheduler/daily-session.ts";
 import { composeConnectSession, type ConnectSessionResult } from "@/features/review-scheduler/connect-session.ts";
+import { gradeTextResponse } from "@/features/deterministic-grading/actions.ts";
+import type { GradingRubric } from "@/features/deterministic-grading/grading-evidence.ts";
 
 /**
  * Server action contracts: specs/009-review-scheduler/contracts/scheduler-actions.md
@@ -31,7 +33,7 @@ export async function getDailyReviewSession(
   const [conceptsRes, edgesRes, bankRes] = await Promise.all([
     supabase.from("course_concepts").select("id, importance_score").eq("course_id", courseId).eq("status", "confirmed"),
     supabase.from("concept_edges").select("source_concept_id, relation_type").eq("course_id", courseId).eq("status", "confirmed"),
-    supabase.from("question_bank").select("id, question_text, response_modality, source_anchors").eq("course_id", courseId),
+    supabase.from("question_bank").select("id, question_text, response_modality, rubric, source_anchors").eq("course_id", courseId),
   ]);
 
   const concepts = conceptsRes.data ?? [];
@@ -56,6 +58,7 @@ export async function getDailyReviewSession(
         conceptId,
         questionText: entry.question_text,
         responseModality: entry.response_modality,
+        rubric: entry.rubric,
       });
       questionsByConcept.set(conceptId, list);
     }
@@ -123,4 +126,66 @@ export async function getConnectSession(courseId: string): Promise<ConnectSessio
   );
 
   return composeConnectSession(conceptInputs, edgeInputs, now);
+}
+
+/**
+ * Coarse, honest rubric adapter (not a fabricated compatibility layer):
+ * question_bank's rubric is free-form JSON the generation model wrote
+ * (assessment-generation-pipeline), not deterministic-grading's
+ * structured GradingRubric shape. Rather than guessing at specific
+ * keys that may or may not be present, the whole rubric is carried
+ * through verbatim as the one required idea -- the rubric grader is
+ * itself an LLM reading GradingRubric's fields as prompt text, so a
+ * faithful JSON rendering of "what this rubric actually says" is
+ * real content, not a placeholder. A structured, field-aware adapter
+ * is real follow-up work, not invented here.
+ */
+function bankRubricToGradingRubric(rubric: Record<string, unknown>): GradingRubric {
+  return {
+    requiredIdeas: [JSON.stringify(rubric)],
+    acceptableAlternatives: [],
+    knownMisconceptions: [],
+    partialCreditCriteria: [],
+  };
+}
+
+export type SubmitTextReviewAnswerInput = {
+  courseId: string;
+  conceptId: string;
+  rubric: Record<string, unknown>;
+  response: string;
+};
+
+/**
+ * Text-modality-only for now (companion decision to T009's scope):
+ * routes through deterministic-grading's existing gradeTextResponse
+ * unchanged (FR-010) -- this feature introduces no second grading
+ * path. Structured (graph/tree) modalities aren't answerable from this
+ * action yet; the generic claimed-field form that will make them
+ * answerable is real, separate follow-up work, not silently faked
+ * here.
+ */
+export async function submitTextReviewAnswer(
+  input: SubmitTextReviewAnswerInput,
+): Promise<{ result: Awaited<ReturnType<typeof gradeTextResponse>>["result"]; error: string | null }> {
+  return gradeTextResponse({
+    courseId: input.courseId,
+    conceptIds: [input.conceptId],
+    edgeIds: [],
+    response: input.response,
+    rubric: bankRubricToGradingRubric(input.rubric),
+    // "retrieval": an independent, unassisted attempt at a previously-
+    // seen concept -- exactly what a spaced-review session item is
+    // (Constitution Principle III: this is real independent retrieval,
+    // not exposure).
+    evidenceType: "retrieval",
+    assistanceLevel: 0,
+    // question_bank doesn't record a per-question difficulty
+    // (assessment-generation-pipeline's data-model.md), so a fixed,
+    // documented default is used until a real signal exists -- same
+    // "tunable, not calibrated" convention as this feature's other
+    // constants.
+    difficulty: 0.5,
+    transferDistance: 0,
+  });
 }
