@@ -552,8 +552,17 @@ checklist is a setup gate, not a retrofit. Applies to
   Whole-repo typecheck clean; full 192-test unit suite passes (18 new
   across this feature, including a new test for the checkerInput-crash
   fix).
-- Still pending: US3/US4's exhaustive live ambiguity/similarity
-  scenario checks (T020/T021) — the mechanism itself is proven by the
-  B2/B3 walkthrough above, but exhaustive scenario coverage against
-  real model behavior (a genuinely ambiguous question, a genuine
-  near-copy) hasn't been run yet as of this entry.
+- US3/US4 (T020/T021) — exhaustive live scenario checks on the
+  already-built ambiguity/similarity mechanism, no new production code.
+  All four scenarios behaved exactly as designed on the first live
+  run: an unambiguous BFS-complexity question passed ambiguity; a
+  question claiming "THE unique shortest path" on a graph with two
+  genuinely equal-length paths (A-B-D and A-C-D) was correctly flagged
+  ambiguous, naming both real paths; a candidate closely mirroring the
+  course's own source excerpt failed similarity; a candidate covering
+  the same underlying concept from a genuinely new angle (a
+  mark-on-dequeue-vs-enqueue correctness question, not a restatement of
+  any excerpt) passed. Feature complete: all 24 tasks
+  (T001-T024) done, whole-repo typecheck clean, 192-test unit suite
+  passes, every live scenario in quickstart.md Groups A and B
+  confirmed against the real Supabase project and real OpenAI API.

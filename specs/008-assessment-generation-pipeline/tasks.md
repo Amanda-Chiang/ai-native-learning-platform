@@ -226,7 +226,7 @@ already exist).
 
 ### Implementation for User Story 3
 
-- [ ] T020 [US3] Add scenarios live (quickstart.md-style, not unit-mocked
+- [x] T020 [US3] Add scenarios live (quickstart.md-style, not unit-mocked
   — this is a model-judgment call, same reasoning
   `deterministic-grading`'s rubric grader used): a candidate with only
   one reasonable answer passes the ambiguity check; a candidate with a
@@ -256,7 +256,7 @@ already exist).
 
 ### Implementation for User Story 4
 
-- [ ] T021 [US4] Add scenarios live (same reasoning as T020): a
+- [x] T021 [US4] Add scenarios live (same reasoning as T020): a
   candidate deliberately worded as a near-paraphrase of a real
   confirmed concept's/edge's source excerpt fails the similarity check;
   a genuinely original candidate covering the same concept passes

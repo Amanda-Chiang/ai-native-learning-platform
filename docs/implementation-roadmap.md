@@ -99,15 +99,24 @@ restating per-feature:
   two-account isolation check for evidence, and a live real-`gpt-4.1`
   conversation check for the tutor agent), unit tests and an E2E suite
   (the project's first authenticated Playwright coverage) passing.
-- Phase 4's `deterministic-grading` half is fully implemented — every
-  task in `specs/007-deterministic-grading/tasks.md` is checked off,
-  migration pushed and RLS/FK-verified live, and a full live
-  walkthrough confirmed real structured-answer evidence, real
-  E2B-sandboxed code execution (pass/fail/timeout), and real
-  rubric-based text grading against the actual OpenAI API. Its
-  reference checkers are exactly what `assessment-generation-pipeline`
-  (Phase 4's other feature, not yet specified) will call for its own
-  independent-solve validation step.
+- Phase 4 is fully implemented — both `deterministic-grading` and
+  `assessment-generation-pipeline` have every task in their
+  `specs/NNN-*/tasks.md` checked off, migrations pushed and
+  RLS/FK-verified live. `deterministic-grading`'s live walkthrough
+  confirmed real structured-answer evidence, real E2B-sandboxed code
+  execution (pass/fail/timeout), and real rubric-based text grading.
+  `assessment-generation-pipeline`'s live walkthrough confirmed a real
+  blueprint reaching a fully-validated `question_bank` entry
+  (independent-solve dispatching to `deterministic-grading`'s own
+  checkers, never re-implementing one), a deliberately-wrong-answer
+  candidate correctly rejected before the bank, and the ambiguity/
+  similarity layers each correctly distinguishing a genuine case from a
+  clean one against real model behavior. It has no live Trigger.dev
+  project yet (`trigger.config.ts`'s own placeholder, same
+  pre-existing gap as `course-graph-ingestion`'s extraction task) —
+  live verification called `executeGeneration` directly rather than
+  through a real queue, exercising the identical real
+  generate-validate-persist logic the queue would run.
 - Phases 5-6 have not been touched.
 
 **This section will go stale the moment more work lands** — it is a
