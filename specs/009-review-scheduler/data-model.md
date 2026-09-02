@@ -86,18 +86,19 @@ prerequisite centrality).
 ## `next-review-date.ts`
 
 ```ts
-export function computeNextReviewDate(
-  learnerState: LearnerConceptState,
-  now: Date,
-  weights: ReviewPriorityWeights,
-): Date; // a past-or-present Date means "due now"
+export function computeNextReviewDate(learnerState: LearnerConceptState, now: Date): Date; // a past-or-present Date means "due now"
 
-export function isDue(
-  learnerState: LearnerConceptState,
-  now: Date,
-  weights: ReviewPriorityWeights,
-): boolean;
+export function isDue(learnerState: LearnerConceptState, now: Date): boolean;
 ```
+
+No `weights` parameter here (unlike `review-priority.ts`) -- the
+misconception factor is handled structurally (a forced short interval
+branch), not as a tunable multiplier, and the interval-from-score curve
+has its own separate tunable constants
+(`BASE_REVIEW_INTERVAL_DAYS`/`MAX_REVIEW_INTERVAL_DAYS`/
+`UNRESOLVED_MISCONCEPTION_INTERVAL_DAYS`) rather than reusing
+`ReviewPriorityWeights`, which describes a different (ranking, not
+interval) computation.
 
 `computeNextReviewDate` never inspects individual `evidence_events` —
 it derives purely from `learnerState.score` (higher score → longer
