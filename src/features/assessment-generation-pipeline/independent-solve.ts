@@ -88,7 +88,24 @@ export async function runIndependentSolve(
   openai: OpenAI,
 ): Promise<IndependentSolveResult> {
   if (candidate.checkerDomain !== null) {
-    const checkerResult = dispatchChecker(candidate.checkerDomain, candidate.checkerInput);
+    // checkerInput came from the generation model, not a trusted
+    // caller -- a generator can claim a checkerDomain and then produce
+    // a checkerInput that doesn't actually match that domain's real
+    // shape (found live: a "shortest-path" candidate whose checkerInput
+    // was missing `graph`, crashing the checker on `graph.nodeIds`).
+    // That's the candidate's own defect, not this pipeline's -- caught
+    // here and reported as a real failed layer so the attempt is
+    // regenerated, never an uncaught exception that kills the whole
+    // Trigger.dev run.
+    let checkerResult: { outcome: string };
+    try {
+      checkerResult = dispatchChecker(candidate.checkerDomain, candidate.checkerInput);
+    } catch (err) {
+      return {
+        passed: false,
+        detail: `checkerInput did not match checkerDomain "${candidate.checkerDomain}"'s real input shape: ${err instanceof Error ? err.message : String(err)}.`,
+      };
+    }
     const passed = checkerResult.outcome === "correct";
     return {
       passed,
