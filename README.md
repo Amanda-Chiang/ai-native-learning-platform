@@ -14,7 +14,13 @@ text grading, and a candidate-generation pipeline that grounds a question
 in real course material, validates it through six layers — including
 reusing the DSA checkers for independent-solve, never re-solving with a
 model where an exact checker applies — and persists only a fully-validated
-question, ending honestly unfulfilled otherwise). See `specs/` for the authoritative
+question, ending honestly unfulfilled otherwise). Phase 5's
+`review-scheduler` half is also implemented and verified live — a
+deterministic review-priority ranking and spaced next-review dates,
+both derived on read from existing evidence state with no new table,
+driving a bounded daily session and a weekly "Connect" session;
+`exam-planner`, Phase 5's other feature, has not been specified yet.
+See `specs/` for the authoritative
 per-feature status: each
 `specs/NNN-*/tasks.md` tracks its own checkboxes accurately. For a
 chronological record of major design decisions and why, see

@@ -117,7 +117,20 @@ restating per-feature:
   live verification called `executeGeneration` directly rather than
   through a real queue, exercising the identical real
   generate-validate-persist logic the queue would run.
-- Phases 5-6 have not been touched.
+- Phase 5's `review-scheduler` (the adaptive-review half) is fully
+  implemented — every task in `specs/009-review-scheduler/tasks.md` is
+  checked off. It needed no new database table and no new npm
+  dependency: the priority ranking, next-review-date, and both session
+  types are pure functions over data `learner-graph-evidence`/
+  `assessment-generation-pipeline` already produce. Live verification
+  confirmed a real daily session (due concept with a question
+  included, due concept with none correctly skipped), a real weekly
+  Connect session (all four categories populated against real
+  concepts/edges), and US2's spaced-review guarantee (a real correct
+  vs. incorrect rubric-graded answer producing a later vs. sooner
+  next-due date) against the real Supabase project and real OpenAI
+  API. `exam-planner` (Phase 5's other feature) has not been specified
+  yet. Phase 6 has not been touched.
 
 **This section will go stale the moment more work lands** — it is a
 snapshot taken on the date above, not a maintained tracker. The

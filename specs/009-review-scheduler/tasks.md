@@ -38,7 +38,7 @@ Single Next.js project (per plan.md's Project Structure):
 
 ## Phase 1: Setup
 
-- [ ] T001 [P] Create `src/features/review-scheduler/review-priority.ts`
+- [x] T001 [P] Create `src/features/review-scheduler/review-priority.ts`
   with the `ReviewPriorityWeights` type and
   `DEFAULT_REVIEW_PRIORITY_WEIGHTS` constant per data-model.md (tunable,
   not calibrated -- research.md). No database dependency, so this can
@@ -55,23 +55,23 @@ fixed before any ranking logic calls them.
 implements (US2) or depends on to know what's due and in what order
 (US1). No user story can be implemented before this phase completes.
 
-- [ ] T002 [P] Write `tests/unit/review-scheduler/review-priority.test.ts`
+- [x] T002 [P] Write `tests/unit/review-scheduler/review-priority.test.ts`
   (test-first): a concept with `hasUnresolvedMisconception: true` ranks
   above an equally-overdue concept without one; a higher
   `importanceScore` ranks above an equally-overdue, equally-central,
   unflagged concept; every `ConceptPriority.reasons` entry is
   non-empty and names a real factor, never a generic placeholder
   (FR-007)
-- [ ] T003 Extend `review-priority.ts` with `computeConceptPriority`/
+- [x] T003 Extend `review-priority.ts` with `computeConceptPriority`/
   `rankConceptsByPriority` per data-model.md; make T002 pass
-- [ ] T004 [P] Write `tests/unit/review-scheduler/next-review-date.test.ts`
+- [x] T004 [P] Write `tests/unit/review-scheduler/next-review-date.test.ts`
   (test-first): a `LearnerConceptState` with a higher `score` produces
   a later `computeNextReviewDate` than one with a lower score and the
   same `lastEvidenceAt` (US2/SC-005); `hasUnresolvedMisconception: true`
   forces a near-immediate due date regardless of score;
   `lastEvidenceAt: null` always returns a past-or-present date
   (immediately due, FR-004)
-- [ ] T005 Create `src/features/review-scheduler/next-review-date.ts`:
+- [x] T005 Create `src/features/review-scheduler/next-review-date.ts`:
   `computeNextReviewDate`/`isDue` per data-model.md; make T004 pass
 
 **Checkpoint**: Priority ranking and the due-date mechanism are proven
@@ -96,7 +96,7 @@ reason-labeled set of real items (spec.md).
 
 ### Implementation for User Story 1
 
-- [ ] T006 [P] [US1] Write
+- [x] T006 [P] [US1] Write
   `tests/unit/review-scheduler/daily-session.test.ts` (test-first): a
   due concept with zero available `question_bank` entries is skipped,
   never fabricated as a placeholder item (FR-009); the session never
@@ -108,10 +108,10 @@ reason-labeled set of real items (spec.md).
   [] }` masquerading as "nothing to do" (FR-008);
   `excludeConceptIds` really excludes those concepts from the ranked
   slice (FR-013)
-- [ ] T007 [US1] Create `src/features/review-scheduler/daily-session.ts`
+- [x] T007 [US1] Create `src/features/review-scheduler/daily-session.ts`
   per data-model.md: `DEFAULT_MINUTES_PER_QUESTION`,
   `composeDailySession`; make T006 pass
-- [ ] T008 [US1] Create `src/features/review-scheduler/actions.ts` with
+- [x] T008 [US1] Create `src/features/review-scheduler/actions.ts` with
   `getDailyReviewSession` per contracts/scheduler-actions.md: for every
   confirmed course concept, reads `getConceptState`
   (learner-graph-evidence, unchanged), `course_concepts.importance_score`,
@@ -120,7 +120,7 @@ reason-labeled set of real items (spec.md).
   and not in `excludeConceptIds`, joins against available
   `question_bank` entries, calls `composeDailySession` -- RLS-scoped,
   no `userId` parameter accepted
-- [ ] T009 [US1] Create `src/app/courses/[courseId]/study/page.tsx` (not
+- [x] T009 [US1] Create `src/app/courses/[courseId]/study/page.tsx` (not
   `/review` -- already taken by course-graph-ingestion's ontology
   confirmation queue, research.md) rendering `getDailyReviewSession`'s
   items with their reasons, and routing "complete this item" through
@@ -155,7 +155,7 @@ User Story 1 (a real session to answer a question from).
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] Live-verify (quickstart.md Group B3) against a real
+- [x] T010 [US2] Live-verify (quickstart.md Group B3) against a real
   Supabase project: complete one real question correctly and
   independently via the existing grading actions, and a different
   concept's question incorrectly; call `getConceptState` again for
@@ -187,7 +187,7 @@ concepts/edges).
 
 ### Implementation for User Story 3
 
-- [ ] T011 [P] [US3] Write
+- [x] T011 [P] [US3] Write
   `tests/unit/review-scheduler/connect-session.test.ts` (test-first): a
   concept introduced 8 days ago is excluded from `newConcepts`, one
   introduced 3 days ago is included; an edge between a new and an old
@@ -196,15 +196,15 @@ concepts/edges).
   `edgeCount` is well below the course average appears in
   `lowConnectivityConcepts`; only `relationType === "contrasts_with"`
   edges appear in `confusedPairs`
-- [ ] T012 [US3] Create `src/features/review-scheduler/connect-session.ts`
+- [x] T012 [US3] Create `src/features/review-scheduler/connect-session.ts`
   per data-model.md: `composeConnectSession`; make T011 pass
-- [ ] T013 [US3] Add `getConnectSession` to
+- [x] T013 [US3] Add `getConnectSession` to
   `src/features/review-scheduler/actions.ts` per
   contracts/scheduler-actions.md: reads every confirmed
   `course_concepts` row (with a computed `edgeCount`) and every
   confirmed `concept_edges` row (with `getEdgeState`), calls
   `composeConnectSession`
-- [ ] T014 [US3] Add a weekly Connect section to
+- [x] T014 [US3] Add a weekly Connect section to
   `src/app/courses/[courseId]/study/page.tsx` rendering the four
   categories from `getConnectSession`, each distinctly labeled, each
   category showing an honest "none this week" when empty rather than
@@ -219,11 +219,11 @@ course.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T015 Run `npm run typecheck` across the whole repository --
+- [x] T015 Run `npm run typecheck` across the whole repository --
   expect PASS with no regressions outside this feature
-- [ ] T016 Add `tests/unit/review-scheduler/*.test.ts` to
+- [x] T016 Add `tests/unit/review-scheduler/*.test.ts` to
   `package.json`'s `test:unit` script and run it -- expect PASS
-- [ ] T017 Walk through quickstart.md Groups A and B end to end; B1
+- [x] T017 Walk through quickstart.md Groups A and B end to end; B1
   (a real daily session), B2 (a due concept with no question skipped
   live), and B4 (a real weekly Connect session) must all be actually
   confirmed against a real Supabase project with real course/evidence

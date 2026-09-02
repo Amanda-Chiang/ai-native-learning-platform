@@ -566,3 +566,70 @@ checklist is a setup gate, not a retrofit. Applies to
   (T001-T024) done, whole-repo typecheck clean, 192-test unit suite
   passes, every live scenario in quickstart.md Groups A and B
   confirmed against the real Supabase project and real OpenAI API.
+
+## review-scheduler (009) -- complete, Phase 5's adaptive-review half
+
+- No new database table, no new npm dependency (research.md) --
+  confirmed true through implementation: `review-priority.ts`,
+  `next-review-date.ts`, `daily-session.ts`, `connect-session.ts` are
+  all pure functions; `actions.ts` composes them with real reads from
+  `course_concepts`/`concept_edges`/`question_bank` and
+  `learner-graph-evidence`'s existing `getConceptState`/`getEdgeState`.
+  "Next review date" is genuinely derived on read from
+  `computeLearnerState`'s score/`lastEvidenceAt`/
+  `hasUnresolvedMisconception` -- no stored, incrementally-patched
+  column exists anywhere in this feature.
+- Real design gap found and resolved while wiring the `/study` page
+  (T009): `question_bank`'s rubric is free-form JSON the generation
+  model wrote, not `deterministic-grading`'s structured `GradingRubric`
+  shape, and a bank entry's `checkerInput` still holds the *original
+  candidate's* claimed answer from generation-time validation, not a
+  slot for a real student's fresh response. Casting one shape into the
+  other would have been a silent, fake-typed placeholder. Resolved by
+  scoping T009 to text-modality answering only for now: a coarse,
+  honest rubric adapter (`bankRubricToGradingRubric`) carries the whole
+  rubric through as one required idea rather than guessing at
+  structured fields. Structured (graph/tree) items are shown but
+  honestly marked not-yet-answerable; the real fix (a generic
+  claimed-field-stripping form -- every deterministic-grading checker
+  input already names its answer fields with a `claimed*` prefix, so
+  this is one reusable mechanism, not five bespoke per-domain adapters)
+  is real, scoped-out follow-up work, not silently faked.
+- Also caught while wiring the UI: `SessionItem` didn't originally
+  carry the bank entry's rubric through to the client, which would
+  have forced submitting an empty `{}` rubric to grading -- a real
+  silent placeholder, fixed before it shipped (added `rubric` to
+  `QuestionBankEntrySummary`/`SessionItem`).
+- Live verification (T010, T017) hit a real infrastructure limit:
+  `actions.ts`'s exported functions call `createClient()`, which reads
+  Next's `cookies()` -- only valid inside an actual Next.js request, so
+  they can't be invoked directly from a plain script (the same class
+  of gap `assessment-generation-pipeline`'s missing live Trigger.dev
+  project already established a precedent for, but a different cause
+  here). Resolved by calling the exact same pure functions `actions.ts`
+  calls (`computeLearnerState`, `rankConceptsByPriority`, `isDue`,
+  `composeDailySession`, `composeConnectSession`) against real rows
+  fetched via the service-role client -- proves the real logic against
+  real data; the cookie-based auth boundary itself is already proven
+  by `tutor-agent`'s existing authenticated E2E suite, not re-tested
+  here.
+- Live walkthrough found two fixture bugs, not production bugs, worth
+  recording because they double-confirm the actual logic is correct:
+  (1) forgetting to backdate every "old" concept in the test fixture
+  made everything look "introduced this week," which
+  `composeConnectSession` correctly reflected -- not a bug, a fixture
+  gap; (2) the verification script's own `fetchEdgeState` initially
+  returned `computeLearnerState`'s raw `tier` field instead of
+  remapping it to `learnerState` the way the real `getEdgeState` does,
+  which silently broke the weak-connection check until traced back to
+  the harness itself, not `connect-session.ts`.
+- After both fixture fixes: a real blueprint's daily session correctly
+  included the due concept with a real question and skipped the due
+  concept with none; the weekly Connect session's all four categories
+  populated correctly against real concepts/edges (a real new concept,
+  a real weak new-to-old edge, a real low-connectivity concept, a real
+  `contrasts_with` pair); and US2's live check showed a real correct
+  rubric-graded answer producing a materially higher score and later
+  next-due date than a real incorrect one, using the real OpenAI API.
+  Feature complete: all 17 tasks (T001-T017) done, whole-repo
+  typecheck clean, 210-test unit suite passes.
