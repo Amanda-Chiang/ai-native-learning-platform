@@ -867,3 +867,55 @@ nothing previously threaded end to end. Verified live: a real
 `bfs-dfs` question_bank entry's problem setup merges correctly with a
 simulated student's typed claim and grades correctly (both directions)
 through the real, unchanged checker.
+
+## 2026-09-02 — Real bugs found via actual manual + Playwright use, not scratch scripts
+
+Every prior "live verification" this project did used a service-role
+client directly in throwaway scripts -- proving the deterministic
+logic works against real data, but never exercising the real
+authenticated browser flow end to end. The first time a real person
+(and then Playwright) actually clicked through the app, three
+real bugs surfaced that no amount of scratch-script verification could
+have caught, because RLS-as-the-real-user and passing functions across
+the Server/Client Component boundary are exactly the two things a
+service-role script never exercises:
+
+- **`/atlas` and `/study`'s "load more"** both passed a plain inline
+  arrow function (wrapping a real server action) as a prop to a Client
+  Component -- React's RSC boundary silently rejects that unless the
+  function has its own `"use server"` directive. 500 error on every
+  real (non-demo) course, invisible because visual regression only
+  ever hit the demo fixture route. Fixed with an inline `"use server"`
+  directive, matching the one already-correct example
+  (`demoEvidenceProvenance`) in the same file.
+- **Course creation** silently discarded `createCourse`'s real
+  `{course}|{error}` result and never navigated anywhere on success --
+  fixed by converting to a client component matching the error-display
+  convention every other form already used.
+- **The first real authenticated upload** hit
+  "new row violates row-level security policy for table
+  \"artifact_processing_runs\"" -- that table's own migration comment
+  claimed only the service-role Trigger.dev task writes it, but
+  `trigger/ingest-artifact.ts`'s own idempotency guard requires the row
+  to already exist, so the real student-facing upload action has
+  always needed to create it first. RLS silently blocked every real
+  attempt. Added the missing insert-own policy
+  (`0011_artifact_processing_runs_insert_policy.sql`).
+
+Also found and fixed: `tests/e2e/global-setup.ts`'s evidence-seeding
+fixture had been silently broken since `deterministic-grading` added a
+real FK constraint its placeholder UUID no longer satisfied -- nobody
+had re-run the full E2E suite since that migration shipped.
+
+New coverage added to prevent regressions on any of these:
+`tests/e2e/basic-flows.spec.ts` (sign-in, course creation, every
+feature page) and `tests/e2e/upload-course-material.spec.ts` (a real
+PDF upload, `tests/fixtures/dummy-syllabus.pdf`). Both pass on
+chromium and mobile.
+
+**Takeaway for future work**: scratch-script live verification proves
+business logic is correct against real data, but does not prove the
+real user-facing path (RLS as an ordinary authenticated user, Server-
+to-Client Component prop boundaries, real form submission) actually
+works. A feature isn't done-done until it's been clicked through for
+real at least once.
