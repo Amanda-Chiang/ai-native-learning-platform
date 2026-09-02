@@ -143,8 +143,27 @@ restating per-feature:
   real readiness distinctly separating an unresolved misconception, an
   untouched concept, and normal tier buckets, and the plan/readiness
   genuinely reflecting new evidence and a past exam date without any
-  reconfiguration step. Phase 5 is now fully done. Phase 6 has not been
-  touched.
+  reconfiguration step. Phase 5 is now fully done.
+- Phase 6's `visual-assessment-graph-tree` — the final roadmap item —
+  is fully implemented. Every task in
+  `specs/011-visual-assessment-graph-tree/tasks.md` is checked off,
+  migration pushed and RLS-verified live. It needed no new npm
+  dependency (vision extraction reuses the existing `openai` client)
+  and no new Postgres table — only a new Storage bucket
+  (`assessment-drawings`) for retaining the drawing image itself.
+  Grading reuses `deterministic-grading`'s existing checkers unchanged;
+  rendering safely strips a question's embedded answer via the generic
+  "claimed-field" mechanism `review-scheduler` had earlier deferred.
+  Live verification (a real headless-browser-drawn canvas image, not a
+  synthetic stand-in) confirmed a real correct and incorrect BFS
+  drawing graded correctly, a real tree-traversal drawing graded
+  correctly (proving the mechanism isn't hardcoded to one domain), and
+  — after a real bug found live (a blank drawing initially reported
+  confidence 1.0 with an empty extraction) was fixed with both a
+  stricter prompt and a deterministic plausibility backstop — both a
+  blank and a genuinely ambiguous drawing correctly triggered
+  confirmation instead of silently grading. This closes out every item
+  on this roadmap.
 
 **This section will go stale the moment more work lands** — it is a
 snapshot taken on the date above, not a maintained tracker. The

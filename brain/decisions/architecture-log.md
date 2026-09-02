@@ -682,3 +682,48 @@ checklist is a setup gate, not a retrofit. Applies to
   reconfiguration, and that a past-dated exam correctly reported
   `exam_date_passed`. Feature complete: all 20 tasks (T001-T020) done,
   whole-repo typecheck clean, 226-test unit suite passes.
+
+## visual-assessment-graph-tree (011) -- complete, Phase 6, final roadmap item
+
+- No new npm dependency (vision extraction reuses the existing
+  `openai` client, not a handwriting-recognition library or a headless-
+  canvas package) and no new Postgres table -- confirmed through
+  implementation: the drawing's storage path and extracted structure
+  live in `assessment_attempts.response`'s existing `jsonb` column. The
+  one new piece of infrastructure is a Storage bucket
+  (`assessment-drawings`), same shape `course-artifacts`'s bucket
+  already established.
+- The generic "strip every `claimed*`-prefixed field" mechanism
+  (`problem-setup.ts`) that `review-scheduler`'s own research.md
+  flagged and deliberately deferred during that feature's UI wiring
+  turned out to be exactly what this feature needed to render a
+  question without leaking its embedded answer -- built here, not
+  invented ad hoc, closing a loop from two features ago.
+- Real bug found live (T017, quickstart.md B5): the vision model
+  reported confidence 1.0 for a blank drawing while returning an empty
+  extracted order -- `needsConfirmation` alone (gating only on
+  self-reported confidence) would have silently accepted this as a
+  confident, if empty, answer, violating FR-007's "no coherent
+  structure could be extracted" requirement. Fixed two ways: (1) the
+  extraction prompt now explicitly instructs the model to report low
+  confidence when the drawing shows no legible answer, which alone
+  fixed both the blank-image case and a separately-tested genuinely-
+  ambiguous scribbled drawing on re-test; (2) `isImplausibleExtraction`
+  adds a deterministic backstop -- checking real structural plausibility
+  (e.g. an order that doesn't visit every real node) independent of
+  whatever confidence the model reports -- so honesty about "nothing
+  found" doesn't depend solely on the model behaving well (Constitution
+  Principle IV extended to the extraction step's own self-report, not
+  just final grading).
+- Verified live end to end using a real headless browser (Playwright,
+  already a project dependency) to render an actual HTML5 canvas
+  drawing -- a real PNG a real student's browser would produce, not a
+  synthetic stand-in -- so the vision extraction call was genuinely
+  exercised: a real correct and a real incorrect BFS drawing graded
+  correctly via the existing `checkTraversal`; a real correct
+  tree-traversal drawing graded correctly via `checkTreeTraversal`
+  (T017/US3's cross-domain proof); a blank drawing and a genuinely
+  ambiguous one both correctly triggered confirmation after the fix
+  above. Feature complete: all 20 tasks (T001-T020) done, whole-repo
+  typecheck clean, 243-test unit suite passes. This closes out every
+  item on `docs/implementation-roadmap.md`.

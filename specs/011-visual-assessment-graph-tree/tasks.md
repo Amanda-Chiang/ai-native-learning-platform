@@ -39,7 +39,7 @@ only, no new table), no new npm dependency.
 
 ## Phase 1: Setup
 
-- [ ] T001 [P] Write
+- [x] T001 [P] Write
   `supabase/migrations/0009_visual_assessment_storage.sql` per
   data-model.md: the `assessment-drawings` Storage bucket (private,
   `user_id`-keyed RLS on `storage.objects`), same shape
@@ -57,25 +57,25 @@ rendering a question safely (without leaking its answer) and
 reassembling a full checker input before grading. No user story can be
 implemented before this phase completes.
 
-- [ ] T002 Push the migration (`npx supabase db push`) and verify live:
+- [x] T002 Push the migration (`npx supabase db push`) and verify live:
   the `assessment-drawings` bucket exists, private; an anon-key upload
   attempt outside a real user's own folder path is rejected by RLS --
   do not proceed until confirmed against the live project
-- [ ] T003 [P] Write
+- [x] T003 [P] Write
   `tests/unit/visual-assessment/problem-setup.test.ts` (test-first):
   given a real `bfs-dfs` checkerInput with a `claimedOrder` field,
   `extractProblemSetup` returns everything except `claimedOrder`;
   given a `shortest-path` input, it strips both `claimedPath` and
   `claimedTotalDistance`
-- [ ] T004 Create `src/features/visual-assessment/problem-setup.ts`
+- [x] T004 Create `src/features/visual-assessment/problem-setup.ts`
   per data-model.md: `CheckerDomain`, `extractProblemSetup`,
   `CLAIM_FIELD_NAMES`; make T003 pass
-- [ ] T005 [P] Write
+- [x] T005 [P] Write
   `tests/unit/visual-assessment/merge-structure.test.ts` (test-first):
   merging a problem setup with a confirmed set of claim fields
   produces an object structurally identical to a real,
   hand-constructed full `checkerInput` for that domain
-- [ ] T006 Create `src/features/visual-assessment/merge-structure.ts`
+- [x] T006 Create `src/features/visual-assessment/merge-structure.ts`
   per data-model.md: `mergeStructure`; make T005 pass
 
 **Checkpoint**: A question's real structure can be safely stripped for
@@ -101,34 +101,34 @@ confirm the real specific divergence is shown (spec.md).
 
 ### Implementation for User Story 1
 
-- [ ] T007 [P] [US1] Write
+- [x] T007 [P] [US1] Write
   `tests/unit/visual-assessment/graph-layout.test.ts` (test-first):
   every real node/edge in the input structure appears exactly once in
   the layout output; no node is placed at a duplicate/undefined
   position
-- [ ] T008 [US1] Create `src/features/visual-assessment/graph-layout.ts`
+- [x] T008 [US1] Create `src/features/visual-assessment/graph-layout.ts`
   per data-model.md: `layoutGraph` -- a simple deterministic
   circular/grid placement, not `elkjs` (research.md); make T007 pass
-- [ ] T009 [P] [US1] Write
+- [x] T009 [P] [US1] Write
   `tests/unit/visual-assessment/tree-layout.test.ts` (test-first): same
   "every node/edge appears exactly once, no duplicate positions"
   invariant for a bounded binary tree
-- [ ] T010 [US1] Create `src/features/visual-assessment/tree-layout.ts`
+- [x] T010 [US1] Create `src/features/visual-assessment/tree-layout.ts`
   per data-model.md: `layoutTree` -- standard recursive placement; make
   T009 pass
-- [ ] T011 [US1] Create
+- [x] T011 [US1] Create
   `src/features/visual-assessment/extraction-schemas.ts`: one
   Structured Outputs schema per checker domain describing only that
   domain's claim field(s) (FR-003) -- the same bounded set of five
   domains `deterministic-grading` already covers, not a
   per-subject/per-concept schema
-- [ ] T012 [US1] Create
+- [x] T012 [US1] Create
   `src/features/visual-assessment/vision-extraction.ts` per
   data-model.md: `extractDrawing`, `LOW_CONFIDENCE_THRESHOLD`,
   `needsConfirmation` -- calls the vision-capable model with the
   drawing image + the domain's schema, returns the real reported
   confidence, never an invented one
-- [ ] T013 [US1] Create `src/features/visual-assessment/actions.ts`
+- [x] T013 [US1] Create `src/features/visual-assessment/actions.ts`
   with `submitDrawing`/`submitConfirmedVisualResponse` per
   contracts/visual-assessment-actions.md: uploads the drawing to
   `assessment-drawings`, resolves the entry's real
@@ -138,7 +138,7 @@ confirm the real specific divergence is shown (spec.md).
   `mergeStructure` then `deterministic-grading`'s existing
   `gradeStructuredResponse` unchanged (FR-004/FR-008) -- no new
   grading or evidence path
-- [ ] T014 [US1] Create
+- [x] T014 [US1] Create
   `src/features/visual-assessment/components/QuestionCanvas.tsx` and
   `src/app/courses/[courseId]/visual-assessment/[questionId]/page.tsx`:
   renders the question via `layoutGraph`/`layoutTree`, captures the
@@ -168,13 +168,13 @@ misreading (spec.md).
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Create
+- [x] T015 [US2] Create
   `src/features/visual-assessment/components/ConfirmExtraction.tsx`:
   shows the extracted claim fields in plain language, lets the student
   confirm as-is or correct them, then calls
   `submitConfirmedVisualResponse` with whichever the student actually
   approved
-- [ ] T016 [US2] Wire `QuestionCanvas.tsx`'s submit flow: when
+- [x] T016 [US2] Wire `QuestionCanvas.tsx`'s submit flow: when
   `submitDrawing`'s `needsConfirmation` is `true`, show
   `ConfirmExtraction` before grading; when `false`, skip straight to
   `submitConfirmedVisualResponse` with no added step (FR-005
@@ -206,7 +206,7 @@ already domain-generic).
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Live-verify (quickstart.md Group B2/B3/B6) against a
+- [x] T017 [US3] Live-verify (quickstart.md Group B2/B3/B6) against a
   real Supabase project and real OpenAI API: a real correct and a real
   incorrect drawn response to a `bfs-dfs` question grade correctly via
   `checkTraversal`; a real correct drawn response to a
@@ -222,11 +222,11 @@ more than one real constrained domain.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T018 Run `npm run typecheck` across the whole repository --
+- [x] T018 Run `npm run typecheck` across the whole repository --
   expect PASS with no regressions outside this feature
-- [ ] T019 Add `tests/unit/visual-assessment/*.test.ts` to
+- [x] T019 Add `tests/unit/visual-assessment/*.test.ts` to
   `package.json`'s `test:unit` script and run it -- expect PASS
-- [ ] T020 Walk through quickstart.md Groups A and B end to end; B1
+- [x] T020 Walk through quickstart.md Groups A and B end to end; B1
   (the Storage bucket/RLS), B4 (a genuinely ambiguous drawing
   triggering confirmation), and B5 (a blank/unreadable drawing failing
   honestly) must all be actually confirmed against a real Supabase
