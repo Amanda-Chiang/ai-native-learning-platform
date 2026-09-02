@@ -129,7 +129,17 @@ export function ExamPlanner({
                         ) : (
                           <p style={{ fontSize: 13, color: "#6b7280" }}>This question type isn&apos;t answerable here yet.</p>
                         )}
-                        {results[sessionItem.conceptId] && <p>Result: {String(results[sessionItem.conceptId].result.outcome)}</p>}
+                        {/* A real error must be shown as an error, never
+                            rendered as a plausible-looking grading
+                            outcome (same hardening-pass finding as
+                            review-scheduler's StudySession.tsx). */}
+                        {results[sessionItem.conceptId] && (
+                          results[sessionItem.conceptId].error ? (
+                            <p style={{ color: "#dc2626" }}>{results[sessionItem.conceptId].error}</p>
+                          ) : (
+                            <p>Result: {String(results[sessionItem.conceptId].result.outcome)}</p>
+                          )
+                        )}
                       </li>
                     );
                   })}

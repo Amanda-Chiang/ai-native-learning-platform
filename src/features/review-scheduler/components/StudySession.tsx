@@ -95,8 +95,18 @@ export function StudySession({
                       This question type isn&apos;t answerable here yet.
                     </p>
                   )}
+                  {/* A real submitTextAnswer error (auth failure, or a
+                      did_not_complete grading failure) must be shown as
+                      an error, never rendered as a plausible-looking
+                      grading outcome (found during a hardening-pass
+                      audit -- this previously always rendered
+                      result.outcome regardless of error). */}
                   {results[item.conceptId] && (
-                    <p>Result: {String(results[item.conceptId].result.outcome)}</p>
+                    results[item.conceptId].error ? (
+                      <p style={{ color: "#dc2626" }}>{results[item.conceptId].error}</p>
+                    ) : (
+                      <p>Result: {String(results[item.conceptId].result.outcome)}</p>
+                    )
                   )}
                 </li>
               ))}
