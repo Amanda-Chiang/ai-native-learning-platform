@@ -87,7 +87,17 @@ export function ArtifactBoard({
         return;
       }
 
-      const storagePath = `${user.id}/${crypto.randomUUID()}/${file.name}`;
+      // Sanitize the filename segment for the storage key -- found live:
+      // an unencoded "#" (e.g. "HW#1.pdf") gets treated as a URL fragment
+      // delimiter by the storage upload request, silently truncating the
+      // stored object's name to "HW" and leaving the DB's storage_path
+      // pointing at a file that was never actually written. Storage keys
+      // reject "#" outright even percent-encoded (Supabase decodes the
+      // key before validating it), so replacing disallowed characters is
+      // the only fix -- the original file.name is still stored verbatim
+      // as original_filename for display.
+      const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const storagePath = `${user.id}/${crypto.randomUUID()}/${safeFileName}`;
       const { error: storageError } = await supabase.storage
         .from("course-artifacts")
         .upload(storagePath, file);
