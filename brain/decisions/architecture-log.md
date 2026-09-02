@@ -840,3 +840,30 @@ Nine real issues found and fixed across this two-part hardening pass
 client-side error-masking bugs, one missing storage limit, one
 unbounded-input gap). Full unit suite (248 tests) and whole-repo
 typecheck both pass after every fix.
+
+## 2026-09-02 — Closed the deferred generic structured-answer form
+
+`review-scheduler` and `exam-planner` originally showed graph/tree
+(checker-domain) session items as "not yet answerable here" --
+deliberately deferred during `review-scheduler`'s own build pending a
+generic (not per-domain-hardcoded) mechanism.
+`visual-assessment-graph-tree` later built exactly that mechanism for
+its own drawing-based flow: `extractProblemSetup` strips a checker
+input's `claimed*` answer fields to get a safe-to-render problem
+setup, and `mergeStructure` recombines a student's answer with it
+before grading.
+
+That mechanism doesn't care whether the "claim fields" came from a
+vision extraction or a typed form -- so this session wired the same
+two pure functions into a generic `StructuredAnswerForm` (a JSON
+textarea pre-filled with an empty per-domain template, same "edit the
+real structure directly" pattern `ConfirmExtraction.tsx` already
+established) in `review-scheduler`, reused unchanged by `exam-planner`
+the same way it already reuses `submitTextReviewAnswer`. No new
+checker, no new grading path, no new table -- `SessionItem`/
+`QuestionBankEntrySummary` just needed to carry `question_bank`'s
+already-existing `checker_domain`/`checker_input` through, which
+nothing previously threaded end to end. Verified live: a real
+`bfs-dfs` question_bank entry's problem setup merges correctly with a
+simulated student's typed claim and grades correctly (both directions)
+through the real, unchanged checker.
