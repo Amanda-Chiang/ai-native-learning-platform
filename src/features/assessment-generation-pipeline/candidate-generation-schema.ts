@@ -56,12 +56,20 @@ const sourceAnchorSchema = {
 } as const;
 
 /**
- * `checkerInput` is left as an untyped JSON object in the schema itself
- * (Structured Outputs' `additionalProperties: false` strict mode can't
- * express "shape depends on the sibling checkerDomain value" as a
- * conditional union) -- parseCandidateResult below is what actually
- * enforces the both-null/both-set pairing and is the one place this
- * matters, same division of labor as extraction-schema.ts's
+ * `rubric`/`checkerInput` are transmitted as JSON-encoded STRINGS, not
+ * nested objects -- OpenAI Structured Outputs' strict mode rejects an
+ * open-ended object schema (`additionalProperties: true` is invalid in
+ * strict mode; `additionalProperties: false` would force declaring
+ * every possible key up front, impossible here since `checkerInput`'s
+ * real shape depends on the sibling `checkerDomain` value, and
+ * `rubric`'s shape varies by responseModality). Found live: the first
+ * real generation call against this schema failed with
+ * `400 Invalid schema ... 'additionalProperties' is required to be
+ * supplied and to be false` -- confirms strict mode has no
+ * "any object" escape hatch. parseCandidateResult below JSON.parses
+ * both strings back into real objects and is the one place the
+ * both-null/both-set checkerDomain/checkerInput pairing is actually
+ * enforced, same division of labor as extraction-schema.ts's
  * relationTypeNote pairing (declared loosely in the schema, enforced
  * exactly in the parser).
  */
@@ -72,13 +80,16 @@ export const CANDIDATE_GENERATION_RESPONSE_SCHEMA = {
     type: "object",
     properties: {
       questionText: { type: "string" },
-      rubric: { type: "object", additionalProperties: true },
+      rubric: { type: "string", description: "A JSON-encoded object: the answer key / rubric structure." },
       hints: { type: "array", items: { type: "string" } },
       commonMistakes: { type: "array", items: { type: "string" } },
       sourceAnchors: { type: "array", items: sourceAnchorSchema, minItems: 1 },
       responseModality: { type: "string", enum: [...RESPONSE_MODALITIES] },
       checkerDomain: { type: ["string", "null"], enum: [...CHECKER_DOMAINS, null] },
-      checkerInput: { type: ["object", "null"], additionalProperties: true },
+      checkerInput: {
+        type: ["string", "null"],
+        description: "A JSON-encoded object matching the declared checkerDomain's real input shape, or null.",
+      },
     },
     required: [
       "questionText",
@@ -96,7 +107,9 @@ export const CANDIDATE_GENERATION_RESPONSE_SCHEMA = {
 
 export const CANDIDATE_GENERATION_PROMPT = `Generate one assessment question grounded strictly in the provided course material. Every claim you make must be traceable to a real sourceAnchor citing one of the target concepts/edges you were given -- never invent facts not present in that material, and never copy any source excerpt verbatim into questionText (paraphrase and apply the idea instead).
 
-If the question corresponds to one of these checker domains -- bfs-dfs, heap, tree-traversal, tree-insertion, topological-sort, shortest-path -- set checkerDomain to that value and checkerInput to the exact structured input deterministic-grading's checker for that domain expects, including the claimed/expected answer fields matching what your own rubric states as correct. If no exact checker applies to this question, set both checkerDomain and checkerInput to null.`;
+"rubric" must be a JSON-encoded string (e.g. "{\\"correctAnswer\\":\\"...\\"}"), not a nested object.
+
+If the question corresponds to one of these checker domains -- bfs-dfs, heap, tree-traversal, tree-insertion, topological-sort, shortest-path -- set checkerDomain to that value and checkerInput to a JSON-encoded string of the exact structured input deterministic-grading's checker for that domain expects, including the claimed/expected answer fields matching what your own rubric states as correct. If no exact checker applies to this question, set both checkerDomain and checkerInput to null.`;
 
 function isCandidateSourceAnchor(value: unknown): value is CandidateSourceAnchor {
   if (typeof value !== "object" || value === null) return false;
@@ -125,8 +138,17 @@ export function parseCandidateResult(raw: unknown): CandidateQuestion {
   if (typeof v.questionText !== "string" || v.questionText.length === 0) {
     throw new Error("Candidate response's \"questionText\" is missing or empty.");
   }
-  if (typeof v.rubric !== "object" || v.rubric === null) {
-    throw new Error("Candidate response's \"rubric\" is missing or invalid.");
+  if (typeof v.rubric !== "string") {
+    throw new Error("Candidate response's \"rubric\" is missing or not a JSON-encoded string.");
+  }
+  let rubric: Record<string, unknown>;
+  try {
+    rubric = JSON.parse(v.rubric) as Record<string, unknown>;
+  } catch (err) {
+    throw new Error(`Candidate response's "rubric" is not valid JSON: ${err instanceof Error ? err.message : String(err)}.`);
+  }
+  if (typeof rubric !== "object" || rubric === null) {
+    throw new Error("Candidate response's \"rubric\" JSON did not decode to an object.");
   }
   if (!Array.isArray(v.hints) || !v.hints.every((h) => typeof h === "string")) {
     throw new Error("Candidate response's \"hints\" is missing or invalid.");
@@ -151,18 +173,27 @@ export function parseCandidateResult(raw: unknown): CandidateQuestion {
   if (!checkerDomainIsNull && !(CHECKER_DOMAINS as readonly string[]).includes(v.checkerDomain as string)) {
     throw new Error(`Candidate response's "checkerDomain" is not a recognized domain: ${String(v.checkerDomain)}.`);
   }
-  if (!checkerInputIsNull && (typeof v.checkerInput !== "object")) {
-    throw new Error("Candidate response's \"checkerInput\" must be an object when checkerDomain is set.");
+
+  let checkerInput: unknown = null;
+  if (!checkerInputIsNull) {
+    if (typeof v.checkerInput !== "string") {
+      throw new Error("Candidate response's \"checkerInput\" must be a JSON-encoded string when checkerDomain is set.");
+    }
+    try {
+      checkerInput = JSON.parse(v.checkerInput);
+    } catch (err) {
+      throw new Error(`Candidate response's "checkerInput" is not valid JSON: ${err instanceof Error ? err.message : String(err)}.`);
+    }
   }
 
   return {
     questionText: v.questionText,
-    rubric: v.rubric as Record<string, unknown>,
+    rubric,
     hints: v.hints,
     commonMistakes: v.commonMistakes,
     sourceAnchors: v.sourceAnchors,
     responseModality: v.responseModality as ResponseModality,
     checkerDomain: (v.checkerDomain as CheckerDomain | null) ?? null,
-    checkerInput: v.checkerInput ?? null,
+    checkerInput,
   };
 }
