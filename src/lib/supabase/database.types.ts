@@ -335,6 +335,18 @@ export type QuestionBankRow = {
   created_at: string;
 };
 
+/** Matches supabase/migrations/0008_exam_planner.sql. */
+export type ExamConfigRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  exam_date: string;
+  scope_concept_ids: string[];
+  scope_unit_ids: string[];
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -465,6 +477,12 @@ export type Database = {
         Row: QuestionBankRow;
         Insert: Omit<QuestionBankRow, "id" | "created_at">;
         Update: Partial<Omit<QuestionBankRow, "id">>;
+        Relationships: [];
+      };
+      exam_configs: {
+        Row: ExamConfigRow;
+        Insert: Omit<ExamConfigRow, "id" | "created_at" | "updated_at"> & { updated_at?: string };
+        Update: Partial<Omit<ExamConfigRow, "id">>;
         Relationships: [];
       };
     };
