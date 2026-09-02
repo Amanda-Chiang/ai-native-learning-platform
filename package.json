@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node --test tests/unit/domain/*.test.ts tests/unit/artifacts/*.test.ts tests/unit/concept-atlas/*.test.ts tests/unit/course-graph-ingestion/*.test.ts tests/unit/learner-graph-evidence/*.test.ts tests/unit/tutor-agent/*.test.ts tests/unit/deterministic-grading/*.test.ts tests/unit/assessment-generation-pipeline/*.test.ts",
+    "test:unit": "node --test tests/unit/domain/*.test.ts tests/unit/artifacts/*.test.ts tests/unit/concept-atlas/*.test.ts tests/unit/course-graph-ingestion/*.test.ts tests/unit/learner-graph-evidence/*.test.ts tests/unit/tutor-agent/*.test.ts tests/unit/deterministic-grading/*.test.ts tests/unit/assessment-generation-pipeline/*.test.ts tests/unit/review-scheduler/*.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
