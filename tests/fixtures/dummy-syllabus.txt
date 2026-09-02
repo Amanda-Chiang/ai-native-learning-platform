@@ -1,0 +1,29 @@
+CS 201: Data Structures and Algorithms
+Course Syllabus, Fall 2026
+
+Unit 3: Graph Traversal
+
+This unit covers the fundamental algorithms for exploring a graph's
+structure. Breadth-First Search (BFS) explores a graph level by level
+from a source vertex, using a first-in-first-out (FIFO) queue to track
+which nodes to visit next. Each node is marked as visited the moment it
+is enqueued, which prevents the same node from being processed twice
+through two different paths. Because nodes are dequeued in the exact
+order of their distance from the source, BFS is the standard technique
+for finding shortest paths in an unweighted graph.
+
+Depth-First Search (DFS) instead explores as far as possible along each
+branch before backtracking, typically implemented with a stack (either
+explicitly or via recursion). DFS is commonly used for tasks such as
+detecting cycles in a graph and computing a topological ordering of a
+directed acyclic graph.
+
+Both BFS and DFS run in O(V + E) time on a graph with V vertices and E
+edges, since each vertex and edge is examined a constant number of
+times. Students should be able to trace both algorithms by hand on a
+small graph and implement each one starting from an adjacency list
+representation.
+
+Prerequisite: Unit 2 (Queues and Stacks). Students should already be
+comfortable with FIFO queue and LIFO stack operations before starting
+this unit, since both traversal algorithms depend directly on them.
