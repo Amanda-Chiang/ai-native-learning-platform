@@ -12,7 +12,7 @@ function priority(conceptId: string, priorityScore: number): ConceptPriority {
 }
 
 function question(id: string, conceptId: string): QuestionBankEntrySummary {
-  return { id, conceptId, questionText: `question ${id}`, responseModality: "text", rubric: {} };
+  return { id, conceptId, questionText: `question ${id}`, responseModality: "text", rubric: {}, checkerDomain: null, checkerInput: null };
 }
 
 test("a due concept with zero available questions is skipped, never fabricated as a placeholder item", () => {
@@ -57,6 +57,24 @@ test("a budget smaller than one question's cost still returns at least one item"
 test("no eligible due concept has any available question -> no_content, never an empty ok session", () => {
   const result = composeDailySession([priority("c1", 5)], new Map(), 30, []);
   assert.equal(result.status, "no_content");
+});
+
+test("checkerDomain/checkerInput pass through unchanged, so structured items are answerable via StructuredAnswerForm", () => {
+  const structuredQuestion: QuestionBankEntrySummary = {
+    id: "q1",
+    conceptId: "c1",
+    questionText: "question q1",
+    responseModality: "graph",
+    rubric: {},
+    checkerDomain: "bfs-dfs",
+    checkerInput: { graph: { nodeIds: ["a"], edges: [], directed: false }, algorithm: "bfs", startNodeId: "a", claimedOrder: ["a"] },
+  };
+  const result = composeDailySession([priority("c1", 5)], new Map([["c1", [structuredQuestion]]]), 100, []);
+  assert.equal(result.status, "ok");
+  if (result.status === "ok") {
+    assert.equal(result.items[0].checkerDomain, "bfs-dfs");
+    assert.deepEqual(result.items[0].checkerInput, structuredQuestion.checkerInput);
+  }
 });
 
 test("excludeConceptIds really excludes those concepts from the ranked slice", () => {

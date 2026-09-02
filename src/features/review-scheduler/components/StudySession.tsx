@@ -3,16 +3,17 @@
 import { useState } from "react";
 import type { DailySessionResult, SessionItem } from "@/features/review-scheduler/daily-session.ts";
 import type { ConnectSessionResult } from "@/features/review-scheduler/connect-session.ts";
+import { StructuredAnswerForm } from "@/features/review-scheduler/components/StructuredAnswerForm.tsx";
 
 type SubmitResult = { result: { outcome: string; [key: string]: unknown }; error: string | null };
 
 /**
  * Daily + weekly Connect session UI (T009/T014). Text-modality items
- * are answerable in-page, routed through deterministic-grading's
- * existing gradeTextResponse via submitTextReviewAnswer -- no new
- * grading path (FR-010). Structured (graph/tree) items are shown but
- * not yet answerable here; the generic claimed-field form that will
- * make them answerable is separate follow-up work, not silently faked.
+ * are answerable via submitTextReviewAnswer; structured (graph/tree,
+ * checkerDomain set) items are answerable via the generic
+ * StructuredAnswerForm + submitStructuredReviewAnswer -- both route
+ * through deterministic-grading's existing grading actions unchanged
+ * (FR-010), no new grading path.
  */
 export function StudySession({
   courseId,
@@ -20,12 +21,14 @@ export function StudySession({
   connect,
   loadMore,
   submitTextAnswer,
+  submitStructuredAnswer,
 }: {
   courseId: string;
   initialDaily: DailySessionResult;
   connect: ConnectSessionResult;
   loadMore: (courseId: string, excludeConceptIds: string[]) => Promise<DailySessionResult>;
   submitTextAnswer: (input: { courseId: string; conceptId: string; rubric: Record<string, unknown>; response: string }) => Promise<SubmitResult>;
+  submitStructuredAnswer: (input: { courseId: string; conceptId: string; checkerDomain: NonNullable<SessionItem["checkerDomain"]>; checkerInput: Record<string, unknown>; claimFields: Record<string, unknown> }) => Promise<SubmitResult>;
 }) {
   const [daily, setDaily] = useState(initialDaily);
   const [shownConceptIds, setShownConceptIds] = useState<string[]>(
@@ -42,6 +45,20 @@ export function StudySession({
       conceptId: item.conceptId,
       rubric: item.rubric,
       response,
+    });
+    setPendingConceptId(null);
+    setResults((current) => ({ ...current, [item.conceptId]: outcome }));
+  }
+
+  async function handleStructuredAnswer(item: SessionItem, claimFields: Record<string, unknown>) {
+    if (!item.checkerDomain || !item.checkerInput) return;
+    setPendingConceptId(item.conceptId);
+    const outcome = await submitStructuredAnswer({
+      courseId,
+      conceptId: item.conceptId,
+      checkerDomain: item.checkerDomain,
+      checkerInput: item.checkerInput,
+      claimFields,
     });
     setPendingConceptId(null);
     setResults((current) => ({ ...current, [item.conceptId]: outcome }));
@@ -77,7 +94,13 @@ export function StudySession({
                       </li>
                     ))}
                   </ul>
-                  {item.responseModality === "text" ? (
+                  {item.checkerDomain ? (
+                    <StructuredAnswerForm
+                      checkerDomain={item.checkerDomain}
+                      onSubmit={(claimFields) => handleStructuredAnswer(item, claimFields)}
+                      pending={pendingConceptId === item.conceptId}
+                    />
+                  ) : item.responseModality === "text" ? (
                     <form
                       onSubmit={async (e) => {
                         e.preventDefault();

@@ -1,4 +1,5 @@
 import type { ConceptPriority } from "./review-priority.ts";
+import type { CheckerDomain } from "../visual-assessment/problem-setup.ts";
 
 export type QuestionBankEntrySummary = {
   id: string;
@@ -6,6 +7,11 @@ export type QuestionBankEntrySummary = {
   questionText: string;
   responseModality: string;
   rubric: Record<string, unknown>;
+  /** Reused verbatim from question_bank -- when set, the item can be
+   * answered via a structured claim-fields form (submitStructuredReviewAnswer)
+   * instead of only free text. */
+  checkerDomain: CheckerDomain | null;
+  checkerInput: Record<string, unknown> | null;
 };
 
 export type SessionItem = {
@@ -14,6 +20,8 @@ export type SessionItem = {
   questionText: string;
   responseModality: string;
   rubric: Record<string, unknown>;
+  checkerDomain: CheckerDomain | null;
+  checkerInput: Record<string, unknown> | null;
   /** ConceptPriority.reasons, carried through (FR-007). */
   reasons: string[];
 };
@@ -65,6 +73,8 @@ export function composeDailySession(
       questionText: question.questionText,
       responseModality: question.responseModality,
       rubric: question.rubric,
+      checkerDomain: question.checkerDomain,
+      checkerInput: question.checkerInput,
       reasons: priority.reasons,
     };
   });

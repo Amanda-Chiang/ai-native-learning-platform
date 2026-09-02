@@ -6,8 +6,10 @@ import { rankConceptsByPriority, DEFAULT_REVIEW_PRIORITY_WEIGHTS } from "@/featu
 import { isDue } from "@/features/review-scheduler/next-review-date.ts";
 import { composeDailySession, type DailySessionResult, type QuestionBankEntrySummary } from "@/features/review-scheduler/daily-session.ts";
 import { composeConnectSession, type ConnectSessionResult } from "@/features/review-scheduler/connect-session.ts";
-import { gradeTextResponse } from "@/features/deterministic-grading/actions.ts";
+import { gradeTextResponse, gradeStructuredResponse, type GradeStructuredResponseInput } from "@/features/deterministic-grading/actions.ts";
 import type { GradingRubric } from "@/features/deterministic-grading/grading-evidence.ts";
+import { extractProblemSetup } from "@/features/visual-assessment/problem-setup.ts";
+import { mergeStructure } from "@/features/visual-assessment/merge-structure.ts";
 
 /**
  * Server action contracts: specs/009-review-scheduler/contracts/scheduler-actions.md
@@ -33,7 +35,7 @@ export async function getDailyReviewSession(
   const [conceptsRes, edgesRes, bankRes] = await Promise.all([
     supabase.from("course_concepts").select("id, importance_score").eq("course_id", courseId).eq("status", "confirmed"),
     supabase.from("concept_edges").select("source_concept_id, relation_type").eq("course_id", courseId).eq("status", "confirmed"),
-    supabase.from("question_bank").select("id, question_text, response_modality, rubric, source_anchors").eq("course_id", courseId),
+    supabase.from("question_bank").select("id, question_text, response_modality, rubric, checker_domain, checker_input, source_anchors").eq("course_id", courseId),
   ]);
 
   const concepts = conceptsRes.data ?? [];
@@ -59,6 +61,8 @@ export async function getDailyReviewSession(
         questionText: entry.question_text,
         responseModality: entry.response_modality,
         rubric: entry.rubric,
+        checkerDomain: entry.checker_domain as QuestionBankEntrySummary["checkerDomain"],
+        checkerInput: entry.checker_input as Record<string, unknown> | null,
       });
       questionsByConcept.set(conceptId, list);
     }
@@ -185,6 +189,48 @@ export async function submitTextReviewAnswer(
     // documented default is used until a real signal exists -- same
     // "tunable, not calibrated" convention as this feature's other
     // constants.
+    difficulty: 0.5,
+    transferDistance: 0,
+  });
+}
+
+export type SubmitStructuredReviewAnswerInput = {
+  courseId: string;
+  conceptId: string;
+  checkerDomain: GradeStructuredResponseInput["domain"];
+  checkerInput: Record<string, unknown>;
+  claimFields: Record<string, unknown>;
+};
+
+/**
+ * The structured-modality counterpart to submitTextReviewAnswer,
+ * closing the "not yet answerable here" gap review-scheduler's own
+ * research.md originally deferred. Reuses
+ * visual-assessment-graph-tree's existing claimed-field mechanism
+ * (extractProblemSetup/mergeStructure) -- the same "strip the
+ * candidate's own answer, let the student supply it, merge back before
+ * grading" pattern, just filled in via a text form here instead of a
+ * drawing -- then calls deterministic-grading's existing
+ * gradeStructuredResponse unchanged (FR-004/FR-010 in that feature's
+ * own terms): no new grading path, no new checker.
+ */
+export async function submitStructuredReviewAnswer(
+  input: SubmitStructuredReviewAnswerInput,
+): Promise<{ result: Awaited<ReturnType<typeof gradeStructuredResponse>>["result"]; error: string | null }> {
+  const problemSetup = extractProblemSetup(input.checkerInput);
+  const fullCheckerInput = mergeStructure(problemSetup, input.claimFields);
+
+  return gradeStructuredResponse({
+    courseId: input.courseId,
+    conceptIds: [input.conceptId],
+    edgeIds: [],
+    domain: input.checkerDomain,
+    checkerInput: fullCheckerInput as GradeStructuredResponseInput["checkerInput"],
+    // Same reasoning as submitTextReviewAnswer's own evidenceType
+    // choice: an independent, unassisted attempt at a previously-seen
+    // concept.
+    evidenceType: "retrieval",
+    assistanceLevel: 0,
     difficulty: 0.5,
     transferDistance: 0,
   });

@@ -198,7 +198,7 @@ export async function getExamPlan(courseId: string): Promise<GetExamPlanResult> 
       ? supabase.from("course_concepts").select("id, importance_score").eq("course_id", courseId).eq("status", "confirmed").in("id", scopedConceptIds)
       : Promise.resolve({ data: [] as { id: string; importance_score: number }[] }),
     supabase.from("concept_edges").select("id, source_concept_id, target_concept_id, relation_type").eq("course_id", courseId).eq("status", "confirmed"),
-    supabase.from("question_bank").select("id, question_text, response_modality, rubric, source_anchors").eq("course_id", courseId),
+    supabase.from("question_bank").select("id, question_text, response_modality, rubric, checker_domain, checker_input, source_anchors").eq("course_id", courseId),
   ]);
 
   const scopedConceptIdSet = new Set(scopedConceptIds);
@@ -219,7 +219,15 @@ export async function getExamPlan(courseId: string): Promise<GetExamPlanResult> 
     for (const conceptId of sourceAnchorConceptIds(entry.source_anchors)) {
       if (!scopedConceptIdSet.has(conceptId)) continue;
       const list = questionsByConcept.get(conceptId) ?? [];
-      list.push({ id: entry.id, conceptId, questionText: entry.question_text, responseModality: entry.response_modality, rubric: entry.rubric });
+      list.push({
+        id: entry.id,
+        conceptId,
+        questionText: entry.question_text,
+        responseModality: entry.response_modality,
+        rubric: entry.rubric,
+        checkerDomain: entry.checker_domain as QuestionBankEntrySummary["checkerDomain"],
+        checkerInput: entry.checker_input as Record<string, unknown> | null,
+      });
       questionsByConcept.set(conceptId, list);
     }
   }
@@ -248,7 +256,16 @@ export async function getExamPlan(courseId: string): Promise<GetExamPlanResult> 
       const questions = questionsByConcept.get(p.conceptId);
       if (!questions || questions.length === 0) continue;
       const q = questions[0];
-      items.push({ conceptId: p.conceptId, questionBankEntryId: q.id, questionText: q.questionText, responseModality: q.responseModality, rubric: q.rubric, reasons: p.reasons });
+      items.push({
+        conceptId: p.conceptId,
+        questionBankEntryId: q.id,
+        questionText: q.questionText,
+        responseModality: q.responseModality,
+        rubric: q.rubric,
+        checkerDomain: q.checkerDomain,
+        checkerInput: q.checkerInput,
+        reasons: p.reasons,
+      });
     }
     return items;
   }

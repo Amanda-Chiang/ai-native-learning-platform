@@ -1,5 +1,5 @@
 import { getExamConfig, getExamPlan, getExamReadiness, configureExam } from "@/features/exam-planner/actions.ts";
-import { submitTextReviewAnswer } from "@/features/review-scheduler/actions.ts";
+import { submitTextReviewAnswer, submitStructuredReviewAnswer } from "@/features/review-scheduler/actions.ts";
 import { ExamPlanner } from "@/features/exam-planner/components/ExamPlanner.tsx";
 
 export default async function CourseExamPlanPage({
@@ -25,6 +25,7 @@ export default async function CourseExamPlanPage({
         initialReadiness={readiness}
         configureExam={configureExam}
         submitTextAnswer={submitTextReviewAnswer}
+        submitStructuredAnswer={submitStructuredReviewAnswer}
       />
     </main>
   );

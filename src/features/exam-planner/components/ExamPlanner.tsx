@@ -3,17 +3,17 @@
 import { useState } from "react";
 import type { ExamConfigView, GetExamPlanResult, GetExamReadinessResult } from "@/features/exam-planner/actions.ts";
 import type { SessionItem } from "@/features/review-scheduler/daily-session.ts";
+import { StructuredAnswerForm } from "@/features/review-scheduler/components/StructuredAnswerForm.tsx";
 
 type SubmitResult = { result: { outcome: string; [key: string]: unknown }; error: string | null };
 
 /**
  * Exam configuration + staged plan + readiness UI (T012/T016). Text-
  * modality plan items reuse review-scheduler's existing
- * submitTextReviewAnswer directly (FR-012) -- this feature adds no
- * grading action of its own. Structured (graph/tree) items share the
- * same "not yet answerable here" limitation review-scheduler's own
- * /study page already documents, not silently re-solved differently
- * here.
+ * submitTextReviewAnswer directly (FR-012); structured (graph/tree,
+ * checkerDomain set) items reuse review-scheduler's
+ * StructuredAnswerForm + submitStructuredReviewAnswer the same way --
+ * this feature adds no grading action of its own either way.
  */
 export function ExamPlanner({
   courseId,
@@ -22,6 +22,7 @@ export function ExamPlanner({
   initialReadiness,
   configureExam,
   submitTextAnswer,
+  submitStructuredAnswer,
 }: {
   courseId: string;
   initialConfig: ExamConfigView | null;
@@ -29,6 +30,7 @@ export function ExamPlanner({
   initialReadiness: GetExamReadinessResult | null;
   configureExam: (courseId: string, examDate: string, scopeConceptIds: string[], scopeUnitIds: string[]) => Promise<{ examConfigId: string | null; error: string | null }>;
   submitTextAnswer: (input: { courseId: string; conceptId: string; rubric: Record<string, unknown>; response: string }) => Promise<SubmitResult>;
+  submitStructuredAnswer: (input: { courseId: string; conceptId: string; checkerDomain: NonNullable<SessionItem["checkerDomain"]>; checkerInput: Record<string, unknown>; claimFields: Record<string, unknown> }) => Promise<SubmitResult>;
 }) {
   const [config, setConfig] = useState(initialConfig);
   const [plan, setPlan] = useState(initialPlan);
@@ -54,6 +56,18 @@ export function ExamPlanner({
   async function handleAnswer(item: SessionItem, response: string) {
     if (response.trim().length === 0) return;
     const outcome = await submitTextAnswer({ courseId, conceptId: item.conceptId, rubric: item.rubric, response });
+    setResults((current) => ({ ...current, [item.conceptId]: outcome }));
+  }
+
+  async function handleStructuredAnswer(item: SessionItem, claimFields: Record<string, unknown>) {
+    if (!item.checkerDomain || !item.checkerInput) return;
+    const outcome = await submitStructuredAnswer({
+      courseId,
+      conceptId: item.conceptId,
+      checkerDomain: item.checkerDomain,
+      checkerInput: item.checkerInput,
+      claimFields,
+    });
     setResults((current) => ({ ...current, [item.conceptId]: outcome }));
   }
 
@@ -115,7 +129,13 @@ export function ExamPlanner({
                     return (
                       <li key={i}>
                         <p>{sessionItem.questionText}</p>
-                        {sessionItem.responseModality === "text" ? (
+                        {sessionItem.checkerDomain ? (
+                          <StructuredAnswerForm
+                            checkerDomain={sessionItem.checkerDomain}
+                            onSubmit={(claimFields) => handleStructuredAnswer(sessionItem, claimFields)}
+                            pending={false}
+                          />
+                        ) : sessionItem.responseModality === "text" ? (
                           <form
                             onSubmit={async (e) => {
                               e.preventDefault();
