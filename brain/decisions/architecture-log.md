@@ -633,3 +633,52 @@ checklist is a setup gate, not a retrofit. Applies to
   next-due date than a real incorrect one, using the real OpenAI API.
   Feature complete: all 17 tasks (T001-T017) done, whole-repo
   typecheck clean, 210-test unit suite passes.
+
+## exam-planner (010) -- complete, Phase 5's exam-prep half
+
+- Exactly one new table (`exam_configs`) -- a student's exam date +
+  scope, full CRUD for their own rows since it's current
+  configuration state, not an append-only log. Confirmed through
+  implementation: the staged plan and readiness snapshot are both
+  genuinely computed fresh on every read, nothing else persisted.
+- Confirmed live and structurally: three of the four plan stages are
+  literally `review-scheduler`'s existing selection --
+  `selectDiagnosticConcepts`/`selectFinalWeaknessConcepts` are the
+  *same function* (`rankConceptsByPriority`, scope-restricted) called
+  at two different points in time, naturally surfacing different
+  concepts as real practice accumulates between the calls, with no
+  stage-awareness needed inside the function itself.
+  `selectInterleavingEdges` reuses `composeConnectSession`'s exact
+  `learnerState.learnerState === "weak"` predicate, just restricted to
+  "both endpoints in scope" instead of "new this week." Only
+  `selectTimedMixedConcepts`'s mastery-spread and the stage-boundary
+  percentage math are genuinely new.
+- Same infrastructure limit as `review-scheduler`'s own verification:
+  `actions.ts` needs Next's `cookies()`, unusable from a plain script.
+  Resolved the same way -- calling the exact pure functions
+  (`computeExamStages`, `currentStage`, the four `scoped-selection.ts`
+  selectors, `composeStagedPlan`, `computeReadinessSnapshot`) against
+  real rows via the service-role client.
+- The live walkthrough repeated the exact same fixture-harness mistake
+  found during `review-scheduler`'s own verification -- the
+  verification script's `fetchConceptState` returned
+  `computeLearnerState`'s raw `tier` field instead of remapping it to
+  `masteryState` the way the real `getConceptState` does, crashing
+  `computeReadinessSnapshot`. Worth calling out twice now: any live
+  verification script that reimplements a "use server" action's real
+  DB-fetch-plus-pure-function logic must also reimplement that
+  action's own field renaming exactly, or the mismatch surfaces as a
+  crash in the *pure* function being tested, not in the harness code
+  that actually has the bug.
+- After the fix: a real ~20-day staged plan correctly surfaced both
+  weak/thin-evidence concepts in the diagnostic stage (each with a
+  real, specific reason) and the real weak edge in the interleaving
+  stage; a 2-day-out exam correctly compressed to only
+  `timed-mixed`/`final-weakness`, summing to exactly 2 days, never
+  inventing time; real readiness distinctly separated an
+  unresolved-misconception concept, an untouched concept, and normal
+  tier buckets; and T017 (US3) confirmed live that committing new
+  evidence moved a concept out of `untouched` on the next read with no
+  reconfiguration, and that a past-dated exam correctly reported
+  `exam_date_passed`. Feature complete: all 20 tasks (T001-T020) done,
+  whole-repo typecheck clean, 226-test unit suite passes.

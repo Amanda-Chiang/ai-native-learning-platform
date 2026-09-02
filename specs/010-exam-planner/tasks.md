@@ -37,7 +37,7 @@ Single Next.js project (per plan.md's Project Structure):
 
 ## Phase 1: Setup
 
-- [ ] T001 [P] Write `supabase/migrations/0008_exam_planner.sql` per
+- [x] T001 [P] Write `supabase/migrations/0008_exam_planner.sql` per
   data-model.md: `exam_configs` (user_id-keyed RLS, full CRUD for own
   rows -- current state, not an append-only log), with the "at least
   one scope target" check mirroring `evidence_events`'s existing
@@ -54,21 +54,21 @@ reads or writes it.
 story depends on. No user story can be implemented before this phase
 completes.
 
-- [ ] T002 Push the migration (`npx supabase db push`) and verify RLS:
+- [x] T002 Push the migration (`npx supabase db push`) and verify RLS:
   an anon-key query against `exam_configs` returns `status=200,
   rows=0` for a signed-out session -- do not proceed until confirmed
   against the live project
-- [ ] T003 [P] Extend `src/lib/supabase/database.types.ts` with
+- [x] T003 [P] Extend `src/lib/supabase/database.types.ts` with
   `ExamConfigRow`, same pattern used for every prior table
-- [ ] T004 [P] Write `tests/unit/exam-planner/stage-boundaries.test.ts`
+- [x] T004 [P] Write `tests/unit/exam-planner/stage-boundaries.test.ts`
   (test-first): four stages' date ranges sum to exactly the days
   between `now` and `examDate`; `final-weakness` still gets at least
   one day when the exam is only a few days out; throws when `examDate`
   is not after `now`
-- [ ] T005 Create `src/features/exam-planner/stage-boundaries.ts` per
+- [x] T005 Create `src/features/exam-planner/stage-boundaries.ts` per
   data-model.md: `DEFAULT_STAGE_SHARES`, `computeExamStages`,
   `currentStage`; make T004 pass
-- [ ] T006 [P] Create `src/features/exam-planner/actions.ts` with
+- [x] T006 [P] Create `src/features/exam-planner/actions.ts` with
   `configureExam`/`getExamConfig` per contracts/exam-planner-actions.md:
   rejects before writing anything when a scoped concept/unit id isn't a
   real, confirmed row in this course (FR-001), same discipline
@@ -96,7 +96,7 @@ course/learner state (spec.md).
 
 ### Implementation for User Story 1
 
-- [ ] T007 [P] [US1] Write
+- [x] T007 [P] [US1] Write
   `tests/unit/exam-planner/scoped-selection.test.ts` (test-first):
   `selectDiagnosticConcepts`/`selectFinalWeaknessConcepts` only ever
   return concepts present in the scoped input, ranked via
@@ -105,17 +105,17 @@ course/learner state (spec.md).
   are in scope and its learner state is `"weak"`;
   `selectTimedMixedConcepts` returns a spread across different mastery
   tiers, not only the single highest-priority concept
-- [ ] T008 [US1] Create `src/features/exam-planner/scoped-selection.ts`
+- [x] T008 [US1] Create `src/features/exam-planner/scoped-selection.ts`
   per data-model.md -- calls `review-scheduler`'s
   `rankConceptsByPriority`/weak-edge predicate directly, no new ranking
   algorithm (FR-004/FR-011); make T007 pass
-- [ ] T009 [P] [US1] Write
+- [x] T009 [P] [US1] Write
   `tests/unit/exam-planner/plan-composition.test.ts` (test-first): a
   stage with no available content produces `contentGap: true` with a
   real message, never a silently-empty or fabricated stage (FR-007)
-- [ ] T010 [US1] Create `src/features/exam-planner/plan-composition.ts`
+- [x] T010 [US1] Create `src/features/exam-planner/plan-composition.ts`
   per data-model.md: `composeStagedPlan`; make T009 pass
-- [ ] T011 [US1] Add `getExamPlan` to `actions.ts` per
+- [x] T011 [US1] Add `getExamPlan` to `actions.ts` per
   contracts/exam-planner-actions.md: resolves scope (expanding scoped
   units to currently-confirmed concepts), reads real
   `getConceptState`/`getEdgeState`/`question_bank` inputs per scoped
@@ -123,7 +123,7 @@ course/learner state (spec.md).
   `scoped-selection.ts`'s four selectors + `composeStagedPlan` --
   returns an honest `"no_exam_configured"`/`"exam_date_passed"`
   instead of a plan when either is true (FR-010)
-- [ ] T012 [US1] Create
+- [x] T012 [US1] Create
   `src/app/courses/[courseId]/exam-plan/page.tsx`: an exam
   configuration form (date + scope) and the staged plan display;
   completing a plan item reuses `review-scheduler`'s existing
@@ -153,20 +153,20 @@ here too).
 
 ### Implementation for User Story 2
 
-- [ ] T013 [P] [US2] Write
+- [x] T013 [P] [US2] Write
   `tests/unit/exam-planner/readiness-snapshot.test.ts` (test-first): a
   concept with `lastEvidenceAt: null` lands in `untouched`, never
   `unverified`/`weak`; a concept with `hasUnresolvedMisconception:
   true` appears in `unresolvedMisconceptions` regardless of which tier
   bucket it's also in
-- [ ] T014 [US2] Create
+- [x] T014 [US2] Create
   `src/features/exam-planner/readiness-snapshot.ts` per data-model.md:
   `computeReadinessSnapshot`; make T013 pass
-- [ ] T015 [US2] Add `getExamReadiness` to `actions.ts` per
+- [x] T015 [US2] Add `getExamReadiness` to `actions.ts` per
   contracts/exam-planner-actions.md: resolves the same scope
   `getExamPlan` does, reads `getConceptState` per scoped concept,
   calls `computeReadinessSnapshot`
-- [ ] T016 [US2] Add a readiness section to
+- [x] T016 [US2] Add a readiness section to
   `src/app/courses/[courseId]/exam-plan/page.tsx` rendering
   `getExamReadiness`'s breakdown, with misconceptions and untouched
   concepts visually distinct from ordinary tier buckets
@@ -196,7 +196,7 @@ request reports it plainly (spec.md).
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Live-verify (quickstart.md Group B5/B6) against a
+- [x] T017 [US3] Live-verify (quickstart.md Group B5/B6) against a
   real Supabase project: commit new real evidence (via
   `deterministic-grading`'s existing grading actions) on a scoped
   concept and confirm a fresh `getExamPlan`/`getExamReadiness` call
@@ -211,11 +211,11 @@ evidence and real dates, not just designed for.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T018 Run `npm run typecheck` across the whole repository --
+- [x] T018 Run `npm run typecheck` across the whole repository --
   expect PASS with no regressions outside this feature
-- [ ] T019 Add `tests/unit/exam-planner/*.test.ts` to `package.json`'s
+- [x] T019 Add `tests/unit/exam-planner/*.test.ts` to `package.json`'s
   `test:unit` script and run it -- expect PASS
-- [ ] T020 Walk through quickstart.md Groups A and B end to end; B2
+- [x] T020 Walk through quickstart.md Groups A and B end to end; B2
   (a real staged plan), B3 (a close exam still produces a usable
   plan), and B4 (real readiness) must all be actually confirmed
   against a real Supabase project before this feature is called done,

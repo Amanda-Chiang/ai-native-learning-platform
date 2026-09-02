@@ -129,8 +129,22 @@ restating per-feature:
   concepts/edges), and US2's spaced-review guarantee (a real correct
   vs. incorrect rubric-graded answer producing a later vs. sooner
   next-due date) against the real Supabase project and real OpenAI
-  API. `exam-planner` (Phase 5's other feature) has not been specified
-  yet. Phase 6 has not been touched.
+  API. Phase 5's `exam-planner` half is also fully implemented — every
+  task in `specs/010-exam-planner/tasks.md` is checked off, migration
+  pushed and RLS-verified live. It needed exactly one new table
+  (`exam_configs`, a student's exam date + scope) — the staged plan
+  and readiness view are both computed fresh on every read, never
+  stored. Three of its four plan stages are `review-scheduler`'s own
+  ranking/weak-edge selection, scope-restricted, not reimplemented.
+  Live verification confirmed a real ~20-day staged plan (diagnostic
+  stage correctly surfacing thin-evidence concepts, interleaving
+  correctly surfacing a real weak edge), a 2-day-out exam correctly
+  compressing to only its final two stages summing to exactly 2 days,
+  real readiness distinctly separating an unresolved misconception, an
+  untouched concept, and normal tier buckets, and the plan/readiness
+  genuinely reflecting new evidence and a past exam date without any
+  reconfiguration step. Phase 5 is now fully done. Phase 6 has not been
+  touched.
 
 **This section will go stale the moment more work lands** — it is a
 snapshot taken on the date above, not a maintained tracker. The
