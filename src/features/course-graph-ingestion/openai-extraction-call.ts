@@ -9,7 +9,7 @@ import { EXTRACTION_RESPONSE_SCHEMA } from "./extraction-schema.ts";
  * the real production extraction behavior, not a parallel
  * reimplementation that could quietly drift from it.
  */
-export const EXTRACTION_PROMPT = `You are extracting a course concept graph from one course artifact for a data-structures-and-algorithms course.
+export const EXTRACTION_PROMPT = `You are extracting a course concept graph from one course artifact. The course's subject is not fixed in advance -- it could be computer science, history, biology, or any other field. Infer the subject and its own vocabulary entirely from the attached content itself; never assume or default to any particular field.
 
 Read the attached content and identify the distinct teachable concepts it introduces or discusses, and the relationships between them.
 
