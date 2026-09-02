@@ -6,6 +6,7 @@ import { runTutorTurn, type PriorTurn } from "@/features/tutor-agent/run-tutor-t
 import { commitEvidence } from "@/features/learner-graph-evidence/actions.ts";
 import { createTestDoubleOpenAIClient } from "@/features/tutor-agent/test-double-openai-client.ts";
 import { detectsDirectAnswerRequest } from "@/features/tutor-agent/assistance-ladder.ts";
+import { validateStudentMessage } from "@/features/tutor-agent/message-validation.ts";
 import type { TutorToolName } from "@/lib/supabase/database.types.ts";
 
 /**
@@ -85,6 +86,12 @@ export async function sendTutorMessage(
   if (!user) {
     return { turn: null, error: "You must be signed in to message the tutor." };
   }
+
+  const messageValidation = validateStudentMessage(message);
+  if (!messageValidation.valid) {
+    return { turn: null, error: messageValidation.error };
+  }
+  message = messageValidation.trimmed;
 
   const { data: conversation, error: conversationError } = await supabase
     .from("tutor_conversations")
