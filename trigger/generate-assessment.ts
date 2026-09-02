@@ -19,6 +19,7 @@ import {
   runValidationLayers,
   MAX_GENERATION_ATTEMPTS,
   type LayerRunners,
+  type ValidationReport,
 } from "../src/features/assessment-generation-pipeline/validation-pipeline.ts";
 
 /**
@@ -210,9 +211,46 @@ export async function executeGeneration(payload: GenerateAssessmentPayload) {
   }
 
   for (let attemptNumber = 1; attemptNumber <= MAX_GENERATION_ATTEMPTS; attemptNumber += 1) {
-    const candidate = await generateCandidate(openai, payload.blueprint, material);
-    const runners = buildRealRunners(openai, candidate, payload.blueprint, courseSourceExcerpts);
-    const validationReport = await runValidationLayers(runners);
+    let candidate: CandidateQuestion;
+    let validationReport: ValidationReport;
+    try {
+      candidate = await generateCandidate(openai, payload.blueprint, material);
+      const runners = buildRealRunners(openai, candidate, payload.blueprint, courseSourceExcerpts);
+      validationReport = await runValidationLayers(runners);
+    } catch (err) {
+      // A real failure mid-attempt (a candidate-generation call or one
+      // of the six validation layers' model calls failing) must still
+      // be recorded as a real, failed attempt -- never silently
+      // skipped, which would leave getGenerationRun's derived status
+      // stuck at "pending" forever with zero attempts on record, even
+      // though this attempt genuinely happened and genuinely failed
+      // (found during a hardening-pass audit).
+      const message = err instanceof Error ? err.message : String(err);
+      const notReached = { passed: false, detail: "not reached" } as const;
+      const failureReport: ValidationReport = {
+        schema: { passed: false, detail: `Attempt failed before validation could complete: ${message}` },
+        sourceAlignment: notReached,
+        independentSolve: notReached,
+        answerAgreement: notReached,
+        ambiguity: notReached,
+        similarity: notReached,
+      };
+      const { error: failedRunInsertError } = await supabase.from("assessment_generation_runs").insert({
+        request_id: payload.requestId,
+        course_id: payload.courseId,
+        owner_id: course.owner_id,
+        attempt_number: attemptNumber,
+        blueprint: payload.blueprint as unknown as Record<string, unknown>,
+        candidate: { generationFailed: true, error: message },
+        validation_report: failureReport as unknown as Record<string, unknown>,
+        outcome: "failed",
+      });
+      if (failedRunInsertError) {
+        throw new Error(`Failed to record failed generation attempt ${attemptNumber}: ${failedRunInsertError.message}`);
+      }
+      continue;
+    }
+
     const outcome = Object.values(validationReport).every((layer) => layer.passed) ? "passed" : "failed";
 
     const { data: runRow, error: runInsertError } = await supabase
