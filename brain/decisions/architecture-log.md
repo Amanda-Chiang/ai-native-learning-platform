@@ -521,10 +521,39 @@ checklist is a setup gate, not a retrofit. Applies to
   this is what lets the real generate-validate-persist mechanism be
   invoked directly for live verification against real Supabase/OpenAI
   without needing a real queue.
-- Verification run so far: whole-repo typecheck clean; the full
-  189-test unit suite passes (15 new); migration `0007` pushed and
-  RLS-verified live (anon query against both new tables:
-  `status=200, rows=0` signed out). Still pending: quickstart.md Group
-  B's live generate-to-bank walkthrough (B2/B3/B4) and US3/US4's
-  exhaustive live ambiguity/similarity scenario checks (T020/T021) —
-  none of that has been run yet as of this entry.
+- Live walkthrough (quickstart.md Group B, T024) against a real
+  throwaway course/concept, real OpenAI, real Supabase — found two real
+  bugs a typecheck/unit-test pass alone would have missed:
+  1. The first real generation call failed outright:
+     `400 Invalid schema ... 'additionalProperties' is required to be
+     supplied and to be false'`. OpenAI Structured Outputs strict mode
+     has no "any object" escape hatch — `rubric`/`checkerInput` can't
+     be declared as open-ended objects at all. Fixed by transmitting
+     both as JSON-encoded strings, decoded by `parseCandidateResult`.
+  2. The second real call crashed the whole task: the model declared
+     `checkerDomain: "shortest-path"` but produced a `checkerInput`
+     missing `graph`, so `checkShortestPath` threw on
+     `graph.nodeIds.includes(...)` with an uncaught `TypeError`.
+     `checkerInput` is untrusted model output, not a trusted caller —
+     `runIndependentSolve` now catches a dispatch failure and reports
+     it as a real failed layer (regenerated next attempt), never an
+     uncaught exception that would kill the run.
+  After both fixes: B1 (RLS) and B2 (a real blueprint → one real,
+  fully-validated `question_bank` entry, `sourceAnchors` traceable to
+  the real confirmed concept) both succeeded live; B3 (a candidate with
+  a deliberately malformed `checkerInput` claim) correctly failed
+  `independentSolve` and never reached the bank, with every later
+  layer recorded `not reached`, confirming the short-circuit really
+  holds under real model + real checker calls, not just injected fakes.
+  B4 (FR-012's pre-trigger rejection) confirmed by inspection, per
+  quickstart.md's own "not required to automate every combination"
+  allowance — `requestQuestionGeneration` resolves target/prerequisite
+  ids against real confirmed rows before ever calling `.trigger()`.
+  Whole-repo typecheck clean; full 192-test unit suite passes (18 new
+  across this feature, including a new test for the checkerInput-crash
+  fix).
+- Still pending: US3/US4's exhaustive live ambiguity/similarity
+  scenario checks (T020/T021) — the mechanism itself is proven by the
+  B2/B3 walkthrough above, but exhaustive scenario coverage against
+  real model behavior (a genuinely ambiguous question, a genuine
+  near-copy) hasn't been run yet as of this entry.

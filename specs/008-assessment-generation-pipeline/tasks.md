@@ -36,7 +36,7 @@ Single Next.js project (per plan.md's Project Structure):
 
 ## Phase 1: Setup
 
-- [ ] T001 [P] Create
+- [x] T001 [P] Create
   `src/features/assessment-generation-pipeline/candidate-generation-schema.ts`
   per data-model.md: the `CandidateQuestion` Structured Outputs schema
   and generation prompt (mirrors
@@ -56,18 +56,18 @@ before any code calls it.
 reads from. No user story can be implemented before this phase
 completes.
 
-- [ ] T002 Write `supabase/migrations/0007_assessment_generation.sql`
+- [x] T002 Write `supabase/migrations/0007_assessment_generation.sql`
   per data-model.md: `assessment_generation_runs` (append-only, one row
   per attempt) and `question_bank` (only passed attempts), both RLS
   keyed on `owner_id = auth.uid()` (research.md "Question bank is
   course-owned content, not student-owned data") — only the
   service-role client writes either table, same pattern as
   `extraction_runs`/`course_concepts`
-- [ ] T003 Push the migration (`npx supabase db push`) and verify RLS:
+- [x] T003 Push the migration (`npx supabase db push`) and verify RLS:
   an anon-key query against each new table returns `status=200, rows=0`
   for a signed-out session — do not proceed until confirmed against the
   live project
-- [ ] T004 [P] Extend `src/lib/supabase/database.types.ts` with
+- [x] T004 [P] Extend `src/lib/supabase/database.types.ts` with
   `AssessmentGenerationRunRow`/`QuestionBankRow`, same pattern used for
   every prior table
 
@@ -91,15 +91,15 @@ copy of any single source excerpt (spec.md).
 
 ### Implementation for User Story 1
 
-- [ ] T005 [P] [US1] Write
+- [x] T005 [P] [US1] Write
   `tests/unit/assessment-generation-pipeline/candidate-generation-schema.test.ts`
   (test-first): a well-formed candidate parses; a candidate missing
   `sourceAnchors` is rejected; a candidate with `checkerInput` set but
   `checkerDomain` null (or vice versa) is rejected
-- [ ] T006 [US1] Extend `candidate-generation-schema.ts` with the
+- [x] T006 [US1] Extend `candidate-generation-schema.ts` with the
   parsing/validation function T005 tests (mirrors
   `extraction-schema.ts`'s `parseExtractionResult` pattern)
-- [ ] T007 [US1] Create `trigger/generate-assessment.ts` (initial
+- [x] T007 [US1] Create `trigger/generate-assessment.ts` (initial
   version): a Trigger.dev task that, given a blueprint, fetches the
   target concepts'/edges' real confirmed rows (course-graph-ingestion's
   existing tables), calls the generation model with
@@ -107,7 +107,7 @@ copy of any single source excerpt (spec.md).
   `CandidateQuestion` — fails plainly (no candidate produced) when the
   target concepts have no real source material to ground a question in
   (FR-004)
-- [ ] T008 [US1] Create
+- [x] T008 [US1] Create
   `src/features/assessment-generation-pipeline/actions.ts` with
   `requestQuestionGeneration` per contracts/generation-actions.md:
   rejects before triggering anything when
@@ -142,42 +142,42 @@ never reaches the bank (spec.md).
 
 ### Implementation for User Story 2
 
-- [ ] T009 [P] [US2] Write
+- [x] T009 [P] [US2] Write
   `tests/unit/assessment-generation-pipeline/source-alignment-check.test.ts`
   (test-first): a candidate whose `sourceAnchors` resolve to the
   blueprint's real target concepts/edges passes; one citing an anchor
   outside the blueprint's targets fails with that specific mismatched
   anchor identified
-- [ ] T010 [US2] Create
+- [x] T010 [US2] Create
   `src/features/assessment-generation-pipeline/source-alignment-check.ts`
   per data-model.md; make T009 pass
-- [ ] T011 [P] [US2] Write
+- [x] T011 [P] [US2] Write
   `tests/unit/assessment-generation-pipeline/answer-agreement-check.test.ts`
   (test-first): a candidate's stated answer matching the independent
   solve's real result passes; a mismatch fails with both values shown
-- [ ] T012 [US2] Create
+- [x] T012 [US2] Create
   `src/features/assessment-generation-pipeline/answer-agreement-check.ts`
   per data-model.md; make T011 pass
-- [ ] T013 [US2] Create
+- [x] T013 [US2] Create
   `src/features/assessment-generation-pipeline/independent-solve.ts`
   per data-model.md/research.md: dispatches to the matching
   `deterministic-grading` checker when `candidate.checkerDomain` is set
   (never reimplementing one, FR-007); otherwise a blind-solver model
   call shown only `candidate.questionText`, never the candidate's own
   answer
-- [ ] T014 [US2] Create
+- [x] T014 [US2] Create
   `src/features/assessment-generation-pipeline/ambiguity-check.ts`: a
   reviewer model call asking specifically whether the candidate has
   more than one reasonable interpretation/answer, returning a real
   `LayerResult` (data-model.md) — full exhaustive scenario coverage is
   User Story 3's job; this task is the working mechanism itself
-- [ ] T015 [US2] Create
+- [x] T015 [US2] Create
   `src/features/assessment-generation-pipeline/similarity-check.ts`: a
   reviewer model call comparing the candidate against the course's
   real confirmed source-anchor excerpts (research.md — no new
   retrieval infrastructure), returning a real `LayerResult` — full
   exhaustive scenario coverage is User Story 4's job
-- [ ] T016 [P] [US2] Write
+- [x] T016 [P] [US2] Write
   `tests/unit/assessment-generation-pipeline/validation-pipeline.test.ts`
   (test-first), with every model-calling layer's result **injected**,
   not really called: `runValidationLayers` runs all six layers in
@@ -185,18 +185,18 @@ never reaches the bank (spec.md).
   each of them as `{ passed: false, detail: "not reached" }`, never a
   fabricated pass; the bounded-regeneration loop stops on the first
   passing attempt and never exceeds `MAX_GENERATION_ATTEMPTS` retries
-- [ ] T017 [US2] Create
+- [x] T017 [US2] Create
   `src/features/assessment-generation-pipeline/validation-pipeline.ts`
   per data-model.md: `MAX_GENERATION_ATTEMPTS`, `runValidationLayers`;
   make T016 pass
-- [ ] T018 [US2] Wire `trigger/generate-assessment.ts`'s full loop per
+- [x] T018 [US2] Wire `trigger/generate-assessment.ts`'s full loop per
   contracts/generation-actions.md: generate → `runValidationLayers` →
   insert one `assessment_generation_runs` row per attempt
   (service-role) → on pass, insert the `question_bank` entry
   (service-role) and stop; on fail, regenerate up to the bound, then
   end unfulfilled (FR-008, never a silently-published best-of-a-bad-lot
   candidate)
-- [ ] T019 [US2] In `actions.ts`: `getGenerationRun`/`getQuestionBank`
+- [x] T019 [US2] In `actions.ts`: `getGenerationRun`/`getQuestionBank`
   per contracts/generation-actions.md — RLS-scoped reads, no `ownerId`
   parameter accepted
 
@@ -270,11 +270,11 @@ against real model behavior, not just designed for.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T022 Run `npm run typecheck` across the whole repository — expect
+- [x] T022 Run `npm run typecheck` across the whole repository — expect
   PASS with no regressions outside this feature
-- [ ] T023 Add `tests/unit/assessment-generation-pipeline/*.test.ts` to
+- [x] T023 Add `tests/unit/assessment-generation-pipeline/*.test.ts` to
   `package.json`'s `test:unit` script and run it — expect PASS
-- [ ] T024 Walk through quickstart.md Groups A and B end to end; B2's
+- [x] T024 Walk through quickstart.md Groups A and B end to end; B2's
   real generate-to-bank success case, B3's answer-agreement-failure
   case, and B4's nonexistent-target rejection must all be actually
   confirmed against the live project (real Supabase, `OPENAI_API_KEY`,
