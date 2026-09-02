@@ -799,3 +799,44 @@ class remains — each is now either directly guarded or covered by an
 enclosing caller's guard. E2B's sandbox grader was already correctly
 guarded from when it was first built. No fixes needed beyond the four
 above.
+
+## 2026-09-02 — Hardening pass, continued: RLS completeness, client error-display, unbounded inputs
+
+- **RLS audit**: every table's policy set checked against what the
+  application code actually does with it, not just "is RLS enabled."
+  No `using (true)` anywhere. `courses`/`artifacts` have no
+  update/delete policy, but no code path calls `.update()`/`.delete()`
+  on either table yet (no rename-course/delete-artifact feature
+  exists) -- a real future gap to close when that feature is built,
+  not a live bug today, so left alone rather than speculatively adding
+  policies for a capability that doesn't exist (YAGNI).
+- **Real bug**: `StudySession.tsx` (`review-scheduler`) and
+  `ExamPlanner.tsx` (`exam-planner`) both rendered
+  `submitTextAnswer`'s `result.outcome` unconditionally, never
+  checking its `error` field -- meaning a real failure (signed-out, or
+  the rubric-grader's new `did_not_complete` outcome from the earlier
+  fix in this same pass) would render as a plausible-looking grading
+  verdict instead of a visible error. Both fixed to check `error`
+  first, matching the pattern every other client component in the
+  codebase already used correctly (`TutorChat.tsx`,
+  `ConceptDetailPanel.tsx`, `QuestionCanvas.tsx`).
+- **Real bug**: neither Storage bucket (`course-artifacts`,
+  `assessment-drawings`) had a `file_size_limit` set -- an unbounded
+  upload could cost real storage/egress. Fixed with a generous 50 MiB
+  cap for real course material and a tight 5 MiB cap for a single
+  canvas snapshot; verified live against the real project.
+- **Real bug**: no upper bound existed on a student's tutor message
+  before it's sent directly to a paid model call -- `sendTutorMessage`
+  is a reachable server action, not gated by the chat UI's own input
+  alone. Added `validateStudentMessage` (4000-char cap), mirroring the
+  existing `validateFlagReason` convention
+  (`course-graph-ingestion/flag-validation.ts`) -- noted that
+  `validateFlagReason` itself has no upper bound either, a lower-
+  priority, lower-cost analog left as a known gap rather than expanded
+  into scope now.
+
+Nine real issues found and fixed across this two-part hardening pass
+(one domain-generality bug, four unhandled-external-call crashes, two
+client-side error-masking bugs, one missing storage limit, one
+unbounded-input gap). Full unit suite (248 tests) and whole-repo
+typecheck both pass after every fix.
