@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server.ts";
 export type ExtractionStatusView = {
   artifactId: string;
   artifactFilename: string;
+  runId: string;
   status: "queued" | "processing" | "completed" | "failed";
   failureReason: string | null;
   conceptsExtracted: number;
@@ -72,6 +73,7 @@ export async function getExtractionStatuses(courseId: string): Promise<Extractio
   return [...latestByArtifact.entries()].map(([artifactId, run]) => ({
     artifactId,
     artifactFilename: filenameByArtifactId.get(artifactId) ?? artifactId,
+    runId: run.id,
     status: run.status,
     failureReason: run.failure_reason,
     conceptsExtracted: run.concepts_extracted,

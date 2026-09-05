@@ -23,8 +23,17 @@ const UPLOAD_STAGE_COLOR: Record<"queued" | "processing", { bg: string; color: s
   queued: { bg: "var(--border)", color: "var(--text-tertiary)" },
 };
 
-/** Live extraction_runs state for one artifact, keyed by artifact_id. */
+/**
+ * Live extraction_runs state for one artifact, keyed by artifact_id.
+ *
+ * `runId` tracks which extraction_runs row this entry's fields (in
+ * particular unitsCreatedOrMatched) currently reflect. It exists so the
+ * fire-and-forget count query below can tell, once it resolves, whether
+ * a newer run's event has since landed for this same artifact_id -- if
+ * so, its stale count must be discarded rather than applied.
+ */
 type ExtractionInfo = {
+  runId: string;
   status: ExtractionStatusView["status"];
   failureReason: string | null;
   conceptsExtracted: number;
@@ -134,6 +143,7 @@ export function ArtifactBoard({
         initialExtractionStatuses.map((s) => [
           s.artifactId,
           {
+            runId: s.runId,
             status: s.status,
             failureReason: s.failureReason,
             conceptsExtracted: s.conceptsExtracted,
@@ -221,6 +231,7 @@ export function ArtifactBoard({
             const next = new Map(current);
             const existing = next.get(row.artifact_id);
             next.set(row.artifact_id, {
+              runId: row.id,
               status: row.status,
               failureReason: row.failure_reason,
               conceptsExtracted: row.concepts_extracted,
@@ -235,7 +246,12 @@ export function ArtifactBoard({
             // unitsCreatedOrMatched -- so even if a fresher event for this
             // same artifact_id has already changed status/failureReason/
             // conceptsExtracted by the time this resolves, this patch
-            // can't clobber those fields.
+            // can't clobber those fields. It's also guarded by runId: if a
+            // second extraction_runs row for the same artifact_id (e.g. a
+            // future retry) completes and its own count query resolves
+            // first, this run's count is stale by the time it lands here
+            // and must be discarded rather than overwrite the newer run's
+            // real count.
             void (async () => {
               const { count } = await supabase
                 .from("reconciliation_decisions")
@@ -245,7 +261,7 @@ export function ArtifactBoard({
               const unitsCreatedOrMatched = count ?? 0;
               setExtractionByArtifactId((latest) => {
                 const existing = latest.get(row.artifact_id);
-                if (!existing) return latest;
+                if (!existing || existing.runId !== row.id) return latest;
                 const next = new Map(latest);
                 next.set(row.artifact_id, { ...existing, unitsCreatedOrMatched });
                 return next;
