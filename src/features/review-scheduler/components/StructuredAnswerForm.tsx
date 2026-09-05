@@ -44,16 +44,43 @@ export function StructuredAnswerForm({
   }
 
   return (
-    <div>
-      <p style={{ fontSize: 13, color: "#6b7280" }}>Fill in your answer below and submit.</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-tertiary)", margin: 0 }}>Fill in your answer below and submit.</p>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={6}
-        style={{ width: "100%", fontFamily: "monospace" }}
+        style={{
+          width: "100%",
+          fontFamily: "var(--font-mono)",
+          fontSize: 13,
+          padding: "10px 12px",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-sm)",
+          color: "var(--text-primary)",
+          background: "var(--surface)",
+          resize: "vertical",
+          boxSizing: "border-box",
+        }}
       />
-      {parseError && <p style={{ color: "#dc2626" }}>Not valid: {parseError}</p>}
-      <button type="button" onClick={handleSubmit} disabled={pending}>
+      {parseError && <p style={{ color: "var(--clay)", fontSize: 12.5, margin: 0 }}>Not valid: {parseError}</p>}
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={pending}
+        style={{
+          alignSelf: "flex-start",
+          padding: "8px 16px",
+          background: "var(--clay)",
+          color: "var(--clay-fg)",
+          border: "none",
+          borderRadius: "var(--radius-sm)",
+          fontSize: 13,
+          fontWeight: 500,
+          fontFamily: "var(--font-sans)",
+          cursor: "pointer",
+        }}
+      >
         Submit
       </button>
     </div>
