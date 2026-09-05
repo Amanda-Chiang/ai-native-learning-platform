@@ -483,8 +483,41 @@ async function writeExtractionCandidates(
 
   const { toInsert, droppedSelfReferential } = resolveEdgeEndpoints(extraction.edges, localIdToRealId);
 
+  // Edges no longer go through manual review (2026-09-05 amendment to
+  // FR-006, specs/004-course-graph-ingestion/spec.md) -- instead an edge
+  // auto-confirms the moment BOTH endpoints it connects are themselves
+  // 'confirmed'. At insert time, that can only be true for an edge whose
+  // endpoints are REAL, PRE-EXISTING concepts that were already
+  // confirmed by a reviewer in some prior extraction run -- a concept
+  // inserted earlier in THIS SAME run is always freshly 'proposed'
+  // (see the insert above), so an edge touching it can never auto-confirm
+  // here; it stays 'proposed' until the confirm-cascade in
+  // src/features/course-graph-ingestion/actions.ts's confirmCandidate
+  // later confirms both its endpoints by hand. One batched lookup of
+  // current statuses (not one query per edge) covers every real concept
+  // id any edge in `toInsert` references.
+  const referencedConceptIds = Array.from(
+    new Set(toInsert.flatMap((edge) => [edge.sourceConceptId, edge.targetConceptId])),
+  );
+  const statusById = new Map<string, string>();
+  if (referencedConceptIds.length > 0) {
+    const { data: statusRows, error: statusError } = await supabase
+      .from("course_concepts")
+      .select("id, status")
+      .in("id", referencedConceptIds);
+    if (statusError) {
+      throw new Error(`Failed to look up concept statuses for edge auto-confirm: ${statusError.message}`);
+    }
+    for (const row of statusRows ?? []) {
+      statusById.set(row.id, row.status);
+    }
+  }
+
   let edgesExtracted = 0;
   for (const edge of toInsert) {
+    const bothEndpointsConfirmed =
+      statusById.get(edge.sourceConceptId) === "confirmed" && statusById.get(edge.targetConceptId) === "confirmed";
+
     const { error: edgeInsertError } = await supabase.from("concept_edges").insert({
       course_id: courseId,
       owner_id: ownerId,
@@ -494,7 +527,7 @@ async function writeExtractionCandidates(
       relation_type_note: edge.relationTypeNote,
       explanation: edge.explanation,
       source_anchors: edge.sourceAnchors.map((a) => ({ artifactId, ...a })),
-      status: "proposed",
+      status: bothEndpointsConfirmed ? "confirmed" : "proposed",
       confidence: edge.confidence,
       extraction_run_id: extractionRunId,
     });

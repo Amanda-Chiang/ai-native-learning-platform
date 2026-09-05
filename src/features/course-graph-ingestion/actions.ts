@@ -310,7 +310,56 @@ export async function confirmCandidate(
           .update({ status: "confirmed", updated_at: new Date().toISOString() })
           .eq("id", id);
 
+  if (!error && kind === "concept") {
+    await autoConfirmEligibleEdges(supabase, id);
+  }
+
   return { error: error?.message ?? null };
+}
+
+/**
+ * Edges have no manual review step of their own (2026-09-05 amendment
+ * to FR-006, specs/004-course-graph-ingestion/spec.md) -- instead, the
+ * moment a reviewer confirms a concept, every 'proposed' edge touching
+ * it (as either endpoint) is re-checked: if the edge's OTHER endpoint is
+ * ALSO already 'confirmed', the edge auto-confirms too. This is the only
+ * other place (besides extract-course-graph.ts's insert-time check) an
+ * edge can ever transition to 'confirmed' -- both paths share the same
+ * invariant: an edge is never confirmed while either endpoint concept is
+ * not, or materializeCourseGraph would throw at Atlas render time for a
+ * confirmed edge pointing at an unconfirmed concept.
+ *
+ * Reuses confirmCandidate("edge", ...) for the actual status flip rather
+ * than duplicating that update here -- this function only decides WHICH
+ * edges are eligible.
+ */
+async function autoConfirmEligibleEdges(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  confirmedConceptId: string,
+): Promise<void> {
+  const { data: candidateEdges, error: edgesError } = await supabase
+    .from("concept_edges")
+    .select("id, source_concept_id, target_concept_id")
+    .eq("status", "proposed")
+    .or(`source_concept_id.eq.${confirmedConceptId},target_concept_id.eq.${confirmedConceptId}`);
+
+  if (edgesError || !candidateEdges) return;
+
+  for (const edge of candidateEdges) {
+    const otherConceptId =
+      edge.source_concept_id === confirmedConceptId ? edge.target_concept_id : edge.source_concept_id;
+
+    const { data: otherConcept, error: otherConceptError } = await supabase
+      .from("course_concepts")
+      .select("status")
+      .eq("id", otherConceptId)
+      .single();
+
+    if (otherConceptError || !otherConcept) continue;
+    if (otherConcept.status !== "confirmed") continue;
+
+    await confirmCandidate("edge", edge.id);
+  }
 }
 
 export async function rejectCandidate(
