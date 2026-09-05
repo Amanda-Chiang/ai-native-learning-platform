@@ -1,18 +1,8 @@
-export default function Home() {
-  return (
-    <main
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        padding: "2rem",
-      }}
-    >
-      <h1>AI-Native Learning Platform</h1>
-      <p>Early development. Nothing to see here yet.</p>
-    </main>
-  );
+import { getTodayOverview } from "@/features/courses/today.ts";
+import { TodayDashboard } from "@/features/courses/components/TodayDashboard.tsx";
+
+export default async function Home() {
+  const overview = await getTodayOverview();
+
+  return <TodayDashboard overview={overview} />;
 }
