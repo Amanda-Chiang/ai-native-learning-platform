@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { parseExtractionResult } from "../../../src/features/course-graph-ingestion/extraction-schema.ts";
 
 const validResponse = {
+  units: [],
   concepts: [
     {
       localId: "c1",
@@ -12,6 +13,7 @@ const validResponse = {
       importanceScore: 0.9,
       sourceAnchors: [{ locator: "slide 4", excerpt: "Explore in increasing order of distance" }],
       confidence: 0.9,
+      unitRef: { kind: "existing", unitId: "placeholder-existing-unit" },
     },
     {
       localId: "c2",
@@ -21,6 +23,7 @@ const validResponse = {
       importanceScore: 0.7,
       sourceAnchors: [{ locator: "slide 6", excerpt: "Shortest path in an unweighted graph" }],
       confidence: 0.85,
+      unitRef: { kind: "existing", unitId: "placeholder-existing-unit" },
     },
   ],
   edges: [
@@ -36,6 +39,23 @@ const validResponse = {
   ],
 };
 
+const validResponseWithUnits = {
+  units: [{ localId: "u1", title: "Graph Theory" }],
+  concepts: [
+    {
+      localId: "c1",
+      canonicalName: "Breadth-First Search",
+      aliases: ["BFS"],
+      description: "Explores graph nodes in increasing order of distance from a source vertex.",
+      importanceScore: 0.9,
+      sourceAnchors: [{ locator: "slide 4", excerpt: "Explore in increasing order of distance" }],
+      confidence: 0.9,
+      unitRef: { kind: "new", localId: "u1" },
+    },
+  ],
+  edges: [],
+};
+
 test("a well-formed response parses into candidates", () => {
   const result = parseExtractionResult(validResponse);
   assert.equal(result.concepts.length, 2);
@@ -44,8 +64,8 @@ test("a well-formed response parses into candidates", () => {
 });
 
 test("a response with zero candidates parses as a valid empty list (spec Edge Cases)", () => {
-  const result = parseExtractionResult({ concepts: [], edges: [] });
-  assert.deepEqual(result, { concepts: [], edges: [] });
+  const result = parseExtractionResult({ units: [], concepts: [], edges: [] });
+  assert.deepEqual(result, { units: [], concepts: [], edges: [] });
 });
 
 test("a response missing a required field is rejected, not silently coerced", () => {
@@ -56,6 +76,7 @@ test("a response missing a required field is rejected, not silently coerced", ()
 
 test("an edge referencing an unknown localId is rejected", () => {
   const invalid = {
+    units: [],
     concepts: [validResponse.concepts[0]],
     edges: [{ ...validResponse.edges[0], targetLocalId: "does-not-exist" }],
   };
@@ -64,6 +85,7 @@ test("an edge referencing an unknown localId is rejected", () => {
 
 test("relationType 'other' without relationTypeNote is rejected", () => {
   const invalid = {
+    units: [],
     concepts: validResponse.concepts,
     edges: [{ ...validResponse.edges[0], relationType: "other", relationTypeNote: null }],
   };
@@ -73,4 +95,41 @@ test("relationType 'other' without relationTypeNote is rejected", () => {
 test("a non-object response is rejected", () => {
   assert.throws(() => parseExtractionResult(null), /not an object/);
   assert.throws(() => parseExtractionResult("not json"), /not an object/);
+});
+
+test("a response with a new unit and a concept referencing it parses successfully", () => {
+  const result = parseExtractionResult(validResponseWithUnits);
+  assert.equal(result.units.length, 1);
+  assert.equal(result.units[0].localId, "u1");
+  assert.deepEqual(result.concepts[0].unitRef, { kind: "new", localId: "u1" });
+});
+
+test("a concept's unitRef of kind 'new' referencing a localId absent from units[] throws", () => {
+  const bad = {
+    units: [],
+    concepts: [{ ...validResponseWithUnits.concepts[0], unitRef: { kind: "new", localId: "u1" } }],
+    edges: [],
+  };
+  assert.throws(() => parseExtractionResult(bad), /unitRef.*"u1"/);
+});
+
+test("a concept's unitRef of kind 'existing' with a real-looking id parses without requiring a units[] entry", () => {
+  const withExisting = {
+    units: [],
+    concepts: [
+      { ...validResponseWithUnits.concepts[0], unitRef: { kind: "existing", unitId: "real-unit-id-123" } },
+    ],
+    edges: [],
+  };
+  const result = parseExtractionResult(withExisting);
+  assert.deepEqual(result.concepts[0].unitRef, { kind: "existing", unitId: "real-unit-id-123" });
+});
+
+test("a malformed unitRef (missing kind) throws", () => {
+  const bad = {
+    units: [],
+    concepts: [{ ...validResponseWithUnits.concepts[0], unitRef: { unitId: "x" } }],
+    edges: [],
+  };
+  assert.throws(() => parseExtractionResult(bad));
 });

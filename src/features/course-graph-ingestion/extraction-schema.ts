@@ -29,6 +29,15 @@ export type CandidateSourceAnchor = {
   excerpt: string;
 };
 
+export type CandidateUnit = {
+  localId: string;
+  title: string;
+};
+
+export type UnitRef =
+  | { kind: "existing"; unitId: string }
+  | { kind: "new"; localId: string };
+
 export type CandidateConcept = {
   localId: string;
   canonicalName: string;
@@ -37,6 +46,7 @@ export type CandidateConcept = {
   importanceScore: number;
   sourceAnchors: CandidateSourceAnchor[];
   confidence: number;
+  unitRef: UnitRef;
 };
 
 export type CandidateEdge = {
@@ -54,6 +64,7 @@ export type CandidateEdge = {
 };
 
 export type ExtractionResult = {
+  units: CandidateUnit[];
   concepts: CandidateConcept[];
   edges: CandidateEdge[];
 };
@@ -70,6 +81,27 @@ const sourceAnchorSchema = {
   additionalProperties: false,
 };
 
+const unitSchema = {
+  type: "object",
+  properties: {
+    localId: { type: "string" },
+    title: { type: "string" },
+  },
+  required: ["localId", "title"],
+  additionalProperties: false,
+};
+
+const unitRefSchema = {
+  type: "object",
+  properties: {
+    kind: { type: "string", enum: ["existing", "new"] },
+    unitId: { type: ["string", "null"] },
+    localId: { type: ["string", "null"] },
+  },
+  required: ["kind", "unitId", "localId"],
+  additionalProperties: false,
+};
+
 /**
  * The exact JSON schema passed as response_format's json_schema for the
  * extraction call. Every candidate concept/edge MUST have at least one
@@ -83,6 +115,10 @@ export const EXTRACTION_RESPONSE_SCHEMA = {
   schema: {
     type: "object",
     properties: {
+      units: {
+        type: "array",
+        items: unitSchema,
+      },
       concepts: {
         type: "array",
         items: {
@@ -95,6 +131,7 @@ export const EXTRACTION_RESPONSE_SCHEMA = {
             importanceScore: { type: "number" },
             sourceAnchors: { type: "array", items: sourceAnchorSchema, minItems: 1 },
             confidence: { type: "number" },
+            unitRef: unitRefSchema,
           },
           required: [
             "localId",
@@ -104,6 +141,7 @@ export const EXTRACTION_RESPONSE_SCHEMA = {
             "importanceScore",
             "sourceAnchors",
             "confidence",
+            "unitRef",
           ],
           additionalProperties: false,
         },
@@ -134,7 +172,7 @@ export const EXTRACTION_RESPONSE_SCHEMA = {
         },
       },
     },
-    required: ["concepts", "edges"],
+    required: ["units", "concepts", "edges"],
     additionalProperties: false,
   },
 } as const;
@@ -143,6 +181,20 @@ function isCandidateSourceAnchor(value: unknown): value is CandidateSourceAnchor
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
   return typeof v.locator === "string" && typeof v.excerpt === "string";
+}
+
+function isCandidateUnit(value: unknown): value is CandidateUnit {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.localId === "string" && typeof v.title === "string";
+}
+
+function isUnitRef(value: unknown): value is UnitRef {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  if (v.kind === "existing") return typeof v.unitId === "string";
+  if (v.kind === "new") return typeof v.localId === "string";
+  return false;
 }
 
 function isCandidateConcept(value: unknown): value is CandidateConcept {
@@ -156,6 +208,7 @@ function isCandidateConcept(value: unknown): value is CandidateConcept {
   if (typeof v.confidence !== "number") return false;
   if (!Array.isArray(v.sourceAnchors) || v.sourceAnchors.length < 1) return false;
   if (!v.sourceAnchors.every(isCandidateSourceAnchor)) return false;
+  if (!isUnitRef(v.unitRef)) return false;
   return true;
 }
 
@@ -193,11 +246,23 @@ export function parseExtractionResult(raw: unknown): ExtractionResult {
   }
   const v = raw as Record<string, unknown>;
 
+  if (!Array.isArray(v.units) || !v.units.every(isCandidateUnit)) {
+    throw new Error("Extraction response's \"units\" array is missing or invalid.");
+  }
   if (!Array.isArray(v.concepts) || !v.concepts.every(isCandidateConcept)) {
     throw new Error("Extraction response's \"concepts\" array is missing or invalid.");
   }
   if (!Array.isArray(v.edges) || !v.edges.every(isCandidateEdge)) {
     throw new Error("Extraction response's \"edges\" array is missing or invalid.");
+  }
+
+  const unitLocalIds = new Set(v.units.map((u) => u.localId));
+  for (const concept of v.concepts) {
+    if (concept.unitRef.kind === "new" && !unitLocalIds.has(concept.unitRef.localId)) {
+      throw new Error(
+        `Concept "${concept.localId}" has unitRef.localId "${concept.unitRef.localId}", which is not present in this response's "units" array.`,
+      );
+    }
   }
 
   const localIds = new Set(v.concepts.map((c) => c.localId));
@@ -210,5 +275,5 @@ export function parseExtractionResult(raw: unknown): ExtractionResult {
     }
   }
 
-  return { concepts: v.concepts, edges: v.edges };
+  return { units: v.units, concepts: v.concepts, edges: v.edges };
 }
