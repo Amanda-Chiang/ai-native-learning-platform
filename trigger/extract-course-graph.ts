@@ -3,13 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 import { toFile } from "openai";
 import type { Database } from "../src/lib/supabase/database.types.ts";
 import { getOpenAiClient, isOpenAiConfigured } from "../src/lib/openai/client.ts";
-import { parseExtractionResult, type ExtractionResult } from "../src/features/course-graph-ingestion/extraction-schema.ts";
+import { parseExtractionResult, type ExtractionResult, type CandidateUnit } from "../src/features/course-graph-ingestion/extraction-schema.ts";
 import { EXTRACTION_PROMPT, callExtractionModel } from "../src/features/course-graph-ingestion/openai-extraction-call.ts";
 import {
   createOpenAiReconciliationClassifier,
   reconcileConcept,
   type ExistingConceptSummary,
   type ReconciliationClassifier,
+  type UnitReconciliationResult,
 } from "../src/features/course-graph-ingestion/reconciliation.ts";
 
 /**
@@ -487,4 +488,41 @@ export function resolveEdgeEndpoints(
   }
 
   return { toInsert, droppedSelfReferential };
+}
+
+/**
+ * Pure: for each candidate unit, resolves it to either an existing
+ * real unit id (its reconciliation was "merge") or marks it as
+ * needing a new row inserted ("distinct"/"uncertain" both become new
+ * proposed rows -- "uncertain" is still visible to a reviewer as its
+ * own candidate, same convention as concepts). Every unit MUST have a
+ * reconciliation entry -- this function does not reconcile anything
+ * itself (that's an OpenAI call, done by the caller before this runs),
+ * it only turns already-decided reconciliations into insert/resolve
+ * instructions, so it's testable without a live Supabase or OpenAI
+ * call (tests/unit/course-graph-ingestion/resolve-unit-references.test.ts).
+ */
+export function resolveUnitReferences(
+  units: CandidateUnit[],
+  reconciliations: Map<string, UnitReconciliationResult>,
+): {
+  unitLocalIdToRealId: Map<string, string>;
+  toInsert: CandidateUnit[];
+} {
+  const unitLocalIdToRealId = new Map<string, string>();
+  const toInsert: CandidateUnit[] = [];
+
+  for (const unit of units) {
+    const reconciliation = reconciliations.get(unit.localId);
+    if (!reconciliation) {
+      throw new Error(`Candidate unit "${unit.localId}" has no reconciliation decision.`);
+    }
+    if (reconciliation.decision === "merge") {
+      unitLocalIdToRealId.set(unit.localId, reconciliation.matchedUnitId);
+    } else {
+      toInsert.push(unit);
+    }
+  }
+
+  return { unitLocalIdToRealId, toInsert };
 }
