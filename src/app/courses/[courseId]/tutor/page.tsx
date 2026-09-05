@@ -11,19 +11,13 @@ export default async function CourseTutorPage({
 
   if (!conversationId) {
     return (
-      <main>
-        <h1>Tutor</h1>
-        <p style={{ color: "#dc2626" }}>{error ?? "Could not start a conversation."}</p>
-      </main>
+      <div style={{ padding: 24 }}>
+        <p style={{ color: "var(--clay)", fontSize: 13.5 }}>{error ?? "Could not start a conversation."}</p>
+      </div>
     );
   }
 
   const { turns } = await getConversation(conversationId);
 
-  return (
-    <main>
-      <h1>Tutor</h1>
-      <TutorChat conversationId={conversationId} initialTurns={turns} sendMessage={sendTutorMessage} />
-    </main>
-  );
+  return <TutorChat conversationId={conversationId} initialTurns={turns} sendMessage={sendTutorMessage} />;
 }
