@@ -27,10 +27,15 @@ const STATUS_COLOR: Record<ExtractionStatusView["status"], { bg: string; color: 
  *
  * 1. A run for an artifact_id not yet in the list (a brand-new
  *    extraction run) has no filename in the payload -- `artifacts` is a
- *    different table. We look up `original_filename` for that one
- *    artifact_id, falling back to the raw id only if that lookup itself
- *    comes back empty (matching `getExtractionStatuses`'s own fallback),
- *    never fabricating a name.
+ *    different table. The entry is still inserted immediately (using the
+ *    artifact_id itself as a temporary, honest filename placeholder) so
+ *    that no real-time status update is ever gated on an async lookup --
+ *    gating it would let concurrent events for the same brand-new
+ *    artifact_id race each other and silently drop a more current status.
+ *    The real `original_filename` is fetched separately, fire-and-forget,
+ *    and patched onto the existing entry (matched by artifactId) once it
+ *    resolves; multiple concurrent lookups just write the same value more
+ *    than once, which is safe.
  * 2. A run that just transitioned to `completed` needs
  *    `unitsCreatedOrMatched`, which isn't a column on `extraction_runs`
  *    at all -- it's derived by counting `reconciliation_decisions` rows
@@ -75,32 +80,28 @@ export function ExtractionStatusList({
             unitsCreatedOrMatched = count ?? 0;
           }
 
+          let insertedAsNew = false;
+
           setStatuses((current) => {
             const existingIndex = current.findIndex((s) => s.artifactId === row.artifact_id);
             if (existingIndex === -1) {
-              // Brand-new run for an artifact we haven't shown yet -- add it
-              // once its filename lookup resolves, rather than rendering a
-              // row with no name.
-              void (async () => {
-                const { data: artifact } = await supabase
-                  .from("artifacts")
-                  .select("original_filename")
-                  .eq("id", row.artifact_id)
-                  .maybeSingle();
-                const newEntry: ExtractionStatusView = {
-                  artifactId: row.artifact_id,
-                  artifactFilename: artifact?.original_filename ?? row.artifact_id,
-                  status: row.status,
-                  failureReason: row.failure_reason,
-                  conceptsExtracted: row.concepts_extracted,
-                  unitsCreatedOrMatched,
-                };
-                setStatuses((latest) => {
-                  if (latest.some((s) => s.artifactId === row.artifact_id)) return latest;
-                  return [newEntry, ...latest];
-                });
-              })();
-              return current;
+              // Brand-new run for an artifact we haven't shown yet. Insert it
+              // synchronously off the payload data already in hand -- no
+              // awaited lookup gates this branch, so concurrent events for
+              // the same never-seen artifact_id can't race each other into
+              // two different insert-vs-lose outcomes. The filename is a
+              // temporary honest fallback (the artifact_id itself), patched
+              // up separately below once the real name resolves.
+              insertedAsNew = true;
+              const newEntry: ExtractionStatusView = {
+                artifactId: row.artifact_id,
+                artifactFilename: row.artifact_id,
+                status: row.status,
+                failureReason: row.failure_reason,
+                conceptsExtracted: row.concepts_extracted,
+                unitsCreatedOrMatched,
+              };
+              return [newEntry, ...current];
             }
             const next = [...current];
             next[existingIndex] = {
@@ -113,6 +114,24 @@ export function ExtractionStatusList({
             };
             return next;
           });
+
+          if (insertedAsNew) {
+            // Fire-and-forget filename enrichment: purely additive/cosmetic,
+            // safe to race since multiple concurrent lookups for the same
+            // artifact_id just write the same correct filename more than
+            // once. Matched by artifactId, not array index.
+            void (async () => {
+              const { data: artifact } = await supabase
+                .from("artifacts")
+                .select("original_filename")
+                .eq("id", row.artifact_id)
+                .maybeSingle();
+              const filename = artifact?.original_filename ?? row.artifact_id;
+              setStatuses((latest) =>
+                latest.map((s) => (s.artifactId === row.artifact_id ? { ...s, artifactFilename: filename } : s)),
+              );
+            })();
+          }
         },
       )
       .subscribe();
