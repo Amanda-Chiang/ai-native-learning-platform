@@ -37,15 +37,66 @@ export function CreateCourseForm({
         setError(null);
         router.push(`/courses/${outcome.course.id}`);
       }}
+      style={s.form}
     >
-      <label>
-        Course name
-        <input type="text" name="name" required placeholder="e.g. Data Structures & Algorithms" />
-      </label>
-      <button type="submit" disabled={pending}>
-        Create course
-      </button>
-      {error && <p style={{ color: "#dc2626" }}>{error}</p>}
+      <div style={s.row}>
+        <input
+          type="text"
+          name="name"
+          required
+          placeholder="Course name, e.g. Data Structures & Algorithms"
+          style={s.input}
+          disabled={pending}
+        />
+        <button type="submit" disabled={pending} style={{ ...s.submit, opacity: pending ? 0.6 : 1 }}>
+          {pending ? "Creating…" : "Create course"}
+        </button>
+      </div>
+      {error && <p style={s.error}>{error}</p>}
     </form>
   );
 }
+
+const s: Record<string, React.CSSProperties> = {
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    padding: 16,
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-md)",
+  },
+  row: {
+    display: "flex",
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    padding: "9px 12px",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-sm)",
+    fontSize: 14,
+    fontFamily: "var(--font-sans)",
+    color: "var(--text-primary)",
+    background: "var(--bg)",
+    outline: "none",
+  },
+  submit: {
+    padding: "9px 16px",
+    background: "var(--clay)",
+    color: "var(--clay-fg)",
+    border: "none",
+    borderRadius: "var(--radius-sm)",
+    fontSize: 13.5,
+    fontWeight: 500,
+    fontFamily: "var(--font-sans)",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  error: {
+    margin: 0,
+    fontSize: 12.5,
+    color: "var(--clay)",
+  },
+};
