@@ -24,31 +24,34 @@ import type { ExtractionStatusView } from "@/features/course-graph-ingestion/ext
  * task's brief specified 500'd the whole Materials page
  * ("Functions are not valid as a child of Client Components").
  *
- * `extractionStatuses` is plain data (fetched server-side in the page
- * and passed down as a prop, same as `initialArtifacts`/`initialUnits`)
- * -- not a function, so passing it across the RSC boundary here is
- * fine. It's rendered directly after `ArtifactBoard` (Task 12's "after
- * the artifact list") rather than from the page itself, since that's
- * the only place in the tree where "after the artifact list" is an
- * actual DOM position rather than "after this whole units block."
+ * `initialStatuses` is plain data (fetched server-side in the page and
+ * passed down as a prop, same as `initialArtifacts`/`initialUnits`) --
+ * not a function, so passing it across the RSC boundary here is fine.
+ * `ExtractionStatusList` itself owns the live subscription (courseId is
+ * threaded through so it can filter its own Realtime channel), the same
+ * way `ArtifactBoard` owns its own. It's rendered directly after
+ * `ArtifactBoard` (Task 12's "after the artifact list") rather than from
+ * the page itself, since that's the only place in the tree where "after
+ * the artifact list" is an actual DOM position rather than "after this
+ * whole units block."
  */
 export function UnitsSection({
   courseId,
   initialArtifacts,
   initialUnits,
-  extractionStatuses,
+  initialStatuses,
 }: {
   courseId: string;
   initialArtifacts: Artifact[];
   initialUnits: CourseUnit[];
-  extractionStatuses: ExtractionStatusView[];
+  initialStatuses: ExtractionStatusView[];
 }) {
   const [units, setUnits] = useState(initialUnits);
 
   return (
     <>
       <ArtifactBoard courseId={courseId} initialArtifacts={initialArtifacts} units={units} />
-      <ExtractionStatusList statuses={extractionStatuses} />
+      <ExtractionStatusList courseId={courseId} initialStatuses={initialStatuses} />
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 500, letterSpacing: "-0.02em", color: "var(--text-primary)" }}>
           Units

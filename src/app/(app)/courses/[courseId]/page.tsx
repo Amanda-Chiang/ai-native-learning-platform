@@ -32,7 +32,7 @@ export default async function CourseDetailPage({
           courseId={courseId}
           initialArtifacts={artifacts}
           initialUnits={units}
-          extractionStatuses={extractionStatuses}
+          initialStatuses={extractionStatuses}
         />
 
         {pendingItems.length > 0 && (
