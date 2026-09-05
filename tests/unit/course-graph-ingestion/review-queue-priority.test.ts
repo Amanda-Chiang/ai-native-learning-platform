@@ -32,6 +32,7 @@ function conceptItem(overrides: {
       reason: "...",
       createdAt: "2026-01-01T00:00:00Z",
     })),
+    extractionRunId: "run-1",
   };
 }
 

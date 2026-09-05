@@ -133,8 +133,24 @@ export type ConceptFlag = {
 };
 
 export type ReviewQueueItem =
-  | { kind: "concept"; concept: CourseConcept; reconciliation: ReconciliationDecision | null; flags: ConceptFlag[] }
-  | { kind: "edge"; edge: ConceptEdge; reconciliation: ReconciliationDecision | null; flags: ConceptFlag[] }
+  | {
+      kind: "concept";
+      concept: CourseConcept;
+      reconciliation: ReconciliationDecision | null;
+      flags: ConceptFlag[];
+      /** The extraction_runs row this candidate came from -- null for
+       * anything that never went through the pipeline (there is none for
+       * concepts/edges today, but kept nullable for consistency with the
+       * unit variant, which does have a manually-created, run-less case). */
+      extractionRunId: string | null;
+    }
+  | {
+      kind: "edge";
+      edge: ConceptEdge;
+      reconciliation: ReconciliationDecision | null;
+      flags: ConceptFlag[];
+      extractionRunId: string | null;
+    }
   | {
       kind: "unit";
       unit: CourseUnit;
@@ -145,6 +161,10 @@ export type ReviewQueueItem =
        * existing-units context reconciliation itself had, since a
        * "distinct" decision otherwise shows no comparison at all. */
       otherExistingUnitTitles: string[];
+      /** Null for a manually-created unit (createUnit never sets
+       * extraction_run_id) -- a proposed unit always has one, since only
+       * the extraction pipeline creates 'proposed' rows. */
+      extractionRunId: string | null;
     };
 
 function toReconciliationDecision(row: ReconciliationDecisionRow | undefined): ReconciliationDecision | null {
@@ -222,6 +242,7 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
       concept: conceptRowToDomain(row),
       reconciliation: toReconciliationDecision(matchingDecision),
       flags: (flagsByTarget.get(row.id) ?? []).map(toConceptFlag),
+      extractionRunId: row.extraction_run_id,
     };
   });
 
@@ -230,6 +251,7 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
     edge: edgeRowToDomain(row),
     reconciliation: null,
     flags: (flagsByTarget.get(row.id) ?? []).map(toConceptFlag),
+    extractionRunId: row.extraction_run_id,
   }));
 
   const unitItems: ReviewQueueItem[] = proposedUnits.map((row) => {
@@ -241,6 +263,7 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
       unit: unitRowToDomain(row),
       reconciliation,
       otherExistingUnitTitles: reconciliation?.decision === "distinct" ? confirmedUnitTitles : [],
+      extractionRunId: row.extraction_run_id,
     };
   });
 
