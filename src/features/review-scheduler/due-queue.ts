@@ -4,8 +4,9 @@ import { createClient } from "@/lib/supabase/server.ts";
 import { getConceptState } from "@/features/learner-graph-evidence/actions.ts";
 import { rankConceptsByPriority, DEFAULT_REVIEW_PRIORITY_WEIGHTS } from "@/features/review-scheduler/review-priority.ts";
 import { computeNextReviewDate } from "@/features/review-scheduler/next-review-date.ts";
+import { bucketFor, type UrgencyBucket } from "@/features/review-scheduler/due-queue-bucketing.ts";
 
-export type UrgencyBucket = "overdue" | "today" | "soon" | "upcoming";
+export type { UrgencyBucket };
 
 export type DueQueueItem = {
   conceptId: string;
@@ -17,22 +18,6 @@ export type DueQueueItem = {
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-/**
- * Bucket cutoffs are a judgment call, not derived from anything else in
- * the codebase (there's no existing "urgency bucket" concept upstream --
- * only a raw next-review date). Overdue: past due already. Today: due
- * today or tomorrow (a 1-day early warning). Soon: within the next 3
- * days. Upcoming: everything else that's still ranked (not yet due, but
- * this queue shows the whole ranked course, not only what's due today --
- * that's what distinguishes it from getDailyReviewSession).
- */
-function bucketFor(daysUntilDue: number): { bucket: UrgencyBucket; label: string } {
-  if (daysUntilDue < 0) return { bucket: "overdue", label: "Overdue" };
-  if (daysUntilDue <= 1) return { bucket: "today", label: daysUntilDue === 0 ? "Due today" : "Due tomorrow" };
-  if (daysUntilDue <= 3) return { bucket: "soon", label: `In ${daysUntilDue} days` };
-  return { bucket: "upcoming", label: `In ${daysUntilDue} days` };
-}
 
 /**
  * Ranked "what's due, and what's coming up" for a whole course --
