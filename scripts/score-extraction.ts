@@ -29,7 +29,7 @@ import {
   type CandidateConcept,
   type ExtractionResult,
 } from "../src/features/course-graph-ingestion/extraction-schema.ts";
-import { EXTRACTION_PROMPT, callExtractionModel } from "../src/features/course-graph-ingestion/openai-extraction-call.ts";
+import { buildExtractionPrompt, callExtractionModel } from "../src/features/course-graph-ingestion/openai-extraction-call.ts";
 import {
   reconcileConcept,
   createOpenAiReconciliationClassifier,
@@ -176,7 +176,7 @@ async function main() {
 
     console.log(`Extracting "${artifact.title}" (${artifact.id})...`);
     const raw = await callExtractionModel(openai, EXTRACTION_MODEL, [
-      { type: "input_text", text: `${EXTRACTION_PROMPT}\n\n---\n\n${sourceText}` },
+      { type: "input_text", text: `${buildExtractionPrompt([], null)}\n\n---\n\n${sourceText}` },
     ]);
     const extraction = parseExtractionResult(raw);
 

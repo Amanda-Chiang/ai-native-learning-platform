@@ -36,6 +36,6 @@ test("the missing-OpenAI-key and unreadable-artifact failure reasons are distinc
 });
 
 test("zero extractable content is a valid, parseable, non-failure extraction result", () => {
-  const result = parseExtractionResult({ concepts: [], edges: [] });
-  assert.deepEqual(result, { concepts: [], edges: [] });
+  const result = parseExtractionResult({ units: [], concepts: [], edges: [] });
+  assert.deepEqual(result, { units: [], concepts: [], edges: [] });
 });

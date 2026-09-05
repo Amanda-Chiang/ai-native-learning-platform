@@ -8,6 +8,8 @@ const unit: CourseUnitRow = {
   course_id: "course-1",
   owner_id: "owner-1",
   title: "Graphs",
+  status: "confirmed",
+  extraction_run_id: null,
   created_at: "2026-01-01T00:00:00Z",
 };
 

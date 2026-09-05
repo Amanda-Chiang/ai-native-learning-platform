@@ -49,6 +49,7 @@ export async function uploadArtifact(
       mime_type: file.mimeType,
       size_bytes: file.sizeBytes,
       status: "queued",
+      target_unit_id: null,
     })
     .select("id")
     .single();
