@@ -5,21 +5,108 @@ import { createClient } from "@/lib/supabase/client.ts";
 import { uploadArtifact, type Artifact } from "@/features/artifacts/actions.ts";
 import type { ArtifactStatus } from "@/features/artifacts/status.ts";
 import type { CourseUnit } from "@/types/domain/index.ts";
+import type { ExtractionStatusView } from "@/features/course-graph-ingestion/extraction-status.ts";
 import { IconUpload, IconFile } from "@/components/icons.tsx";
 
-const STATUS_LABEL: Record<ArtifactStatus, string> = {
+// Upload-stage labels/colors -- only for the two non-terminal artifact
+// statuses. "ready" and "failed" at the artifact level are folded into
+// the combined-status derivation below (getDisplayStatus), since both
+// need to be disambiguated against the separate extraction-stage state
+// rather than shown on their own.
+const UPLOAD_STAGE_LABEL: Record<"queued" | "processing", string> = {
   queued: "Queued",
   processing: "Processing…",
-  ready: "Ready",
-  failed: "Failed",
 };
 
-const STATUS_COLOR: Record<ArtifactStatus, { bg: string; color: string }> = {
-  ready: { bg: "var(--teal-muted)", color: "var(--teal)" },
+const UPLOAD_STAGE_COLOR: Record<"queued" | "processing", { bg: string; color: string }> = {
   processing: { bg: "var(--denim-muted)", color: "var(--denim)" },
   queued: { bg: "var(--border)", color: "var(--text-tertiary)" },
-  failed: { bg: "var(--clay-muted)", color: "var(--clay)" },
 };
+
+/** Live extraction_runs state for one artifact, keyed by artifact_id. */
+type ExtractionInfo = {
+  status: ExtractionStatusView["status"];
+  failureReason: string | null;
+  conceptsExtracted: number;
+  unitsCreatedOrMatched: number;
+};
+
+type DisplayStatus = {
+  label: string;
+  bg: string;
+  color: string;
+  failureReason: string | null;
+  counts: { conceptsExtracted: number; unitsCreatedOrMatched: number } | null;
+};
+
+/**
+ * Derives ONE combined display status per artifact from the two
+ * independent pieces of live state (artifact upload status +
+ * extraction_runs status), per the design decision to keep the two-stage
+ * data model as-is but fold the UI into a single badge:
+ *
+ * - artifact.status === "failed" -> "Upload failed" (the file itself
+ *   never became usable -- distinct from extraction failing on a fine
+ *   file, e.g. a real OpenAI rate-limit hit).
+ * - artifact.status is "queued"/"processing" -> show that upload stage.
+ * - artifact.status === "ready" but no extraction_runs row yet, or the
+ *   latest run is "queued"/"processing" -> "Extracting…" (a derived
+ *   label, not a stored enum value -- there's no single column that
+ *   means this).
+ * - latest extraction run "completed" -> "Ready", with real
+ *   concepts/units counts.
+ * - latest extraction run "failed" -> "Extraction failed", worded
+ *   distinctly from "Upload failed" so a rate-limit-style failure never
+ *   reads as "this file is broken".
+ */
+function getDisplayStatus(artifact: Artifact, extraction: ExtractionInfo | undefined): DisplayStatus {
+  if (artifact.status === "failed") {
+    return {
+      label: "Upload failed",
+      bg: "var(--clay-muted)",
+      color: "var(--clay)",
+      failureReason: artifact.failureReason,
+      counts: null,
+    };
+  }
+
+  if (artifact.status !== "ready") {
+    return {
+      label: UPLOAD_STAGE_LABEL[artifact.status],
+      ...UPLOAD_STAGE_COLOR[artifact.status],
+      failureReason: null,
+      counts: null,
+    };
+  }
+
+  if (!extraction || extraction.status === "queued" || extraction.status === "processing") {
+    return {
+      label: "Extracting…",
+      bg: "var(--denim-muted)",
+      color: "var(--denim)",
+      failureReason: null,
+      counts: null,
+    };
+  }
+
+  if (extraction.status === "completed") {
+    return {
+      label: "Ready",
+      bg: "var(--teal-muted)",
+      color: "var(--teal)",
+      failureReason: null,
+      counts: { conceptsExtracted: extraction.conceptsExtracted, unitsCreatedOrMatched: extraction.unitsCreatedOrMatched },
+    };
+  }
+
+  return {
+    label: "Extraction failed",
+    bg: "var(--clay-muted)",
+    color: "var(--clay)",
+    failureReason: extraction.failureReason,
+    counts: null,
+  };
+}
 
 /**
  * Client Component: upload form + a live-updating artifact list.
@@ -33,12 +120,28 @@ export function ArtifactBoard({
   courseId,
   initialArtifacts,
   units,
+  initialExtractionStatuses,
 }: {
   courseId: string;
   initialArtifacts: Artifact[];
   units: CourseUnit[];
+  initialExtractionStatuses: ExtractionStatusView[];
 }) {
   const [artifacts, setArtifacts] = useState(initialArtifacts);
+  const [extractionByArtifactId, setExtractionByArtifactId] = useState<Map<string, ExtractionInfo>>(
+    () =>
+      new Map(
+        initialExtractionStatuses.map((s) => [
+          s.artifactId,
+          {
+            status: s.status,
+            failureReason: s.failureReason,
+            conceptsExtracted: s.conceptsExtracted,
+            unitsCreatedOrMatched: s.unitsCreatedOrMatched,
+          },
+        ]),
+      ),
+  );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -72,6 +175,67 @@ export function ArtifactBoard({
             }
             const next = [...current];
             next[existingIndex] = { ...next[existingIndex], ...updated };
+            return next;
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [courseId]);
+
+  // Live extraction_runs state, ported from ExtractionStatusList's
+  // fixed race-safety pattern (a1e6268): a run for an artifact not yet in
+  // the map is inserted directly off the payload's own columns, with no
+  // awaited lookup gating that insert -- avoiding the race that fix
+  // addressed, where gating an insert on an async lookup let concurrent
+  // events for the same artifact drop a more current status. The one
+  // value the payload can't carry, unitsCreatedOrMatched, is derived the
+  // same way getExtractionStatuses computes it server-side (a
+  // reconciliation_decisions count scoped to this run), but only awaited
+  // when status is "completed" -- the only status where that count is
+  // actually shown. Unlike ExtractionStatusList, no separate filename
+  // patch-up is needed here: this map is looked up by artifact_id
+  // against artifacts already held in `artifacts` state, so there's no
+  // second source of truth for the filename to reconcile.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`extraction-runs-course-${courseId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "extraction_runs", filter: `course_id=eq.${courseId}` },
+        async (payload) => {
+          const row = payload.new as {
+            id: string;
+            artifact_id: string;
+            status: ExtractionStatusView["status"];
+            failure_reason: string | null;
+            concepts_extracted: number;
+          };
+
+          let unitsCreatedOrMatched = 0;
+          if (row.status === "completed") {
+            const { count } = await supabase
+              .from("reconciliation_decisions")
+              .select("id", { count: "exact", head: true })
+              .eq("candidate_kind", "unit")
+              .eq("extraction_run_id", row.id);
+            unitsCreatedOrMatched = count ?? 0;
+          }
+
+          setExtractionByArtifactId((current) => {
+            const next = new Map(current);
+            const existing = next.get(row.artifact_id);
+            next.set(row.artifact_id, {
+              status: row.status,
+              failureReason: row.failure_reason,
+              conceptsExtracted: row.concepts_extracted,
+              unitsCreatedOrMatched:
+                row.status === "completed" ? unitsCreatedOrMatched : (existing?.unitsCreatedOrMatched ?? 0),
+            });
             return next;
           });
         },
@@ -213,28 +377,34 @@ export function ArtifactBoard({
               {artifacts.length} {artifacts.length === 1 ? "file" : "files"}
             </span>
           </div>
-          {artifacts.map((artifact) => (
-            <div key={artifact.id} style={s.artifactRow}>
-              <span style={s.artifactIcon}>
-                <IconFile />
-              </span>
-              <div style={s.artifactInfo}>
-                <span style={s.artifactName}>{artifact.originalFilename}</span>
-                {artifact.status === "failed" && artifact.failureReason && (
-                  <span style={s.failReason}>{artifact.failureReason}</span>
-                )}
+          {artifacts.map((artifact) => {
+            const display = getDisplayStatus(artifact, extractionByArtifactId.get(artifact.id));
+            return (
+              <div key={artifact.id} style={s.artifactRow}>
+                <span style={s.artifactIcon}>
+                  <IconFile />
+                </span>
+                <div style={s.artifactInfo}>
+                  <span style={s.artifactName}>{artifact.originalFilename}</span>
+                  {display.failureReason && <span style={s.failReason}>{display.failureReason}</span>}
+                  {display.counts && (
+                    <span style={s.extractionCounts}>
+                      {display.counts.conceptsExtracted} concepts &middot; {display.counts.unitsCreatedOrMatched} units
+                    </span>
+                  )}
+                </div>
+                <span
+                  style={{
+                    ...s.statusBadge,
+                    background: display.bg,
+                    color: display.color,
+                  }}
+                >
+                  {display.label}
+                </span>
               </div>
-              <span
-                style={{
-                  ...s.statusBadge,
-                  background: STATUS_COLOR[artifact.status].bg,
-                  color: STATUS_COLOR[artifact.status].color,
-                }}
-              >
-                {STATUS_LABEL[artifact.status]}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
@@ -301,6 +471,7 @@ const s: Record<string, React.CSSProperties> = {
     whiteSpace: "nowrap",
   },
   failReason: { fontSize: 11.5, color: "var(--clay)", letterSpacing: "-0.005em" },
+  extractionCounts: { fontSize: 11.5, color: "var(--text-tertiary)", letterSpacing: "-0.005em" },
   statusBadge: {
     fontSize: 10.5,
     fontWeight: 500,

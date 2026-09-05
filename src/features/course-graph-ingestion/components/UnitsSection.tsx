@@ -6,7 +6,6 @@ import { createUnit } from "@/features/course-graph-ingestion/actions.ts";
 import { AddUnitForm } from "@/features/course-graph-ingestion/components/AddUnitForm.tsx";
 import { ArtifactBoard } from "@/features/artifacts/artifact-board.tsx";
 import type { Artifact } from "@/features/artifacts/actions.ts";
-import { ExtractionStatusList } from "@/features/course-graph-ingestion/components/ExtractionStatusList.tsx";
 import type { ExtractionStatusView } from "@/features/course-graph-ingestion/extraction-status.ts";
 
 /**
@@ -24,34 +23,35 @@ import type { ExtractionStatusView } from "@/features/course-graph-ingestion/ext
  * task's brief specified 500'd the whole Materials page
  * ("Functions are not valid as a child of Client Components").
  *
- * `initialStatuses` is plain data (fetched server-side in the page and
- * passed down as a prop, same as `initialArtifacts`/`initialUnits`) --
- * not a function, so passing it across the RSC boundary here is fine.
- * `ExtractionStatusList` itself owns the live subscription (courseId is
- * threaded through so it can filter its own Realtime channel), the same
- * way `ArtifactBoard` owns its own. It's rendered directly after
- * `ArtifactBoard` (Task 12's "after the artifact list") rather than from
- * the page itself, since that's the only place in the tree where "after
- * the artifact list" is an actual DOM position rather than "after this
- * whole units block."
+ * `initialExtractionStatuses` is plain data (fetched server-side in the
+ * page and passed down as a prop, same as
+ * `initialArtifacts`/`initialUnits`) -- not a function, so passing it
+ * across the RSC boundary here is fine. It's threaded straight through
+ * to `ArtifactBoard`, which folds it (plus its own live extraction_runs
+ * subscription) into one combined per-artifact status badge -- there is
+ * no longer a separate "extraction status" section of its own.
  */
 export function UnitsSection({
   courseId,
   initialArtifacts,
   initialUnits,
-  initialStatuses,
+  initialExtractionStatuses,
 }: {
   courseId: string;
   initialArtifacts: Artifact[];
   initialUnits: CourseUnit[];
-  initialStatuses: ExtractionStatusView[];
+  initialExtractionStatuses: ExtractionStatusView[];
 }) {
   const [units, setUnits] = useState(initialUnits);
 
   return (
     <>
-      <ArtifactBoard courseId={courseId} initialArtifacts={initialArtifacts} units={units} />
-      <ExtractionStatusList courseId={courseId} initialStatuses={initialStatuses} />
+      <ArtifactBoard
+        courseId={courseId}
+        initialArtifacts={initialArtifacts}
+        units={units}
+        initialExtractionStatuses={initialExtractionStatuses}
+      />
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 500, letterSpacing: "-0.02em", color: "var(--text-primary)" }}>
           Units
