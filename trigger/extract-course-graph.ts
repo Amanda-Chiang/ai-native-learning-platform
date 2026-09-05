@@ -4,12 +4,16 @@ import { toFile } from "openai";
 import type { Database } from "../src/lib/supabase/database.types.ts";
 import { getOpenAiClient, isOpenAiConfigured } from "../src/lib/openai/client.ts";
 import { parseExtractionResult, type ExtractionResult, type CandidateUnit } from "../src/features/course-graph-ingestion/extraction-schema.ts";
-import { EXTRACTION_PROMPT, callExtractionModel } from "../src/features/course-graph-ingestion/openai-extraction-call.ts";
+import { buildExtractionPrompt, callExtractionModel } from "../src/features/course-graph-ingestion/openai-extraction-call.ts";
 import {
   createOpenAiReconciliationClassifier,
+  createOpenAiUnitReconciliationClassifier,
   reconcileConcept,
+  reconcileUnit,
   type ExistingConceptSummary,
+  type ExistingUnitSummary,
   type ReconciliationClassifier,
+  type UnitReconciliationClassifier,
   type UnitReconciliationResult,
 } from "../src/features/course-graph-ingestion/reconciliation.ts";
 
@@ -96,7 +100,7 @@ export const extractCourseGraphTask = task({
 
     const { data: artifact, error: artifactError } = await supabase
       .from("artifacts")
-      .select("owner_id, storage_path, original_filename")
+      .select("owner_id, storage_path, original_filename, target_unit_id")
       .eq("id", payload.artifactId)
       .single();
 
@@ -139,6 +143,32 @@ export const extractCourseGraphTask = task({
       .update({ status: "processing", started_at: new Date().toISOString() })
       .eq("id", run.id);
 
+    const { data: existingUnitRows, error: existingUnitsError } = await supabase
+      .from("course_units")
+      .select("id, title")
+      .eq("course_id", payload.courseId)
+      .in("status", ["proposed", "confirmed"]);
+
+    if (existingUnitsError) {
+      return markFailed(supabase, run.id, `Failed to load existing units: ${existingUnitsError.message}`);
+    }
+
+    let hardTargetUnit: { id: string; title: string } | null = null;
+    if (artifact.target_unit_id) {
+      const { data: targetUnitRow, error: targetUnitError } = await supabase
+        .from("course_units")
+        .select("id, title, status")
+        .eq("id", artifact.target_unit_id)
+        .single();
+
+      if (targetUnitError || !targetUnitRow || targetUnitRow.status === "archived") {
+        return markFailed(supabase, run.id, `This artifact's target unit no longer exists or has been archived.`);
+      }
+      hardTargetUnit = { id: targetUnitRow.id, title: targetUnitRow.title };
+    }
+
+    const existingUnits: ExistingUnitSummary[] = (existingUnitRows ?? []).map((u) => ({ id: u.id, title: u.title }));
+
     // Unreadable artifact: a distinct failure status (FR-012), same
     // file-existence check pattern already proven in ingest-artifact.ts.
     const { data: fileBlob, error: downloadError } = await supabase.storage
@@ -160,7 +190,7 @@ export const extractCourseGraphTask = task({
 
       rawResult = await callExtractionModel(openai, EXTRACTION_MODEL, [
         { type: "input_file", file_id: uploaded.id },
-        { type: "input_text", text: EXTRACTION_PROMPT },
+        { type: "input_text", text: buildExtractionPrompt(existingUnits, hardTargetUnit) },
       ]);
     } catch (err) {
       return markFailed(
@@ -202,6 +232,9 @@ export const extractCourseGraphTask = task({
         payload.artifactId,
         extraction,
         classify,
+        createOpenAiUnitReconciliationClassifier(openai, EXTRACTION_MODEL),
+        existingUnits,
+        hardTargetUnit?.id ?? null,
       );
     } catch (err) {
       return markFailed(
@@ -246,27 +279,68 @@ async function writeExtractionCandidates(
   artifactId: string,
   extraction: ExtractionResult,
   classify: ReconciliationClassifier,
+  classifyUnit: UnitReconciliationClassifier,
+  existingUnits: ExistingUnitSummary[],
+  hardTargetUnitId: string | null,
 ): Promise<{ conceptsExtracted: number; edgesExtracted: number; edgesDroppedSelfReferential: number }> {
-  const { data: units, error: unitsError } = await supabase
-    .from("course_units")
-    .select("id")
-    .eq("course_id", courseId)
-    .limit(1);
+  // -------------------------------------------------------------
+  // Units resolve BEFORE concepts (design.md's write ordering) --
+  // a concept whose candidate unit gets merged away must land under
+  // the surviving real unit, never the one that got merged.
+  // -------------------------------------------------------------
+  const unitReconciliations = new Map<string, UnitReconciliationResult>();
+  for (const unit of extraction.units) {
+    const reconciliation = await reconcileUnit(classifyUnit, { title: unit.title }, existingUnits);
+    unitReconciliations.set(unit.localId, reconciliation);
 
-  if (unitsError) {
-    throw new Error(`Failed to look up course_units for course ${courseId}: ${unitsError.message}`);
+    const { error: decisionInsertError } = await supabase.from("reconciliation_decisions").insert({
+      course_id: courseId,
+      owner_id: ownerId,
+      extraction_run_id: extractionRunId,
+      candidate_kind: "unit",
+      decision: reconciliation.decision,
+      matched_concept_id: null,
+      matched_unit_id: reconciliation.decision === "merge" ? reconciliation.matchedUnitId : null,
+      reasoning: reconciliation.reasoning,
+    });
+    if (decisionInsertError) {
+      throw new Error(`Failed to record unit reconciliation decision: ${decisionInsertError.message}`);
+    }
   }
 
-  // A course must have at least one unit before extraction can attach
-  // concepts to one -- extracted concepts need a real unit_id (data-model.md's
-  // not-null FK), and this task does not invent a unit on the course
-  // owner's behalf (that's organizational metadata the owner authors
-  // directly, per data-model.md's course_units RLS comment).
-  const unitId = units?.[0]?.id;
-  if (!unitId) {
-    throw new Error(
-      `Course ${courseId} has no course_units yet -- create at least one unit before running extraction.`,
-    );
+  const { unitLocalIdToRealId, toInsert: unitsToInsert } = resolveUnitReferences(extraction.units, unitReconciliations);
+
+  for (const unit of unitsToInsert) {
+    const { data: insertedUnit, error: unitInsertError } = await supabase
+      .from("course_units")
+      .insert({
+        course_id: courseId,
+        owner_id: ownerId,
+        title: unit.title,
+        status: "proposed",
+        extraction_run_id: extractionRunId,
+      })
+      .select("id")
+      .single();
+
+    if (unitInsertError || !insertedUnit) {
+      throw new Error(`Failed to insert unit "${unit.title}": ${unitInsertError?.message}`);
+    }
+    unitLocalIdToRealId.set(unit.localId, insertedUnit.id);
+  }
+
+  // Resolves a concept's unitRef to a real unit id. The hard target
+  // (artifact.target_unit_id) wins unconditionally, even over
+  // whatever the model actually returned -- defense in depth beyond
+  // the prompt-level instruction (design.md).
+  function resolveConceptUnitId(unitRef: ExtractionResult["concepts"][number]["unitRef"]): string {
+    if (hardTargetUnitId) return hardTargetUnitId;
+    if (unitRef.kind === "existing") return unitRef.unitId;
+    const realId = unitLocalIdToRealId.get(unitRef.localId);
+    if (!realId) {
+      throw new Error(`Concept's unitRef.localId "${unitRef.localId}" did not resolve to a real unit id.`);
+    }
+    return realId;
   }
 
   // Only proposed/confirmed concepts are live candidates to reconcile
@@ -310,6 +384,7 @@ async function writeExtractionCandidates(
       candidate_kind: "concept",
       decision: reconciliation.decision,
       matched_concept_id: reconciliation.decision === "merge" ? reconciliation.matchedConceptId : null,
+      matched_unit_id: null,
       reasoning: reconciliation.reasoning,
     });
     if (decisionInsertError) {
@@ -376,7 +451,7 @@ async function writeExtractionCandidates(
       .insert({
         course_id: courseId,
         owner_id: ownerId,
-        unit_id: unitId,
+        unit_id: resolveConceptUnitId(concept.unitRef),
         canonical_name: concept.canonicalName,
         aliases: concept.aliases,
         description: concept.description,
