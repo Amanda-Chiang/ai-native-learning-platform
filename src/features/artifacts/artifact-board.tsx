@@ -186,20 +186,21 @@ export function ArtifactBoard({
     };
   }, [courseId]);
 
-  // Live extraction_runs state, ported from ExtractionStatusList's
-  // fixed race-safety pattern (a1e6268): a run for an artifact not yet in
-  // the map is inserted directly off the payload's own columns, with no
-  // awaited lookup gating that insert -- avoiding the race that fix
-  // addressed, where gating an insert on an async lookup let concurrent
-  // events for the same artifact drop a more current status. The one
-  // value the payload can't carry, unitsCreatedOrMatched, is derived the
-  // same way getExtractionStatuses computes it server-side (a
-  // reconciliation_decisions count scoped to this run), but only awaited
-  // when status is "completed" -- the only status where that count is
-  // actually shown. Unlike ExtractionStatusList, no separate filename
-  // patch-up is needed here: this map is looked up by artifact_id
-  // against artifacts already held in `artifacts` state, so there's no
-  // second source of truth for the filename to reconcile.
+  // Live extraction_runs state, ported from ExtractionStatusList's fixed
+  // race-safety pattern (a1e6268): every payload is committed to the map
+  // SYNCHRONOUSLY off its own columns, with no awaited lookup gating that
+  // commit -- avoiding the race that fix addressed, where gating a commit
+  // on an async lookup let a slower in-flight query's eventual commit land
+  // after a fresher, synchronously-committed event and silently overwrite
+  // it with stale data. The one value the payload can't carry,
+  // unitsCreatedOrMatched, is left at whatever the entry already had (or 0
+  // if this artifact_id hasn't been seen yet -- an honest "not known yet"
+  // default, not a fabricated count). When status is "completed", the
+  // reconciliation_decisions count is fetched separately, fire-and-forget,
+  // and patched onto the entry keyed by artifact_id once it resolves --
+  // touching only unitsCreatedOrMatched, never status/failureReason/
+  // conceptsExtracted, so it can never stomp a newer event that arrived
+  // while the count query was in flight.
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -207,7 +208,7 @@ export function ArtifactBoard({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "extraction_runs", filter: `course_id=eq.${courseId}` },
-        async (payload) => {
+        (payload) => {
           const row = payload.new as {
             id: string;
             artifact_id: string;
@@ -216,16 +217,6 @@ export function ArtifactBoard({
             concepts_extracted: number;
           };
 
-          let unitsCreatedOrMatched = 0;
-          if (row.status === "completed") {
-            const { count } = await supabase
-              .from("reconciliation_decisions")
-              .select("id", { count: "exact", head: true })
-              .eq("candidate_kind", "unit")
-              .eq("extraction_run_id", row.id);
-            unitsCreatedOrMatched = count ?? 0;
-          }
-
           setExtractionByArtifactId((current) => {
             const next = new Map(current);
             const existing = next.get(row.artifact_id);
@@ -233,11 +224,34 @@ export function ArtifactBoard({
               status: row.status,
               failureReason: row.failure_reason,
               conceptsExtracted: row.concepts_extracted,
-              unitsCreatedOrMatched:
-                row.status === "completed" ? unitsCreatedOrMatched : (existing?.unitsCreatedOrMatched ?? 0),
+              unitsCreatedOrMatched: existing?.unitsCreatedOrMatched ?? 0,
             });
             return next;
           });
+
+          if (row.status === "completed") {
+            // Fire-and-forget count enrichment: not awaited before the
+            // commit above, and its eventual patch below only ever touches
+            // unitsCreatedOrMatched -- so even if a fresher event for this
+            // same artifact_id has already changed status/failureReason/
+            // conceptsExtracted by the time this resolves, this patch
+            // can't clobber those fields.
+            void (async () => {
+              const { count } = await supabase
+                .from("reconciliation_decisions")
+                .select("id", { count: "exact", head: true })
+                .eq("candidate_kind", "unit")
+                .eq("extraction_run_id", row.id);
+              const unitsCreatedOrMatched = count ?? 0;
+              setExtractionByArtifactId((latest) => {
+                const existing = latest.get(row.artifact_id);
+                if (!existing) return latest;
+                const next = new Map(latest);
+                next.set(row.artifact_id, { ...existing, unitsCreatedOrMatched });
+                return next;
+              });
+            })();
+          }
         },
       )
       .subscribe();
