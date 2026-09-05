@@ -16,17 +16,14 @@ export default async function CourseExamPlanPage({
   ]);
 
   return (
-    <main>
-      <h1>Exam Plan</h1>
-      <ExamPlanner
-        courseId={courseId}
-        initialConfig={config}
-        initialPlan={plan}
-        initialReadiness={readiness}
-        configureExam={configureExam}
-        submitTextAnswer={submitTextReviewAnswer}
-        submitStructuredAnswer={submitStructuredReviewAnswer}
-      />
-    </main>
+    <ExamPlanner
+      courseId={courseId}
+      initialConfig={config}
+      initialPlan={plan}
+      initialReadiness={readiness}
+      configureExam={configureExam}
+      submitTextAnswer={submitTextReviewAnswer}
+      submitStructuredAnswer={submitStructuredReviewAnswer}
+    />
   );
 }
