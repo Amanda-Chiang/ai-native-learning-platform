@@ -5,6 +5,10 @@ import {
   type ExistingConceptSummary,
   type ReconciliationClassifier,
   type ReconciliationResult,
+  reconcileUnit,
+  type ExistingUnitSummary,
+  type UnitReconciliationClassifier,
+  type UnitReconciliationResult,
 } from "../../../src/features/course-graph-ingestion/reconciliation.ts";
 
 // benchmark/dsa-course/concepts.json's own multiAliasConcept edge case:
@@ -94,6 +98,55 @@ test("a course with zero existing concepts short-circuits to 'distinct' without 
     { canonicalName: "Big-O Notation", aliases: [], description: "..." },
     [],
   );
+
+  assert.equal(result.decision, "distinct");
+  assert.equal(called, false, "classifier must not be called when there's nothing to compare against");
+});
+
+// Unit reconciliation tests (parallel to concept reconciliation above)
+const existingUnits: ExistingUnitSummary[] = [
+  { id: "unit-graph-theory-real-id", title: "Graph Theory" },
+  { id: "unit-dp-real-id", title: "Dynamic Programming" },
+];
+
+function fakeUnitClassifier(result: UnitReconciliationResult): UnitReconciliationClassifier {
+  return async () => result;
+}
+
+test("a mocked unit 'merge' response resolves to the existing unit's id", async () => {
+  const classify = fakeUnitClassifier({
+    decision: "merge",
+    matchedUnitId: "unit-graph-theory-real-id",
+    reasoning: "\"Graphs\" is the same topic as the existing \"Graph Theory\" unit.",
+  });
+
+  const result = await reconcileUnit(classify, { title: "Graphs" }, existingUnits);
+
+  assert.equal(result.decision, "merge");
+  if (result.decision === "merge") {
+    assert.equal(result.matchedUnitId, "unit-graph-theory-real-id");
+  }
+});
+
+test("a genuinely new unit classifies as 'distinct'", async () => {
+  const classify = fakeUnitClassifier({
+    decision: "distinct",
+    reasoning: "No existing unit covers sorting algorithms.",
+  });
+
+  const result = await reconcileUnit(classify, { title: "Sorting & Search" }, existingUnits);
+
+  assert.equal(result.decision, "distinct");
+});
+
+test("a course with zero existing units short-circuits to 'distinct' without calling the classifier", async () => {
+  let called = false;
+  const classify: UnitReconciliationClassifier = async () => {
+    called = true;
+    return { decision: "distinct", reasoning: "should not be reached" };
+  };
+
+  const result = await reconcileUnit(classify, { title: "Graph Theory" }, []);
 
   assert.equal(result.decision, "distinct");
   assert.equal(called, false, "classifier must not be called when there's nothing to compare against");

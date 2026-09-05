@@ -143,3 +143,117 @@ export async function reconcileConcept(
   }
   return classify(candidate, existingConcepts);
 }
+
+// ============================================================
+// Unit reconciliation -- structurally identical to concept
+// reconciliation above, kept as a separate parallel pair rather than
+// a shared generic (see plan Task 4's rationale: matchedConceptId's
+// field name is concept-specific, and a forced generic over a
+// 3-branch discriminated union reads worse than ~40 lines of
+// duplication here).
+// ============================================================
+
+export type ExistingUnitSummary = {
+  id: string;
+  title: string;
+};
+
+export type ReconciliationCandidateUnit = {
+  title: string;
+};
+
+export type UnitReconciliationResult =
+  | { decision: "merge"; matchedUnitId: string; reasoning: string }
+  | { decision: "distinct"; reasoning: string }
+  | { decision: "uncertain"; reasoning: string };
+
+export type UnitReconciliationClassifier = (
+  candidate: ReconciliationCandidateUnit,
+  existingUnits: ExistingUnitSummary[],
+) => Promise<UnitReconciliationResult>;
+
+const UNIT_RECONCILIATION_RESPONSE_SCHEMA = {
+  name: "unit_reconciliation",
+  strict: true,
+  schema: {
+    type: "object",
+    properties: {
+      decision: { type: "string", enum: ["merge", "distinct", "uncertain"] },
+      matchedUnitId: { type: ["string", "null"] },
+      reasoning: { type: "string" },
+    },
+    required: ["decision", "matchedUnitId", "reasoning"],
+    additionalProperties: false,
+  },
+} as const;
+
+function isValidUnitClassificationShape(
+  value: unknown,
+): value is { decision: "merge" | "distinct" | "uncertain"; matchedUnitId: string | null; reasoning: string } {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  if (v.decision !== "merge" && v.decision !== "distinct" && v.decision !== "uncertain") return false;
+  if (v.matchedUnitId !== null && typeof v.matchedUnitId !== "string") return false;
+  if (typeof v.reasoning !== "string") return false;
+  return true;
+}
+
+export function createOpenAiUnitReconciliationClassifier(
+  openai: OpenAI,
+  model: string,
+): UnitReconciliationClassifier {
+  return async (candidate, existingUnits) => {
+    const response = await openai.responses.create({
+      model,
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                "You are reconciling one newly extracted course unit (a coarse topic grouping, e.g. \"Graph Theory\") against a course's existing unit list.",
+                "Decide exactly one of: \"merge\" (this candidate is the same underlying topic as one existing unit, possibly under a different name -- set matchedUnitId to that unit's id), \"distinct\" (this is genuinely a different, new topic grouping), or \"uncertain\" (you are not confident either way -- never guess merge or distinct when you're not sure).",
+                "",
+                `Candidate: ${JSON.stringify(candidate)}`,
+                "",
+                `Existing units: ${JSON.stringify(existingUnits)}`,
+              ].join("\n"),
+            },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: UNIT_RECONCILIATION_RESPONSE_SCHEMA.name,
+          strict: UNIT_RECONCILIATION_RESPONSE_SCHEMA.strict,
+          schema: UNIT_RECONCILIATION_RESPONSE_SCHEMA.schema,
+        },
+      },
+    });
+
+    const raw: unknown = JSON.parse(response.output_text);
+    if (!isValidUnitClassificationShape(raw)) {
+      throw new Error("Unit reconciliation response failed schema validation.");
+    }
+    if (raw.decision === "merge") {
+      if (!raw.matchedUnitId) {
+        throw new Error("Unit reconciliation returned decision \"merge\" without a matchedUnitId.");
+      }
+      return { decision: "merge", matchedUnitId: raw.matchedUnitId, reasoning: raw.reasoning };
+    }
+    return { decision: raw.decision, reasoning: raw.reasoning };
+  };
+}
+
+export async function reconcileUnit(
+  classify: UnitReconciliationClassifier,
+  candidate: ReconciliationCandidateUnit,
+  existingUnits: ExistingUnitSummary[],
+): Promise<UnitReconciliationResult> {
+  if (existingUnits.length === 0) {
+    return { decision: "distinct", reasoning: "No existing units in this course yet to compare against." };
+  }
+  return classify(candidate, existingUnits);
+}
