@@ -919,3 +919,35 @@ real user-facing path (RLS as an ordinary authenticated user, Server-
 to-Client Component prop boundaries, real form submission) actually
 works. A feature isn't done-done until it's been clicked through for
 real at least once.
+
+## 2026-09-02 — Real upload found by the product owner: filename with "#" silently truncated in Storage
+
+The RLS fix above unblocked uploads, but the very next real upload
+(a file literally named `HW#1.pdf`) still failed:
+`artifact_processing_runs.failure_reason` read "The uploaded file
+could not be found in storage." Root-caused by re-uploading the same
+bytes/path with a service-role script and listing the real Storage
+folder afterward: the object landed named `HW`, not `HW#1.pdf` --
+Supabase's storage-js client builds the upload request's URL by
+concatenating the key without encoding it, so an unencoded `#` is
+read as a URL fragment delimiter and everything after it is dropped.
+Tried `encodeURIComponent(file.name)` first; that made storage-js
+itself reject the upload with `InvalidKey` (Supabase decodes the key
+before validating it, so `%23` still resolves to a rejected `#`).
+Landed on sanitizing the storage key instead -- replacing anything
+outside `[a-zA-Z0-9._-]` with `_` -- while leaving `original_filename`
+in the DB untouched for display (`artifact-board.tsx`). Verified live:
+the same upload/list round-trip that reproduced the bug (a real file
+named `HW#1.pdf`) succeeds with the sanitized key and lists back
+correctly.
+
+Also found while diagnosing this: the product owner's *first* upload
+attempt (before the RLS fix above landed) left a permanently dead
+`artifacts` row stuck at `queued` with no `artifact_processing_run`
+at all -- an orphan from hitting the RLS bug mid-write. Not a bug to
+fix (uploadArtifact() correctly returns an error in that path today,
+matching every other write in this project's convention of never
+partially applying a multi-step write silently); the dead row itself
+is real leftover data, not a code defect -- decided to leave orphan
+cleanup out of scope rather than add a reconciliation job for a
+failure mode this specific bug can no longer produce.

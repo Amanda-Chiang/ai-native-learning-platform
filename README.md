@@ -3,8 +3,14 @@
 An AI-native learning platform built as a responsive web application, per
 `docs/technical-prd.md`, sequenced via `docs/implementation-roadmap.md`.
 
-**Status (2026-09-01)**: All six roadmap phases fully implemented and
-verified live (schemas + benchmark corpus,
+**Status (2026-09-04)**: All six roadmap phases fully implemented and
+verified live, plus a post-completion hardening pass that found and
+fixed real bugs only real browser/Playwright use surfaced (RLS gaps,
+Server/Client Component boundary violations, an unsanitized Storage
+filename, missing input bounds) — see `brain/decisions/
+architecture-log.md`'s entries from 2026-09-02 onward for the full,
+current list; this paragraph is a snapshot, not the source of truth.
+Phase summary (schemas + benchmark corpus,
 Supabase Auth/Postgres/RLS/Storage/Trigger.dev foundation, course-graph
 ingestion with a real OpenAI extraction pipeline, React Flow + ELK
 concept atlas renderer, evidence-backed learner state with a
@@ -33,7 +39,9 @@ If you're an agent picking this project up cold: read `CLAUDE.md` and
 `AGENTS.md` first (durable rules), then `docs/implementation-roadmap.md`
 for phase sequencing, then the highest-numbered `specs/NNN-*/tasks.md`
 for exactly what's done and what's next — do not assume this file or the
-roadmap's own prose is more current than that.
+roadmap's own prose is more current than that. For durable architecture
+context, product commitments, and known lessons/gotchas beyond what's in
+`docs/`, see `brain/README.md` — an index of everything under `brain/`.
 
 ## Prerequisites
 
