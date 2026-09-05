@@ -1,5 +1,6 @@
 import { listArtifacts } from "@/features/artifacts/actions.ts";
 import { getReviewQueue, listUnits } from "@/features/course-graph-ingestion/actions.ts";
+import { getExtractionStatuses } from "@/features/course-graph-ingestion/extraction-status.ts";
 import { UnitsSection } from "@/features/course-graph-ingestion/components/UnitsSection.tsx";
 import { ReviewQueue } from "@/features/course-graph-ingestion/components/ReviewQueue.tsx";
 
@@ -9,10 +10,11 @@ export default async function CourseDetailPage({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
-  const [artifacts, pendingItems, units] = await Promise.all([
+  const [artifacts, pendingItems, units, extractionStatuses] = await Promise.all([
     listArtifacts(courseId),
     getReviewQueue(courseId),
     listUnits(courseId),
+    getExtractionStatuses(courseId),
   ]);
 
   return (
@@ -26,7 +28,12 @@ export default async function CourseDetailPage({
           </p>
         </div>
 
-        <UnitsSection courseId={courseId} initialArtifacts={artifacts} initialUnits={units} />
+        <UnitsSection
+          courseId={courseId}
+          initialArtifacts={artifacts}
+          initialUnits={units}
+          extractionStatuses={extractionStatuses}
+        />
 
         {pendingItems.length > 0 && (
           <div style={s.section}>
