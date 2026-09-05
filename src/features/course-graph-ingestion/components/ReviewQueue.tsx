@@ -25,7 +25,9 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewQueueItem[] 
   const [editingId, setEditingId] = useState<string | null>(null);
 
   function itemId(item: ReviewQueueItem): string {
-    return item.kind === "concept" ? item.concept.id : item.edge.id;
+    if (item.kind === "concept") return item.concept.id;
+    if (item.kind === "edge") return item.edge.id;
+    return item.unit.id;
   }
 
   async function handleConfirm(item: ReviewQueueItem) {
@@ -62,10 +64,12 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewQueueItem[] 
             canonicalName: String(form.get("canonicalName") ?? ""),
             description: String(form.get("description") ?? ""),
           })
-        : await editCandidate("edge", id, {
-            relationType: String(form.get("relationType") ?? "") as (typeof STANDARD_RELATION_TYPES)[number],
-            explanation: String(form.get("explanation") ?? ""),
-          });
+        : item.kind === "edge"
+          ? await editCandidate("edge", id, {
+              relationType: String(form.get("relationType") ?? "") as (typeof STANDARD_RELATION_TYPES)[number],
+              explanation: String(form.get("explanation") ?? ""),
+            })
+          : await editCandidate("unit", id, { title: String(form.get("title") ?? "") });
 
     setPendingId(null);
     if (error) {
@@ -90,14 +94,17 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewQueueItem[] 
             },
           };
         }
-        return {
-          ...i,
-          edge: {
-            ...i.edge,
-            relationType: String(form.get("relationType") ?? i.edge.relationType) as typeof i.edge.relationType,
-            explanation: String(form.get("explanation") ?? i.edge.explanation),
-          },
-        };
+        if (i.kind === "edge") {
+          return {
+            ...i,
+            edge: {
+              ...i.edge,
+              relationType: String(form.get("relationType") ?? i.edge.relationType) as typeof i.edge.relationType,
+              explanation: String(form.get("explanation") ?? i.edge.explanation),
+            },
+          };
+        }
+        return { ...i, unit: { ...i.unit, title: String(form.get("title") ?? i.unit.title) } };
       }),
     );
   }
@@ -125,10 +132,20 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewQueueItem[] 
                 )}
                 <p style={s.description}>{item.concept.description}</p>
               </>
-            ) : (
+            ) : item.kind === "edge" ? (
               <>
                 <h3 style={s.cardTitle}>{item.edge.relationType}</h3>
                 <p style={s.description}>{item.edge.explanation}</p>
+              </>
+            ) : (
+              <>
+                <h3 style={s.cardTitle}>{item.unit.title}</h3>
+                <p style={s.description}>Unit (topic grouping)</p>
+                {item.otherExistingUnitTitles.length > 0 && (
+                  <p style={s.aliases}>
+                    This course's other existing units: {item.otherExistingUnitTitles.join(", ")}
+                  </p>
+                )}
               </>
             )}
 
@@ -139,7 +156,7 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewQueueItem[] 
               </p>
             )}
 
-            {item.flags.length > 0 && (
+            {item.kind !== "unit" && item.flags.length > 0 && (
               <div style={s.flags}>
                 <strong>
                   {item.flags.length} student flag{item.flags.length === 1 ? "" : "s"}:
@@ -161,7 +178,7 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewQueueItem[] 
                     <input name="canonicalName" defaultValue={item.concept.canonicalName} style={s.input} />
                     <textarea name="description" defaultValue={item.concept.description} style={s.textarea} />
                   </>
-                ) : (
+                ) : item.kind === "edge" ? (
                   <>
                     <select name="relationType" defaultValue={item.edge.relationType} style={s.input}>
                       {STANDARD_RELATION_TYPES.map((t) => (
@@ -172,6 +189,8 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewQueueItem[] 
                     </select>
                     <textarea name="explanation" defaultValue={item.edge.explanation} style={s.textarea} />
                   </>
+                ) : (
+                  <input name="title" defaultValue={item.unit.title} style={s.input} />
                 )}
                 <div style={s.buttonRow}>
                   <button type="submit" disabled={isPending} style={s.primaryButton}>
