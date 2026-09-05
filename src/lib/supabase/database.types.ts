@@ -29,6 +29,7 @@ export type ArtifactRow = {
   mime_type: string;
   size_bytes: number;
   status: ArtifactStatus;
+  target_unit_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -65,6 +66,8 @@ export type CourseUnitRow = {
   course_id: string;
   owner_id: string;
   title: string;
+  status: OntologyStatus;
+  extraction_run_id: string | null;
   created_at: string;
 };
 
@@ -135,7 +138,7 @@ export type ExtractionRunRow = {
   created_at: string;
 };
 
-export type ReconciliationDecisionKind = "concept" | "edge";
+export type ReconciliationDecisionKind = "concept" | "edge" | "unit";
 export type ReconciliationDecisionOutcome = "merge" | "distinct" | "uncertain";
 
 export type ReconciliationDecisionRow = {
@@ -146,6 +149,7 @@ export type ReconciliationDecisionRow = {
   candidate_kind: ReconciliationDecisionKind;
   decision: ReconciliationDecisionOutcome;
   matched_concept_id: string | null;
+  matched_unit_id: string | null;
   reasoning: string;
   created_at: string;
 };
