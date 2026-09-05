@@ -267,7 +267,7 @@ export async function getCourseGraph(courseId: string): Promise<CourseGraph> {
   const supabase = await createClient();
 
   const [unitsRes, conceptsRes, edgesRes] = await Promise.all([
-    supabase.from("course_units").select("*").eq("course_id", courseId),
+    supabase.from("course_units").select("*").eq("course_id", courseId).eq("status", "confirmed"),
     supabase.from("course_concepts").select("*").eq("course_id", courseId).eq("status", "confirmed"),
     supabase.from("concept_edges").select("*").eq("course_id", courseId).eq("status", "confirmed"),
   ]);

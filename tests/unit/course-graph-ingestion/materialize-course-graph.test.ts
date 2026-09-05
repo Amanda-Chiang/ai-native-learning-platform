@@ -92,3 +92,22 @@ test("units group their concepts' ids correctly", () => {
   assert.deepEqual(graphsUnit.conceptIds, ["concept-1"]);
   assert.deepEqual(treesUnit.conceptIds, ["concept-2"]);
 });
+
+test("materializeCourseGraph only ever receives units the caller already filtered to confirmed -- a concept referencing a unit not in the passed-in list still throws", () => {
+  // materializeCourseGraph itself is unchanged (Task's real fix is in
+  // actions.ts's query, not this pure function) -- this test just
+  // documents/locks the existing invariant that a concept's unit_id
+  // must resolve within whatever unit list was passed in, since
+  // that's what makes the actions.ts filter change actually matter.
+  assert.throws(() =>
+    materializeCourseGraph(
+      [], // no units passed in, e.g. because the real query now correctly excludes a "proposed" one
+      [
+        concept({
+          unit_id: "proposed-unit-not-in-list",
+        }),
+      ],
+      [],
+    ),
+  );
+});
