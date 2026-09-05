@@ -19,6 +19,7 @@ import type {
 } from "@/lib/supabase/database.types.ts";
 import { validateFlagReason } from "@/features/course-graph-ingestion/flag-validation.ts";
 import { sortReviewQueueByPriority } from "@/features/course-graph-ingestion/review-queue-priority.ts";
+import { resolveOtherEndpoint, shouldAutoConfirmEdge } from "./edge-auto-confirm.ts";
 
 /**
  * Server action contracts: specs/004-course-graph-ingestion/contracts/ingestion-actions.md
@@ -333,8 +334,7 @@ async function autoConfirmEligibleEdges(
   if (edgesError || !candidateEdges) return;
 
   for (const edge of candidateEdges) {
-    const otherConceptId =
-      edge.source_concept_id === confirmedConceptId ? edge.target_concept_id : edge.source_concept_id;
+    const otherConceptId = resolveOtherEndpoint(edge, confirmedConceptId);
 
     const { data: otherConcept, error: otherConceptError } = await supabase
       .from("course_concepts")
@@ -343,7 +343,7 @@ async function autoConfirmEligibleEdges(
       .single();
 
     if (otherConceptError || !otherConcept) continue;
-    if (otherConcept.status !== "confirmed") continue;
+    if (!shouldAutoConfirmEdge(otherConcept.status)) continue;
 
     await confirmCandidate("edge", edge.id);
   }

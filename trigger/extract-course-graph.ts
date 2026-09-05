@@ -515,8 +515,10 @@ async function writeExtractionCandidates(
 
   let edgesExtracted = 0;
   for (const edge of toInsert) {
-    const bothEndpointsConfirmed =
-      statusById.get(edge.sourceConceptId) === "confirmed" && statusById.get(edge.targetConceptId) === "confirmed";
+    const bothEndpointsConfirmed = shouldEdgeAutoConfirm(
+      statusById.get(edge.sourceConceptId),
+      statusById.get(edge.targetConceptId),
+    );
 
     const { error: edgeInsertError } = await supabase.from("concept_edges").insert({
       course_id: courseId,
@@ -596,6 +598,23 @@ export function resolveEdgeEndpoints(
   }
 
   return { toInsert, droppedSelfReferential };
+}
+
+/**
+ * Pure: decides whether an edge should insert as 'confirmed' instead of
+ * 'proposed' (2026-09-05 amendment to FR-006, specs/004-course-graph-ingestion/spec.md
+ * -- edges have no manual review of their own; instead an edge auto-confirms
+ * the moment both endpoint concepts it connects are themselves 'confirmed').
+ * `undefined` covers a concept id that didn't resolve to a status row (e.g.
+ * missing from the batched lookup) -- treated as "not confirmed" rather than
+ * throwing, since the caller already guarantees every concept id an edge
+ * references is a real, pre-existing row; a missing status here is
+ * defensive, not expected. Factored out from writeExtractionCandidates
+ * specifically so this invariant is testable without a live Supabase client
+ * (tests/unit/course-graph-ingestion/edge-auto-confirm.test.ts).
+ */
+export function shouldEdgeAutoConfirm(sourceStatus: string | undefined, targetStatus: string | undefined): boolean {
+  return sourceStatus === "confirmed" && targetStatus === "confirmed";
 }
 
 /**
