@@ -355,8 +355,25 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
     (kind) => modalItems.some((i) => i.kind === kind),
   );
 
+  // Nothing pending and no popup open -- this is the steady-state, most
+  // of the time this component is mounted (it stays mounted always so
+  // its Realtime subscription above keeps listening for the next
+  // extraction run to complete). Render nothing visible at all: no
+  // heading, no description, no empty-state sentence. The "Pending
+  // review" chrome only ever earns its place on the page when there is
+  // something to actually review.
+  if (items.length === 0 && activeModalRunId === null) {
+    return null;
+  }
+
   return (
-    <>
+    <div style={s.section}>
+      <h2 style={s.subsectionTitle}>Pending review</h2>
+      <p style={s.sectionDesc}>
+        Concepts and relationships extraction proposed from your uploads -- confirm, edit, or reject each one before
+        it becomes part of the real concept graph.
+      </p>
+
       {items.length === 0 ? (
         <p style={s.empty}>No proposed concepts or relationships waiting for review.</p>
       ) : (
@@ -392,11 +409,26 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
+  section: { display: "flex", flexDirection: "column", gap: 4 },
+  subsectionTitle: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 500,
+    letterSpacing: "-0.02em",
+    color: "var(--text-primary)",
+  },
+  sectionDesc: {
+    margin: 0,
+    fontSize: 13.5,
+    color: "var(--text-secondary)",
+    lineHeight: 1.55,
+    letterSpacing: "-0.005em",
+  },
   empty: { fontSize: 13.5, color: "var(--text-tertiary)" },
   list: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 },
   card: {

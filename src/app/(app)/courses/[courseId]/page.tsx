@@ -35,14 +35,7 @@ export default async function CourseDetailPage({
           initialExtractionStatuses={extractionStatuses}
         />
 
-        <div style={s.section}>
-          <h2 style={s.subsectionTitle}>Pending review</h2>
-          <p style={s.sectionDesc}>
-            Concepts and relationships extraction proposed from your uploads -- confirm, edit, or reject each one
-            before it becomes part of the real concept graph.
-          </p>
-          <ReviewQueue items={pendingItems} courseId={courseId} />
-        </div>
+        <ReviewQueue items={pendingItems} courseId={courseId} />
       </div>
     </div>
   );
