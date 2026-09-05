@@ -41,6 +41,22 @@ export async function createCourse(
   return { course: { id: data.id, name: data.name, createdAt: data.created_at } };
 }
 
+export async function getCourse(courseId: string): Promise<Course | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("courses")
+    .select("id, name, created_at")
+    .eq("id", courseId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return { id: data.id, name: data.name, createdAt: data.created_at };
+}
+
 export async function listCourses(): Promise<Course[]> {
   const supabase = await createClient();
 
