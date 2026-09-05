@@ -1,13 +1,160 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   confirmCandidate,
   rejectCandidate,
   editCandidate,
+  getReviewQueue,
   type ReviewQueueItem,
 } from "@/features/course-graph-ingestion/actions.ts";
+import { createClient } from "@/lib/supabase/client.ts";
 import { STANDARD_RELATION_TYPES } from "@/types/domain/index.ts";
+
+function itemId(item: ReviewQueueItem): string {
+  if (item.kind === "concept") return item.concept.id;
+  if (item.kind === "edge") return item.edge.id;
+  return item.unit.id;
+}
+
+const KIND_LABEL: Record<ReviewQueueItem["kind"], string> = {
+  concept: "Concept",
+  edge: "Edge",
+  unit: "Unit",
+};
+
+/**
+ * The rendering/editing logic for a single review-queue candidate,
+ * extracted out so the plain always-visible list and the one-time
+ * per-run popup render the exact same card -- confirming, editing, or
+ * rejecting an item behaves identically no matter which surface it was
+ * clicked from, and there is only one JSX implementation to keep in
+ * sync (see the popup feature's "don't duplicate the card a second
+ * time" requirement).
+ */
+function CandidateCard({
+  item,
+  isPending,
+  isEditing,
+  error,
+  onSetEditing,
+  onCancelEdit,
+  onSaveEdit,
+  onConfirm,
+  onReject,
+}: {
+  item: ReviewQueueItem;
+  isPending: boolean;
+  isEditing: boolean;
+  error: string | undefined;
+  onSetEditing: () => void;
+  onCancelEdit: () => void;
+  onSaveEdit: (form: FormData) => void;
+  onConfirm: () => void;
+  onReject: () => void;
+}) {
+  const id = itemId(item);
+  const isUncertain = item.reconciliation?.decision === "uncertain";
+
+  return (
+    <li style={s.card}>
+      <div style={s.cardContent}>
+        {isEditing ? (
+          item.kind === "concept" ? (
+            <>
+              <input name="canonicalName" form={`edit-form-${id}`} defaultValue={item.concept.canonicalName} style={s.input} />
+              <textarea name="description" form={`edit-form-${id}`} defaultValue={item.concept.description} style={s.textarea} />
+            </>
+          ) : item.kind === "edge" ? (
+            <>
+              <select name="relationType" form={`edit-form-${id}`} defaultValue={item.edge.relationType} style={s.input}>
+                {STANDARD_RELATION_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <textarea name="explanation" form={`edit-form-${id}`} defaultValue={item.edge.explanation} style={s.textarea} />
+            </>
+          ) : (
+            <input name="title" form={`edit-form-${id}`} defaultValue={item.unit.title} style={s.input} />
+          )
+        ) : item.kind === "concept" ? (
+          <>
+            <h3 style={s.cardTitle}>{item.concept.canonicalName}</h3>
+            {item.concept.aliases.length > 0 && (
+              <p style={s.aliases}>Also known as: {item.concept.aliases.join(", ")}</p>
+            )}
+            <p style={s.description}>{item.concept.description}</p>
+          </>
+        ) : item.kind === "edge" ? (
+          <>
+            <h3 style={s.cardTitle}>{item.edge.relationType}</h3>
+            <p style={s.description}>{item.edge.explanation}</p>
+          </>
+        ) : (
+          <>
+            <h3 style={s.cardTitle}>{item.unit.title}</h3>
+            {item.otherExistingUnitTitles.length > 0 && (
+              <p style={s.aliases}>
+                This course's other existing units: {item.otherExistingUnitTitles.join(", ")}
+              </p>
+            )}
+          </>
+        )}
+
+        {item.reconciliation && (
+          <p style={{ ...s.reconciliation, ...(isUncertain ? s.reconciliationUncertain : {}) }}>
+            {isUncertain ? "⚠ Uncertain match: " : "Reconciliation: "}
+            {item.reconciliation.reasoning}
+          </p>
+        )}
+
+        {item.kind !== "unit" && item.flags.length > 0 && (
+          <div style={s.flags}>
+            <strong>
+              {item.flags.length} student flag{item.flags.length === 1 ? "" : "s"}:
+            </strong>
+            <ul style={s.flagList}>
+              {item.flags.map((flag) => (
+                <li key={flag.id}>{flag.reason}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {error && <p style={s.error}>{error}</p>}
+      </div>
+
+      {isEditing ? (
+        <form
+          id={`edit-form-${id}`}
+          action={(form) => onSaveEdit(form)}
+          style={s.actionColumn}
+        >
+          <button type="submit" disabled={isPending} style={s.primaryButton}>
+            Save
+          </button>
+          <button type="button" onClick={onCancelEdit} style={s.secondaryButton}>
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <div style={s.actionColumn}>
+          <button type="button" disabled={isPending} onClick={onConfirm} style={s.primaryButton}>
+            Confirm
+          </button>
+          <button type="button" disabled={isPending} onClick={onSetEditing} style={s.secondaryButton}>
+            Edit
+          </button>
+          <button type="button" disabled={isPending} onClick={onReject} style={s.rejectButton}>
+            Reject
+          </button>
+        </div>
+      )}
+    </li>
+  );
+}
 
 /**
  * Reviewer UI for User Story 3: lists proposed concepts/edges, shows
@@ -17,17 +164,69 @@ import { STANDARD_RELATION_TYPES } from "@/types/domain/index.ts";
  * A candidate with an "uncertain" reconciliation decision is visibly
  * distinguished from one with none at all -- FR-005 requires an
  * uncertain case never look the same as ordinary, unflagged confidence.
+ *
+ * On top of the always-visible plain list, this also surfaces a
+ * one-time popup scoped to whichever single extraction run just
+ * completed (or, on page load, whichever run still has unreviewed
+ * candidates left over from last time) -- see
+ * .superpowers/sdd/2026-09-05-unit-extraction-reconciliation/ for the
+ * full spec this satisfies. The popup and the plain list share the
+ * same `items` state and the same CandidateCard renderer, so confirming
+ * or rejecting an item anywhere removes it from both immediately.
  */
-export function ReviewQueue({ items: initialItems }: { items: ReviewQueueItem[] }) {
+export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQueueItem[]; courseId: string }) {
   const [items, setItems] = useState(initialItems);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errorById, setErrorById] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  function itemId(item: ReviewQueueItem): string {
-    if (item.kind === "concept") return item.concept.id;
-    if (item.kind === "edge") return item.edge.id;
-    return item.unit.id;
+  // On page load, if any leftover 'proposed' candidate from a prior
+  // extraction run is still sitting unreviewed, re-open the popup for
+  // that run -- items is already priority-sorted, so the first item
+  // with a non-null extractionRunId picks a single run deterministically
+  // (per the spec: no multi-run queue, handle one run at a time).
+  const [activeModalRunId, setActiveModalRunId] = useState<string | null>(
+    () => initialItems.find((i) => i.extractionRunId !== null)?.extractionRunId ?? null,
+  );
+
+  // Live trigger: the moment Realtime reports an extraction_runs row for
+  // this course flipping to "completed", re-fetch the full review queue
+  // (a fresh read, not an incremental patch -- getReviewQueue already
+  // does the joins/sorting) and open the popup for that run. There's no
+  // race to guard against here the way ArtifactBoard/ExtractionStatusList
+  // had to: the only thing this handler commits is "replace items with
+  // this fresh snapshot, then point the popup at this run's id" -- if a
+  // second "completed" event for a different run arrived while this
+  // fetch was in flight, its own handler's later-resolving fetch is a
+  // strictly newer full snapshot, so the later one always wins and no
+  // handler bases a commit on stale intermediate state.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`extraction-runs-review-${courseId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "extraction_runs", filter: `course_id=eq.${courseId}` },
+        (payload) => {
+          const row = payload.new as { id: string; status: string };
+          if (row.status !== "completed") return;
+
+          void (async () => {
+            const fresh = await getReviewQueue(courseId);
+            setItems(fresh);
+            setActiveModalRunId(row.id);
+          })();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [courseId]);
+
+  function closeModal() {
+    setActiveModalRunId(null);
   }
 
   async function handleConfirm(item: ReviewQueueItem) {
@@ -109,115 +308,82 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewQueueItem[] 
     );
   }
 
-  if (items.length === 0) {
-    return <p style={s.empty}>No proposed concepts or relationships waiting for review.</p>;
+  // Popup scope: only candidates from the one run currently active.
+  // If everything in that run just got confirmed/rejected (including via
+  // a bulk-confirm click below), there's nothing left to show for it --
+  // auto-close rather than leave an empty modal open.
+  const modalItems = activeModalRunId === null ? [] : items.filter((i) => i.extractionRunId === activeModalRunId);
+  useEffect(() => {
+    if (activeModalRunId !== null && modalItems.length === 0) {
+      setActiveModalRunId(null);
+    }
+  }, [activeModalRunId, modalItems.length]);
+
+  async function handleBulkConfirm(kind: ReviewQueueItem["kind"]) {
+    const toConfirm = modalItems.filter((i) => i.kind === kind);
+    await Promise.all(toConfirm.map((i) => handleConfirm(i)));
   }
 
+  function renderCard(item: ReviewQueueItem) {
+    const id = itemId(item);
+    return (
+      <CandidateCard
+        key={id}
+        item={item}
+        isPending={pendingId === id}
+        isEditing={editingId === id}
+        error={errorById[id]}
+        onSetEditing={() => setEditingId(id)}
+        onCancelEdit={() => setEditingId(null)}
+        onSaveEdit={(form) => handleSaveEdit(item, form)}
+        onConfirm={() => handleConfirm(item)}
+        onReject={() => handleReject(item)}
+      />
+    );
+  }
+
+  const bulkKinds = (["concept", "edge", "unit"] as const).filter(
+    (kind) => modalItems.some((i) => i.kind === kind),
+  );
+
   return (
-    <ul style={s.list}>
-      {items.map((item) => {
-        const id = itemId(item);
-        const isPending = pendingId === id;
-        const isEditing = editingId === id;
-        const error = errorById[id];
-        const isUncertain = item.reconciliation?.decision === "uncertain";
+    <>
+      {items.length === 0 ? (
+        <p style={s.empty}>No proposed concepts or relationships waiting for review.</p>
+      ) : (
+        <ul style={s.list}>{items.map((item) => renderCard(item))}</ul>
+      )}
 
-        return (
-          <li key={id} style={s.card}>
-            <div style={s.cardContent}>
-              {isEditing ? (
-                item.kind === "concept" ? (
-                  <>
-                    <input name="canonicalName" form={`edit-form-${id}`} defaultValue={item.concept.canonicalName} style={s.input} />
-                    <textarea name="description" form={`edit-form-${id}`} defaultValue={item.concept.description} style={s.textarea} />
-                  </>
-                ) : item.kind === "edge" ? (
-                  <>
-                    <select name="relationType" form={`edit-form-${id}`} defaultValue={item.edge.relationType} style={s.input}>
-                      {STANDARD_RELATION_TYPES.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                    <textarea name="explanation" form={`edit-form-${id}`} defaultValue={item.edge.explanation} style={s.textarea} />
-                  </>
-                ) : (
-                  <input name="title" form={`edit-form-${id}`} defaultValue={item.unit.title} style={s.input} />
-                )
-              ) : item.kind === "concept" ? (
-                <>
-                  <h3 style={s.cardTitle}>{item.concept.canonicalName}</h3>
-                  {item.concept.aliases.length > 0 && (
-                    <p style={s.aliases}>Also known as: {item.concept.aliases.join(", ")}</p>
-                  )}
-                  <p style={s.description}>{item.concept.description}</p>
-                </>
-              ) : item.kind === "edge" ? (
-                <>
-                  <h3 style={s.cardTitle}>{item.edge.relationType}</h3>
-                  <p style={s.description}>{item.edge.explanation}</p>
-                </>
-              ) : (
-                <>
-                  <h3 style={s.cardTitle}>{item.unit.title}</h3>
-                  {item.otherExistingUnitTitles.length > 0 && (
-                    <p style={s.aliases}>
-                      This course's other existing units: {item.otherExistingUnitTitles.join(", ")}
-                    </p>
-                  )}
-                </>
-              )}
-
-              {item.reconciliation && (
-                <p style={{ ...s.reconciliation, ...(isUncertain ? s.reconciliationUncertain : {}) }}>
-                  {isUncertain ? "⚠ Uncertain match: " : "Reconciliation: "}
-                  {item.reconciliation.reasoning}
-                </p>
-              )}
-
-              {item.kind !== "unit" && item.flags.length > 0 && (
-                <div style={s.flags}>
-                  <strong>
-                    {item.flags.length} student flag{item.flags.length === 1 ? "" : "s"}:
-                  </strong>
-                  <ul style={s.flagList}>
-                    {item.flags.map((flag) => (
-                      <li key={flag.id}>{flag.reason}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {error && <p style={s.error}>{error}</p>}
+      {activeModalRunId !== null && modalItems.length > 0 && (
+        <div style={s.overlay} role="dialog" aria-modal="true">
+          <div style={s.modal}>
+            <div style={s.modalHeader}>
+              <h2 style={s.modalTitle}>New extraction results</h2>
+              <button type="button" onClick={closeModal} style={s.closeButton} aria-label="Close">
+                ×
+              </button>
             </div>
-
-            {isEditing ? (
-              <form id={`edit-form-${id}`} action={(form) => handleSaveEdit(item, form)} style={s.actionColumn}>
-                <button type="submit" disabled={isPending} style={s.primaryButton}>
-                  Save
-                </button>
-                <button type="button" onClick={() => setEditingId(null)} style={s.secondaryButton}>
-                  Cancel
-                </button>
-              </form>
-            ) : (
-              <div style={s.actionColumn}>
-                <button type="button" disabled={isPending} onClick={() => handleConfirm(item)} style={s.primaryButton}>
-                  Confirm
-                </button>
-                <button type="button" disabled={isPending} onClick={() => setEditingId(id)} style={s.secondaryButton}>
-                  Edit
-                </button>
-                <button type="button" disabled={isPending} onClick={() => handleReject(item)} style={s.rejectButton}>
-                  Reject
-                </button>
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+            <ul style={s.modalList}>{modalItems.map((item) => renderCard(item))}</ul>
+            <div style={s.modalFooter}>
+              {bulkKinds.map((kind) => {
+                const count = modalItems.filter((i) => i.kind === kind).length;
+                return (
+                  <button
+                    key={kind}
+                    type="button"
+                    onClick={() => handleBulkConfirm(kind)}
+                    style={s.primaryButton}
+                  >
+                    Confirm {count} {KIND_LABEL[kind]}
+                    {count === 1 ? "" : "s"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -289,5 +455,62 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 12.5,
     fontFamily: "var(--font-sans)",
     cursor: "pointer",
+  },
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0, 0, 0, 0.4)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+    padding: 24,
+  },
+  modal: {
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-md)",
+    width: "100%",
+    maxWidth: 640,
+    maxHeight: "85vh",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  },
+  modalHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "16px 20px",
+    borderBottom: "1px solid var(--border)",
+    flexShrink: 0,
+  },
+  modalTitle: { margin: 0, fontSize: 16, fontWeight: 500, color: "var(--text-primary)", letterSpacing: "-0.02em" },
+  closeButton: {
+    background: "transparent",
+    border: "none",
+    fontSize: 20,
+    lineHeight: 1,
+    color: "var(--text-tertiary)",
+    cursor: "pointer",
+    padding: 4,
+  },
+  modalList: {
+    listStyle: "none",
+    padding: 20,
+    margin: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    overflowY: "auto",
+    flex: 1,
+  },
+  modalFooter: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    padding: "16px 20px",
+    borderTop: "1px solid var(--border)",
+    flexShrink: 0,
   },
 };
