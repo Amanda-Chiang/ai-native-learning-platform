@@ -18,8 +18,9 @@ type PriorityKey = { tier: number; secondary: number };
 
 function priorityOf(item: ReviewQueueItem): PriorityKey {
   // Units aren't flaggable (submitFlag only accepts "concept"/"edge"
-  // targets), so they carry no `flags` field at all -- narrow past
-  // them before touching `.flags`.
+  // targets -- an edge can still be flagged even though it no longer
+  // goes through manual review itself), so units carry no `flags` field
+  // at all -- narrow past them before touching `.flags`.
   if (item.kind !== "unit" && item.flags.length > 0) {
     // More flags => more urgent => sorts earlier. Negated so ascending
     // sort on `secondary` still puts the highest flag count first.
@@ -36,8 +37,7 @@ function priorityOf(item: ReviewQueueItem): PriorityKey {
     // key rather than a fabricated confidence value.
     return { tier: 2, secondary: 0 };
   }
-  const confidence = item.kind === "concept" ? item.concept.confidence : item.edge.confidence;
-  return { tier: 2, secondary: confidence };
+  return { tier: 2, secondary: item.concept.confidence };
 }
 
 export function sortReviewQueueByPriority(items: ReviewQueueItem[]): ReviewQueueItem[] {

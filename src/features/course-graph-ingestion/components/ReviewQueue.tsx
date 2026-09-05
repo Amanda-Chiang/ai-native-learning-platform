@@ -9,17 +9,14 @@ import {
   type ReviewQueueItem,
 } from "@/features/course-graph-ingestion/actions.ts";
 import { createClient } from "@/lib/supabase/client.ts";
-import { STANDARD_RELATION_TYPES } from "@/types/domain/index.ts";
 
 function itemId(item: ReviewQueueItem): string {
   if (item.kind === "concept") return item.concept.id;
-  if (item.kind === "edge") return item.edge.id;
   return item.unit.id;
 }
 
 const KIND_LABEL: Record<ReviewQueueItem["kind"], string> = {
   concept: "Concept",
-  edge: "Edge",
   unit: "Unit",
 };
 
@@ -65,17 +62,6 @@ function CandidateCard({
               <input name="canonicalName" form={`edit-form-${id}`} defaultValue={item.concept.canonicalName} style={s.input} />
               <textarea name="description" form={`edit-form-${id}`} defaultValue={item.concept.description} style={s.textarea} />
             </>
-          ) : item.kind === "edge" ? (
-            <>
-              <select name="relationType" form={`edit-form-${id}`} defaultValue={item.edge.relationType} style={s.input}>
-                {STANDARD_RELATION_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-              <textarea name="explanation" form={`edit-form-${id}`} defaultValue={item.edge.explanation} style={s.textarea} />
-            </>
           ) : (
             <input name="title" form={`edit-form-${id}`} defaultValue={item.unit.title} style={s.input} />
           )
@@ -86,11 +72,6 @@ function CandidateCard({
               <p style={s.aliases}>Also known as: {item.concept.aliases.join(", ")}</p>
             )}
             <p style={s.description}>{item.concept.description}</p>
-          </>
-        ) : item.kind === "edge" ? (
-          <>
-            <h3 style={s.cardTitle}>{item.edge.relationType}</h3>
-            <p style={s.description}>{item.edge.explanation}</p>
           </>
         ) : (
           <>
@@ -272,12 +253,7 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
             canonicalName: String(form.get("canonicalName") ?? ""),
             description: String(form.get("description") ?? ""),
           })
-        : item.kind === "edge"
-          ? await editCandidate("edge", id, {
-              relationType: String(form.get("relationType") ?? "") as (typeof STANDARD_RELATION_TYPES)[number],
-              explanation: String(form.get("explanation") ?? ""),
-            })
-          : await editCandidate("unit", id, { title: String(form.get("title") ?? "") });
+        : await editCandidate("unit", id, { title: String(form.get("title") ?? "") });
 
     setPendingId(null);
     if (error) {
@@ -299,16 +275,6 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
               ...i.concept,
               canonicalName: String(form.get("canonicalName") ?? i.concept.canonicalName),
               description: String(form.get("description") ?? i.concept.description),
-            },
-          };
-        }
-        if (i.kind === "edge") {
-          return {
-            ...i,
-            edge: {
-              ...i.edge,
-              relationType: String(form.get("relationType") ?? i.edge.relationType) as typeof i.edge.relationType,
-              explanation: String(form.get("explanation") ?? i.edge.explanation),
             },
           };
         }
@@ -351,7 +317,7 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
     );
   }
 
-  const bulkKinds = (["concept", "edge", "unit"] as const).filter(
+  const bulkKinds = (["concept", "unit"] as const).filter(
     (kind) => modalItems.some((i) => i.kind === kind),
   );
 

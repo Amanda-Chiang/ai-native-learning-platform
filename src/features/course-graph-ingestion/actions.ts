@@ -140,15 +140,8 @@ export type ReviewQueueItem =
       flags: ConceptFlag[];
       /** The extraction_runs row this candidate came from -- null for
        * anything that never went through the pipeline (there is none for
-       * concepts/edges today, but kept nullable for consistency with the
-       * unit variant, which does have a manually-created, run-less case). */
-      extractionRunId: string | null;
-    }
-  | {
-      kind: "edge";
-      edge: ConceptEdge;
-      reconciliation: ReconciliationDecision | null;
-      flags: ConceptFlag[];
+       * concepts today, but kept nullable for consistency with the unit
+       * variant, which does have a manually-created, run-less case). */
       extractionRunId: string | null;
     }
   | {
@@ -185,17 +178,19 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
   const supabase = await createClient();
 
   // RLS-scoped, no owner_id parameter, same pattern as every other
-  // server action in this codebase.
-  const [conceptsRes, edgesRes, unitsRes, decisionsRes, flagsRes] = await Promise.all([
+  // server action in this codebase. concept_edges is deliberately absent
+  // here (2026-09-05 amendment to FR-006) -- edges no longer go through
+  // manual review, they auto-confirm once both endpoint concepts are
+  // confirmed (see confirmCandidate's autoConfirmEligibleEdges cascade
+  // and extract-course-graph.ts's insert-time check).
+  const [conceptsRes, unitsRes, decisionsRes, flagsRes] = await Promise.all([
     supabase.from("course_concepts").select("*").eq("course_id", courseId).eq("status", "proposed"),
-    supabase.from("concept_edges").select("*").eq("course_id", courseId).eq("status", "proposed"),
     supabase.from("course_units").select("*").eq("course_id", courseId).eq("status", "proposed"),
     supabase.from("reconciliation_decisions").select("*").eq("course_id", courseId),
     supabase.from("concept_flags").select("*").eq("course_id", courseId),
   ]);
 
   const concepts = conceptsRes.data ?? [];
-  const edges = edgesRes.data ?? [];
   const proposedUnits = unitsRes.data ?? [];
   const decisions = decisionsRes.data ?? [];
   const flags = flagsRes.data ?? [];
@@ -246,14 +241,6 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
     };
   });
 
-  const edgeItems: ReviewQueueItem[] = edges.map((row) => ({
-    kind: "edge",
-    edge: edgeRowToDomain(row),
-    reconciliation: null,
-    flags: (flagsByTarget.get(row.id) ?? []).map(toConceptFlag),
-    extractionRunId: row.extraction_run_id,
-  }));
-
   const unitItems: ReviewQueueItem[] = proposedUnits.map((row) => {
     const runDecisions = row.extraction_run_id ? decisionsByExtractionRun.get(row.extraction_run_id) ?? [] : [];
     const matchingDecision = runDecisions.find((d) => d.candidate_kind === "unit" && d.decision !== "merge");
@@ -267,7 +254,7 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
     };
   });
 
-  return sortReviewQueueByPriority([...conceptItems, ...edgeItems, ...unitItems]);
+  return sortReviewQueueByPriority([...conceptItems, ...unitItems]);
 }
 
 const TABLE_BY_KIND = {
