@@ -1,15 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client.ts";
 import { uploadArtifact, type Artifact } from "@/features/artifacts/actions.ts";
 import type { ArtifactStatus } from "@/features/artifacts/status.ts";
+import { IconUpload, IconFile } from "@/components/icons.tsx";
 
 const STATUS_LABEL: Record<ArtifactStatus, string> = {
   queued: "Queued",
   processing: "Processing…",
   ready: "Ready",
   failed: "Failed",
+};
+
+const STATUS_COLOR: Record<ArtifactStatus, { bg: string; color: string }> = {
+  ready: { bg: "var(--teal-muted)", color: "var(--teal)" },
+  processing: { bg: "var(--denim-muted)", color: "var(--denim)" },
+  queued: { bg: "var(--border)", color: "var(--text-tertiary)" },
+  failed: { bg: "var(--clay-muted)", color: "var(--clay)" },
 };
 
 /**
@@ -30,6 +38,9 @@ export function ArtifactBoard({
   const [artifacts, setArtifacts] = useState(initialArtifacts);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -128,34 +139,145 @@ export function ArtifactBoard({
     }
   }
 
-  return (
-    <section>
-      <form action={handleUpload}>
-        <label>
-          Upload course material
-          <input type="file" name="file" required accept=".pdf,.png,.jpg,.jpeg,.heic,.webp" />
-        </label>
-        <button type="submit" disabled={uploading}>
-          {uploading ? "Uploading…" : "Upload"}
-        </button>
-      </form>
-      {uploadError && <p role="alert">{uploadError}</p>}
+  function handleDrop(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !fileInputRef.current || !formRef.current) return;
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    fileInputRef.current.files = transfer.files;
+    formRef.current.requestSubmit();
+  }
 
-      {artifacts.length === 0 ? (
-        <p>No files uploaded yet.</p>
-      ) : (
-        <ul>
+  return (
+    <section style={s.section}>
+      <form ref={formRef} action={handleUpload}>
+        <label
+          style={{ ...s.dropzone, ...(dragging ? s.dropzoneActive : {}) }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            name="file"
+            required
+            accept=".pdf,.png,.jpg,.jpeg,.heic,.webp"
+            style={{ display: "none" }}
+            onChange={() => formRef.current?.requestSubmit()}
+          />
+          <span style={s.uploadIcon}>
+            <IconUpload />
+          </span>
+          <div style={s.uploadText}>
+            <span style={s.uploadPrimary}>{uploading ? "Uploading…" : "Drop a file here or click to upload"}</span>
+            <span style={s.uploadSecondary}>PDF, PNG, JPG, HEIC, WebP · max 25 MB</span>
+          </div>
+        </label>
+      </form>
+      {uploadError && (
+        <p style={s.uploadError} role="alert">
+          {uploadError}
+        </p>
+      )}
+
+      {artifacts.length > 0 && (
+        <div style={s.artifactList}>
+          <div style={s.artifactHeader}>
+            <span style={s.artifactCount}>
+              {artifacts.length} {artifacts.length === 1 ? "file" : "files"}
+            </span>
+          </div>
           {artifacts.map((artifact) => (
-            <li key={artifact.id}>
-              <span>{artifact.originalFilename}</span>{" "}
-              <span>{STATUS_LABEL[artifact.status]}</span>
-              {artifact.status === "failed" && artifact.failureReason && (
-                <p role="alert">{artifact.failureReason}</p>
-              )}
-            </li>
+            <div key={artifact.id} style={s.artifactRow}>
+              <span style={s.artifactIcon}>
+                <IconFile />
+              </span>
+              <div style={s.artifactInfo}>
+                <span style={s.artifactName}>{artifact.originalFilename}</span>
+                {artifact.status === "failed" && artifact.failureReason && (
+                  <span style={s.failReason}>{artifact.failureReason}</span>
+                )}
+              </div>
+              <span
+                style={{
+                  ...s.statusBadge,
+                  background: STATUS_COLOR[artifact.status].bg,
+                  color: STATUS_COLOR[artifact.status].color,
+                }}
+              >
+                {STATUS_LABEL[artifact.status]}
+              </span>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </section>
   );
 }
+
+const s: Record<string, React.CSSProperties> = {
+  section: { display: "flex", flexDirection: "column", gap: 16 },
+  dropzone: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    padding: "40px 24px",
+    border: "1.5px dashed var(--border-strong)",
+    borderRadius: "var(--radius-md)",
+    background: "var(--surface)",
+    cursor: "pointer",
+    transition: "border-color 0.15s, background 0.15s",
+  },
+  dropzoneActive: {
+    borderColor: "var(--clay)",
+    background: "var(--clay-muted)",
+  },
+  uploadIcon: { display: "flex", alignItems: "center", color: "var(--text-tertiary)" },
+  uploadText: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4 },
+  uploadPrimary: { fontSize: 14, fontWeight: 500, color: "var(--text-secondary)", letterSpacing: "-0.01em" },
+  uploadSecondary: { fontSize: 12, color: "var(--text-tertiary)", letterSpacing: "-0.005em" },
+  uploadError: { margin: 0, fontSize: 12.5, color: "var(--clay)" },
+  artifactList: {
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-md)",
+    overflow: "hidden",
+    background: "var(--surface)",
+  },
+  artifactHeader: { padding: "10px 16px", borderBottom: "1px solid var(--border)", background: "var(--surface-hover)" },
+  artifactCount: { fontSize: 11.5, color: "var(--text-tertiary)", fontWeight: 500, letterSpacing: "0.02em" },
+  artifactRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "12px 16px",
+    borderBottom: "1px solid var(--border)",
+  },
+  artifactIcon: { color: "var(--text-tertiary)", display: "flex", flexShrink: 0 },
+  artifactInfo: { flex: 1, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 },
+  artifactName: {
+    fontSize: 13.5,
+    color: "var(--text-primary)",
+    letterSpacing: "-0.01em",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  failReason: { fontSize: 11.5, color: "var(--clay)", letterSpacing: "-0.005em" },
+  statusBadge: {
+    fontSize: 10.5,
+    fontWeight: 500,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    padding: "2px 8px",
+    borderRadius: 20,
+    flexShrink: 0,
+  },
+};

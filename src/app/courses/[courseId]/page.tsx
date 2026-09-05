@@ -1,33 +1,71 @@
-import Link from "next/link";
 import { listArtifacts } from "@/features/artifacts/actions.ts";
 import { ArtifactBoard } from "@/features/artifacts/artifact-board.tsx";
+import { getReviewQueue } from "@/features/course-graph-ingestion/actions.ts";
+import { ReviewQueue } from "@/features/course-graph-ingestion/components/ReviewQueue.tsx";
 
-/**
- * Found live: this page had no links to any other feature (atlas,
- * tutor, review queue, study, exam plan) -- each was reachable only by
- * typing its URL directly. Added a plain nav here so a real course
- * owner can actually get from "uploaded material" to the rest of the
- * product.
- */
 export default async function CourseDetailPage({
   params,
 }: {
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
-  const artifacts = await listArtifacts(courseId);
+  const [artifacts, pendingItems] = await Promise.all([
+    listArtifacts(courseId),
+    getReviewQueue(courseId),
+  ]);
 
   return (
-    <main>
-      <h1>Course material</h1>
-      <nav>
-        <Link href={`/courses/${courseId}/atlas`}>Concept atlas</Link>{" | "}
-        <Link href={`/courses/${courseId}/review`}>Review queue</Link>{" | "}
-        <Link href={`/courses/${courseId}/tutor`}>Tutor</Link>{" | "}
-        <Link href={`/courses/${courseId}/study`}>Study</Link>{" | "}
-        <Link href={`/courses/${courseId}/exam-plan`}>Exam plan</Link>
-      </nav>
-      <ArtifactBoard courseId={courseId} initialArtifacts={artifacts} />
-    </main>
+    <div style={s.page}>
+      <div style={s.inner}>
+        <div style={s.section}>
+          <h1 style={s.sectionTitle}>Course material</h1>
+          <p style={s.sectionDesc}>
+            Upload lecture notes, slides, or problem sets. Luminary will extract concepts and build your knowledge
+            graph.
+          </p>
+        </div>
+
+        <ArtifactBoard courseId={courseId} initialArtifacts={artifacts} />
+
+        {pendingItems.length > 0 && (
+          <div style={s.section}>
+            <h2 style={s.subsectionTitle}>Pending review</h2>
+            <p style={s.sectionDesc}>
+              Concepts and relationships extraction proposed from your uploads -- confirm, edit, or reject each one
+              before it becomes part of the real concept graph.
+            </p>
+            <ReviewQueue items={pendingItems} />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
+
+const s: Record<string, React.CSSProperties> = {
+  page: {
+    height: "100%",
+    overflowY: "auto",
+    background: "var(--bg)",
+    padding: "36px 40px",
+    display: "flex",
+    justifyContent: "center",
+  },
+  inner: {
+    width: "100%",
+    maxWidth: 600,
+    display: "flex",
+    flexDirection: "column",
+    gap: 32,
+  },
+  section: { display: "flex", flexDirection: "column", gap: 4 },
+  sectionTitle: { margin: 0, fontSize: 20, fontWeight: 500, letterSpacing: "-0.025em", color: "var(--text-primary)" },
+  subsectionTitle: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 500,
+    letterSpacing: "-0.02em",
+    color: "var(--text-primary)",
+  },
+  sectionDesc: { margin: 0, fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.55, letterSpacing: "-0.005em" },
+};
