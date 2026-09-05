@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   confirmCandidate,
   rejectCandidate,
@@ -192,14 +192,20 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
   // Live trigger: the moment Realtime reports an extraction_runs row for
   // this course flipping to "completed", re-fetch the full review queue
   // (a fresh read, not an incremental patch -- getReviewQueue already
-  // does the joins/sorting) and open the popup for that run. There's no
-  // race to guard against here the way ArtifactBoard/ExtractionStatusList
-  // had to: the only thing this handler commits is "replace items with
-  // this fresh snapshot, then point the popup at this run's id" -- if a
-  // second "completed" event for a different run arrived while this
-  // fetch was in flight, its own handler's later-resolving fetch is a
-  // strictly newer full snapshot, so the later one always wins and no
-  // handler bases a commit on stale intermediate state.
+  // does the joins/sorting) and open the popup for that run.
+  //
+  // Two "completed" events can arrive close together (e.g. a multi-file
+  // batch upload triggers parallel extraction runs), and their async
+  // getReviewQueue() re-fetches can resolve out of order -- whichever
+  // fetch happens to finish last would otherwise win regardless of which
+  // event was actually the most recent one received. latestRunIdRef is
+  // stamped synchronously the instant each event arrives (before its
+  // fetch is even started), so when a fetch resolves it can check "is my
+  // event still the latest one?" and only commit state if so. If a newer
+  // event has already arrived by the time an older fetch resolves, that
+  // older fetch's result is discarded -- the newer event's own fetch is
+  // the one responsible for landing the final, correct state.
+  const latestRunIdRef = useRef<string | null>(null);
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -211,8 +217,11 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
           const row = payload.new as { id: string; status: string };
           if (row.status !== "completed") return;
 
+          latestRunIdRef.current = row.id;
+
           void (async () => {
             const fresh = await getReviewQueue(courseId);
+            if (latestRunIdRef.current !== row.id) return;
             setItems(fresh);
             setActiveModalRunId(row.id);
           })();
