@@ -1,6 +1,7 @@
 import { listArtifacts } from "@/features/artifacts/actions.ts";
 import { ArtifactBoard } from "@/features/artifacts/artifact-board.tsx";
-import { getReviewQueue } from "@/features/course-graph-ingestion/actions.ts";
+import { createUnit, getReviewQueue } from "@/features/course-graph-ingestion/actions.ts";
+import { AddUnitForm } from "@/features/course-graph-ingestion/components/AddUnitForm.tsx";
 import { ReviewQueue } from "@/features/course-graph-ingestion/components/ReviewQueue.tsx";
 
 export default async function CourseDetailPage({
@@ -26,6 +27,15 @@ export default async function CourseDetailPage({
         </div>
 
         <ArtifactBoard courseId={courseId} initialArtifacts={artifacts} />
+
+        <div style={s.section}>
+          <h2 style={s.subsectionTitle}>Units</h2>
+          <p style={s.sectionDesc}>
+            Add a unit to make sure future uploads about it land here directly, instead of relying on
+            extraction to invent and later merge a duplicate.
+          </p>
+          <AddUnitForm courseId={courseId} createUnit={createUnit} onCreated={() => {}} />
+        </div>
 
         {pendingItems.length > 0 && (
           <div style={s.section}>

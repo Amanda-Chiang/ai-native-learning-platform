@@ -57,6 +57,48 @@ function unitRowToDomain(row: CourseUnitRow): CourseUnit {
   return { id: row.id, courseId: row.course_id, title: row.title, status: row.status };
 }
 
+/**
+ * Manual "add a unit" path (design.md) -- a source-of-truth unit the
+ * student declares by hand, distinct from an extraction-proposed one.
+ * Confirmed immediately (no reconciliation review needed: the student
+ * is the authority on their own course structure), and carries no
+ * extraction_run_id since it never went through the pipeline.
+ */
+export async function createUnit(
+  courseId: string,
+  title: string,
+): Promise<{ unit: CourseUnit } | { error: string }> {
+  const trimmedTitle = title.trim();
+  if (trimmedTitle.length === 0) {
+    return { error: "Unit title cannot be empty." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in to create a unit." };
+  }
+
+  // Manually-created units are authoritative immediately (design.md) --
+  // status 'confirmed', no extraction_run_id, same as any other
+  // owner-authored row this codebase has (courses/actions.ts's
+  // createCourse).
+  const { data, error } = await supabase
+    .from("course_units")
+    .insert({ course_id: courseId, owner_id: user.id, title: trimmedTitle, status: "confirmed", extraction_run_id: null })
+    .select("id, course_id, title, status")
+    .single();
+
+  if (error || !data) {
+    return { error: error?.message ?? "Failed to create unit." };
+  }
+
+  return { unit: { id: data.id, courseId: data.course_id, title: data.title, status: data.status } };
+}
+
 export type ReconciliationDecision = {
   decision: "merge" | "distinct" | "uncertain";
   matchedConceptId: string | null;
