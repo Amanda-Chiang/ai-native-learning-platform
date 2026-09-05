@@ -1,4 +1,5 @@
 import { type SourceAnchor } from "./source-anchor.ts";
+import { type OntologyStatus } from "../../lib/supabase/database.types.ts";
 
 /**
  * A single teachable idea within one course (PRD S10.2). Canonical course
@@ -18,6 +19,17 @@ export type CourseConcept = {
   sourceAnchors: SourceAnchor[];
   status: "proposed" | "confirmed" | "archived";
   confidence: number;
+};
+
+/**
+ * A course unit -- the top-level grouping concepts belong to (PRD S10.2).
+ * Canonical course ontology, not learner state.
+ */
+export type CourseUnit = {
+  id: string;
+  courseId: string;
+  title: string;
+  status: OntologyStatus;
 };
 
 function isSourceAnchor(value: unknown): value is SourceAnchor {

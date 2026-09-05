@@ -24,7 +24,7 @@ function conceptItem(overrides: {
       confidence: overrides.confidence ?? 0.5,
     },
     reconciliation: overrides.decision
-      ? { decision: overrides.decision, matchedConceptId: null, reasoning: "..." }
+      ? { decision: overrides.decision, matchedConceptId: null, matchedUnitId: null, reasoning: "..." }
       : null,
     flags: Array.from({ length: overrides.flags ?? 0 }, (_, i) => ({
       id: `flag-${i}`,

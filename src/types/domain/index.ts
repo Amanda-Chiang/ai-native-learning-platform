@@ -2,6 +2,7 @@ export { type SourceAnchor } from "./source-anchor.ts";
 export {
   type CourseConcept,
   isCourseConcept,
+  type CourseUnit,
 } from "./concept.ts";
 export {
   type ConceptEdge,

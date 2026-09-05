@@ -17,13 +17,24 @@ import type { ReviewQueueItem } from "./actions.ts";
 type PriorityKey = { tier: number; secondary: number };
 
 function priorityOf(item: ReviewQueueItem): PriorityKey {
-  if (item.flags.length > 0) {
+  // Units aren't flaggable (submitFlag only accepts "concept"/"edge"
+  // targets), so they carry no `flags` field at all -- narrow past
+  // them before touching `.flags`.
+  if (item.kind !== "unit" && item.flags.length > 0) {
     // More flags => more urgent => sorts earlier. Negated so ascending
     // sort on `secondary` still puts the highest flag count first.
     return { tier: 0, secondary: -item.flags.length };
   }
   if (item.reconciliation?.decision === "uncertain") {
     return { tier: 1, secondary: 0 };
+  }
+  if (item.kind === "unit") {
+    // course_units carries no per-row confidence score (unlike
+    // concepts/edges), so there's no real signal to rank multiple
+    // units against each other here -- treated the same tier as a
+    // non-flagged, non-uncertain concept/edge, with a fixed secondary
+    // key rather than a fabricated confidence value.
+    return { tier: 2, secondary: 0 };
   }
   const confidence = item.kind === "concept" ? item.concept.confidence : item.edge.confidence;
   return { tier: 2, secondary: confidence };
