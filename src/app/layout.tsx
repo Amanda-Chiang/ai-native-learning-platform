@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteHeader } from "@/features/auth/site-header.tsx";
-import { AppShell } from "@/components/app-shell.tsx";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,9 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           <SiteHeader />
         </div>
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <AppShell>{children}</AppShell>
-        </div>
+        <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
       </body>
     </html>
   );
