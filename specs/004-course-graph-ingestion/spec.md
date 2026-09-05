@@ -203,6 +203,22 @@ immediately after.
 - **FR-006**: The system MUST provide a review interface where a reviewer
   can confirm, edit, or reject each proposed concept and relationship, and
   MUST record which action was taken.
+  - **Amendment (2026-09-05)**: Manual review now applies only to concepts
+    and units. A relationship (concept edge) no longer appears in the
+    review queue and cannot be individually confirmed/edited/rejected by a
+    reviewer — instead, it auto-confirms the moment BOTH concepts it
+    connects have reached `"confirmed"` status (checked both at
+    extraction-insert time and again whenever a reviewer manually confirms
+    a concept). Reasoning: a reviewer explicitly re-confirming a
+    relationship whose both endpoints they've already vetted was pure
+    duplicate effort with no added trust signal beyond what confirming the
+    two concepts already established; gating on concept-confirmation status
+    still keeps every visible edge backed by human-reviewed trust, without a
+    separate manual step. FR-007's edge-rejection path (archive, not
+    delete) and FR-008's source-anchor requirement for edges are unchanged
+    by this amendment — the underlying `concept_edges.status` state machine
+    (`proposed` → `confirmed`/`archived`) is unchanged, only how a
+    relationship reaches `"confirmed"` changed.
 - **FR-007**: Rejecting a proposed concept or relationship MUST archive it
   (preserving the record of what was extracted and why) rather than
   deleting it outright.
