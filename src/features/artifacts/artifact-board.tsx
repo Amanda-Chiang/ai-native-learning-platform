@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client.ts";
 import { uploadArtifact, type Artifact } from "@/features/artifacts/actions.ts";
 import type { ArtifactStatus } from "@/features/artifacts/status.ts";
+import type { CourseUnit } from "@/types/domain/index.ts";
 import { IconUpload, IconFile } from "@/components/icons.tsx";
 
 const STATUS_LABEL: Record<ArtifactStatus, string> = {
@@ -31,14 +32,17 @@ const STATUS_COLOR: Record<ArtifactStatus, { bg: string; color: string }> = {
 export function ArtifactBoard({
   courseId,
   initialArtifacts,
+  units,
 }: {
   courseId: string;
   initialArtifacts: Artifact[];
+  units: CourseUnit[];
 }) {
   const [artifacts, setArtifacts] = useState(initialArtifacts);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [targetUnitId, setTargetUnitId] = useState<string>("");
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,6 +127,7 @@ export function ArtifactBoard({
         originalFilename: file.name,
         mimeType: file.type,
         sizeBytes: file.size,
+        targetUnitId: targetUnitId || undefined,
       });
 
       if ("error" in result) {
@@ -171,6 +176,21 @@ export function ArtifactBoard({
             style={{ display: "none" }}
             onChange={() => formRef.current?.requestSubmit()}
           />
+          {units.length > 0 && (
+            <select
+              value={targetUnitId}
+              onChange={(e) => setTargetUnitId(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              style={s.unitSelect}
+            >
+              <option value="">No specific unit</option>
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.title}
+                </option>
+              ))}
+            </select>
+          )}
           <span style={s.uploadIcon}>
             <IconUpload />
           </span>
@@ -245,6 +265,16 @@ const s: Record<string, React.CSSProperties> = {
   uploadPrimary: { fontSize: 14, fontWeight: 500, color: "var(--text-secondary)", letterSpacing: "-0.01em" },
   uploadSecondary: { fontSize: 12, color: "var(--text-tertiary)", letterSpacing: "-0.005em" },
   uploadError: { margin: 0, fontSize: 12.5, color: "var(--clay)" },
+  unitSelect: {
+    marginTop: 8,
+    padding: "6px 10px",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-sm)",
+    fontSize: 12.5,
+    fontFamily: "var(--font-sans)",
+    background: "var(--surface)",
+    color: "var(--text-primary)",
+  },
   artifactList: {
     border: "1px solid var(--border)",
     borderRadius: "var(--radius-md)",

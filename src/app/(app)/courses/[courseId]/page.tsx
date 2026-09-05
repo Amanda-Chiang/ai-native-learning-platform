@@ -1,7 +1,6 @@
 import { listArtifacts } from "@/features/artifacts/actions.ts";
-import { ArtifactBoard } from "@/features/artifacts/artifact-board.tsx";
-import { createUnit, getReviewQueue } from "@/features/course-graph-ingestion/actions.ts";
-import { AddUnitForm } from "@/features/course-graph-ingestion/components/AddUnitForm.tsx";
+import { getReviewQueue, listUnits } from "@/features/course-graph-ingestion/actions.ts";
+import { UnitsSection } from "@/features/course-graph-ingestion/components/UnitsSection.tsx";
 import { ReviewQueue } from "@/features/course-graph-ingestion/components/ReviewQueue.tsx";
 
 export default async function CourseDetailPage({
@@ -10,9 +9,10 @@ export default async function CourseDetailPage({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
-  const [artifacts, pendingItems] = await Promise.all([
+  const [artifacts, pendingItems, units] = await Promise.all([
     listArtifacts(courseId),
     getReviewQueue(courseId),
+    listUnits(courseId),
   ]);
 
   return (
@@ -26,16 +26,7 @@ export default async function CourseDetailPage({
           </p>
         </div>
 
-        <ArtifactBoard courseId={courseId} initialArtifacts={artifacts} />
-
-        <div style={s.section}>
-          <h2 style={s.subsectionTitle}>Units</h2>
-          <p style={s.sectionDesc}>
-            Add a unit to make sure future uploads about it land here directly, instead of relying on
-            extraction to invent and later merge a duplicate.
-          </p>
-          <AddUnitForm courseId={courseId} createUnit={createUnit} onCreated={() => {}} />
-        </div>
+        <UnitsSection courseId={courseId} initialArtifacts={artifacts} initialUnits={units} />
 
         {pendingItems.length > 0 && (
           <div style={s.section}>

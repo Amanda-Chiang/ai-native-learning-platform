@@ -58,6 +58,25 @@ function unitRowToDomain(row: CourseUnitRow): CourseUnit {
 }
 
 /**
+ * Non-archived units for a course, used both to refresh the "Add a
+ * unit" list and to populate the upload-time unit picker (design.md's
+ * target_unit_id hard rule) -- excludes archived units since those are
+ * no longer valid upload targets.
+ */
+export async function listUnits(courseId: string): Promise<CourseUnit[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("course_units")
+    .select("id, course_id, title, status")
+    .eq("course_id", courseId)
+    .neq("status", "archived")
+    .order("created_at", { ascending: true });
+
+  if (error || !data) return [];
+  return data.map((row) => ({ id: row.id, courseId: row.course_id, title: row.title, status: row.status }));
+}
+
+/**
  * Manual "add a unit" path (design.md) -- a source-of-truth unit the
  * student declares by hand, distinct from an extraction-proposed one.
  * Confirmed immediately (no reconciliation review needed: the student

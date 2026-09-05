@@ -19,6 +19,7 @@ export type UploadedFile = {
   originalFilename: string;
   mimeType: string;
   sizeBytes: number;
+  targetUnitId?: string;
 };
 
 export async function uploadArtifact(
@@ -49,7 +50,7 @@ export async function uploadArtifact(
       mime_type: file.mimeType,
       size_bytes: file.sizeBytes,
       status: "queued",
-      target_unit_id: null,
+      target_unit_id: file.targetUnitId ?? null,
     })
     .select("id")
     .single();
