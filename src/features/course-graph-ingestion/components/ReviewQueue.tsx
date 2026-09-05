@@ -124,85 +124,85 @@ export function ReviewQueue({ items: initialItems }: { items: ReviewQueueItem[] 
 
         return (
           <li key={id} style={s.card}>
-            {item.kind === "concept" ? (
-              <>
-                <h3 style={s.cardTitle}>{item.concept.canonicalName}</h3>
-                {item.concept.aliases.length > 0 && (
-                  <p style={s.aliases}>Also known as: {item.concept.aliases.join(", ")}</p>
-                )}
-                <p style={s.description}>{item.concept.description}</p>
-              </>
-            ) : item.kind === "edge" ? (
-              <>
-                <h3 style={s.cardTitle}>{item.edge.relationType}</h3>
-                <p style={s.description}>{item.edge.explanation}</p>
-              </>
-            ) : (
-              <>
-                <h3 style={s.cardTitle}>{item.unit.title}</h3>
-                <p style={s.description}>Unit (topic grouping)</p>
-                {item.otherExistingUnitTitles.length > 0 && (
-                  <p style={s.aliases}>
-                    This course's other existing units: {item.otherExistingUnitTitles.join(", ")}
-                  </p>
-                )}
-              </>
-            )}
-
-            {item.reconciliation && (
-              <p style={{ ...s.reconciliation, ...(isUncertain ? s.reconciliationUncertain : {}) }}>
-                {isUncertain ? "⚠ Uncertain match: " : "Reconciliation: "}
-                {item.reconciliation.reasoning}
-              </p>
-            )}
-
-            {item.kind !== "unit" && item.flags.length > 0 && (
-              <div style={s.flags}>
-                <strong>
-                  {item.flags.length} student flag{item.flags.length === 1 ? "" : "s"}:
-                </strong>
-                <ul style={s.flagList}>
-                  {item.flags.map((flag) => (
-                    <li key={flag.id}>{flag.reason}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {error && <p style={s.error}>{error}</p>}
-
-            {isEditing ? (
-              <form action={(form) => handleSaveEdit(item, form)} style={s.editForm}>
-                {item.kind === "concept" ? (
+            <div style={s.cardContent}>
+              {isEditing ? (
+                item.kind === "concept" ? (
                   <>
-                    <input name="canonicalName" defaultValue={item.concept.canonicalName} style={s.input} />
-                    <textarea name="description" defaultValue={item.concept.description} style={s.textarea} />
+                    <input name="canonicalName" form={`edit-form-${id}`} defaultValue={item.concept.canonicalName} style={s.input} />
+                    <textarea name="description" form={`edit-form-${id}`} defaultValue={item.concept.description} style={s.textarea} />
                   </>
                 ) : item.kind === "edge" ? (
                   <>
-                    <select name="relationType" defaultValue={item.edge.relationType} style={s.input}>
+                    <select name="relationType" form={`edit-form-${id}`} defaultValue={item.edge.relationType} style={s.input}>
                       {STANDARD_RELATION_TYPES.map((t) => (
                         <option key={t} value={t}>
                           {t}
                         </option>
                       ))}
                     </select>
-                    <textarea name="explanation" defaultValue={item.edge.explanation} style={s.textarea} />
+                    <textarea name="explanation" form={`edit-form-${id}`} defaultValue={item.edge.explanation} style={s.textarea} />
                   </>
                 ) : (
-                  <input name="title" defaultValue={item.unit.title} style={s.input} />
-                )}
-                <div style={s.buttonRow}>
-                  <button type="submit" disabled={isPending} style={s.primaryButton}>
-                    Save
-                  </button>
-                  <button type="button" onClick={() => setEditingId(null)} style={s.secondaryButton}>
-                    Cancel
-                  </button>
+                  <input name="title" form={`edit-form-${id}`} defaultValue={item.unit.title} style={s.input} />
+                )
+              ) : item.kind === "concept" ? (
+                <>
+                  <h3 style={s.cardTitle}>{item.concept.canonicalName}</h3>
+                  {item.concept.aliases.length > 0 && (
+                    <p style={s.aliases}>Also known as: {item.concept.aliases.join(", ")}</p>
+                  )}
+                  <p style={s.description}>{item.concept.description}</p>
+                </>
+              ) : item.kind === "edge" ? (
+                <>
+                  <h3 style={s.cardTitle}>{item.edge.relationType}</h3>
+                  <p style={s.description}>{item.edge.explanation}</p>
+                </>
+              ) : (
+                <>
+                  <h3 style={s.cardTitle}>{item.unit.title}</h3>
+                  {item.otherExistingUnitTitles.length > 0 && (
+                    <p style={s.aliases}>
+                      This course's other existing units: {item.otherExistingUnitTitles.join(", ")}
+                    </p>
+                  )}
+                </>
+              )}
+
+              {item.reconciliation && (
+                <p style={{ ...s.reconciliation, ...(isUncertain ? s.reconciliationUncertain : {}) }}>
+                  {isUncertain ? "⚠ Uncertain match: " : "Reconciliation: "}
+                  {item.reconciliation.reasoning}
+                </p>
+              )}
+
+              {item.kind !== "unit" && item.flags.length > 0 && (
+                <div style={s.flags}>
+                  <strong>
+                    {item.flags.length} student flag{item.flags.length === 1 ? "" : "s"}:
+                  </strong>
+                  <ul style={s.flagList}>
+                    {item.flags.map((flag) => (
+                      <li key={flag.id}>{flag.reason}</li>
+                    ))}
+                  </ul>
                 </div>
+              )}
+
+              {error && <p style={s.error}>{error}</p>}
+            </div>
+
+            {isEditing ? (
+              <form id={`edit-form-${id}`} action={(form) => handleSaveEdit(item, form)} style={s.actionColumn}>
+                <button type="submit" disabled={isPending} style={s.primaryButton}>
+                  Save
+                </button>
+                <button type="button" onClick={() => setEditingId(null)} style={s.secondaryButton}>
+                  Cancel
+                </button>
               </form>
             ) : (
-              <div style={s.buttonRow}>
+              <div style={s.actionColumn}>
                 <button type="button" disabled={isPending} onClick={() => handleConfirm(item)} style={s.primaryButton}>
                   Confirm
                 </button>
@@ -230,9 +230,11 @@ const s: Record<string, React.CSSProperties> = {
     padding: 16,
     background: "var(--surface)",
     display: "flex",
-    flexDirection: "column",
-    gap: 8,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 16,
   },
+  cardContent: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 },
   cardTitle: { margin: 0, fontSize: 14.5, fontWeight: 500, color: "var(--text-primary)", letterSpacing: "-0.01em" },
   aliases: { margin: 0, fontSize: 12.5, color: "var(--text-tertiary)" },
   description: { margin: 0, fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.55 },
@@ -241,7 +243,7 @@ const s: Record<string, React.CSSProperties> = {
   flags: { fontSize: 12.5, color: "var(--clay)" },
   flagList: { margin: "4px 0 0", paddingLeft: 18 },
   error: { margin: 0, fontSize: 12.5, color: "var(--clay)" },
-  editForm: { display: "flex", flexDirection: "column", gap: 8, marginTop: 4 },
+  actionColumn: { flexShrink: 0, width: 96, display: "flex", flexDirection: "column", gap: 6 },
   input: {
     padding: "8px 10px",
     border: "1px solid var(--border)",
@@ -257,7 +259,6 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "var(--font-sans)",
     resize: "vertical",
   },
-  buttonRow: { display: "flex", gap: 8, marginTop: 4 },
   primaryButton: {
     padding: "7px 14px",
     background: "var(--clay)",
