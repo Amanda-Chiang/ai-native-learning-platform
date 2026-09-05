@@ -1,13 +1,98 @@
+/* ═══════════════════════════════════════════
+   LUMINARY — Brand & Design Tokens
+   ═══════════════════════════════════════════
+
+   Logo
+   ────
+   Mark:     ◆  (--clay / Blushed Brick, 13–16px)
+   Wordmark: "Luminary" Geist 600, --text-primary
+   Usage:    mark + 8px gap + wordmark
+
+   Palette
+   ───────
+   Blushed Brick   #C94F53   Primary — actions, buttons, active nav, brand mark, critical urgency
+   Warm Gray       #F7F7F6   Page ground / background
+   Cloudy Sky      #5890D5   Secondary — AI voice, informational text, links
+   Sea Green       #2B9257   Tertiary — new content, success, mastery, comfortable urgency
+
+   Urgency (shares brand palette — cohesive by design)
+   ──────
+   Critical   --clay (#C94F53)   Exam <7 days   (same as primary — intentional)
+   Soon       #A0622E            Exam 7–21 days  (warm amber, bridges brick & green)
+   Comfortable  --teal (#2B9257) implicit via exam card left border: transparent
+
+   Usage rules
+   ───────────
+   • Clay  → all primary interactive: buttons, active nav, logo mark, focus rings, critical urgency
+   • Sky   → AI-generated summaries, informational badges, secondary links
+   • Green → "new" concept badges, mastered states, session complete, comfortable exam
+   • Urgency intentionally shares brand hues so the full UI reads as one system
+   • Never use Clay and Sky as equals on the same component
+
+   Fonts are loaded via next/font/google in src/app/layout.tsx
+   (--font-geist-sans / --font-geist-mono) — --font-sans/--font-mono
+   below just alias those, no separate font loading here.
+   ═══════════════════════════════════════════ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Ground */
+  --bg: #f7f7f6;
+  --surface: #ffffff;
+  --surface-hover: #f3f3f2;
+
+  /* Borders */
+  --border: #e4e4e2;
+  --border-strong: #d0cfcc;
+
+  /* Text */
+  --text-primary: #0d0d0d;
+  --text-secondary: #4a5568;
+  --text-tertiary: #8a9bad;
+
+  /* ── Blushed Brick (primary + critical urgency) */
+  --clay: #c94f53;
+  --clay-hover: #b03e42;
+  --clay-fg: #ffffff;
+  --clay-muted: #fceaea;
+  --clay-border: rgba(201, 79, 83, 0.22);
+
+  /* ── Cloudy Sky (AI voice / informational) */
+  --denim: #5890d5;
+  --denim-hover: #4578bb;
+  --denim-fg: #ffffff;
+  --denim-muted: #e8f1fb;
+  --denim-border: rgba(88, 144, 213, 0.25);
+
+  /* ── Sea Green (new content / success / mastery / comfortable) */
+  --teal: #2b9257;
+  --teal-fg: #ffffff;
+  --teal-muted: #e2f4eb;
+  --teal-border: rgba(43, 146, 87, 0.22);
+
+  /* ── Urgency (shares brand palette — cohesive by design) */
+  --urgent-red: var(--clay);
+  --urgent-amber: #a0622e;
+
+  /* Layout */
+  --sidebar-w: 220px;
+  --right-w: 280px;
+
+  /* Typography — aliases onto the real next/font/google variables */
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
 }
 
 html {
@@ -24,17 +109,13 @@ body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
 }
 
 a {
@@ -42,8 +123,17 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 2px;
 }
