@@ -150,6 +150,11 @@ export type ReconciliationDecisionRow = {
   decision: ReconciliationDecisionOutcome;
   matched_concept_id: string | null;
   matched_unit_id: string | null;
+  /** The course_concepts/course_units row this decision produced, paired
+   * with candidate_kind (polymorphic, same shape as concept_flags'
+   * target_kind/target_id). Null for a 'merge' (no new row was created)
+   * and for rows written before migration 0014. */
+  candidate_id: string | null;
   reasoning: string;
   created_at: string;
 };

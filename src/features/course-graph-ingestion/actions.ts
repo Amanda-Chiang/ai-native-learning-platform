@@ -20,6 +20,7 @@ import type {
 import { validateFlagReason } from "@/features/course-graph-ingestion/flag-validation.ts";
 import { sortReviewQueueByPriority } from "@/features/course-graph-ingestion/review-queue-priority.ts";
 import { resolveOtherEndpoint, shouldAutoConfirmEdge, selectSweepableEdgeIds } from "./edge-auto-confirm.ts";
+import { indexDecisionsByCandidateId } from "./reconciliation-decision-match.ts";
 
 /**
  * Server action contracts: specs/004-course-graph-ingestion/contracts/ingestion-actions.md
@@ -217,20 +218,18 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
   const confirmedUnitTitles = allUnits.filter((u) => u.status === "confirmed").map((u) => u.title);
   const unitById = new Map(allUnits.map((u) => [u.id, unitRowToDomain(u)]));
 
-  // reconciliation_decisions doesn't carry a direct FK to the concept it
-  // evaluated (it's a record of a moment in the pipeline, not a foreign
-  // key relationship to the row that resulted) -- matched by candidate
-  // kind + a name/description match against the row it produced. A
-  // "distinct"/"uncertain" candidate's canonical_name is unique enough
-  // within one extraction_run_id for this join to be reliable; a real
-  // FK would be a cleaner design, noted here rather than silently
-  // assumed correct with no explanation.
-  const decisionsByExtractionRun = new Map<string, ReconciliationDecisionRow[]>();
-  for (const d of decisions) {
-    const list = decisionsByExtractionRun.get(d.extraction_run_id) ?? [];
-    list.push(d);
-    decisionsByExtractionRun.set(d.extraction_run_id, list);
-  }
+  // Each decision is matched to the exact candidate row it produced, by
+  // reconciliation_decisions.candidate_id (migration 0014) -- written by
+  // the extraction task right after it inserts the concept/unit. This
+  // replaces an earlier "first decision of this run with this
+  // candidate_kind wins" match, which showed one candidate's
+  // model-authored reasoning on a different candidate's card.
+  //
+  // A candidate with no matching decision renders `null` rather than a
+  // neighbour's: 'merge' decisions produce no candidate row at all, and
+  // rows written before 0014 have no candidate_id to match on. Both are
+  // honestly "no reconciliation text for this card", not a stand-in.
+  const decisionByCandidateId = indexDecisionsByCandidateId(decisions);
 
   const flagsByTarget = new Map<string, ConceptFlagRow[]>();
   for (const f of flags) {
@@ -240,14 +239,10 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
   }
 
   const conceptItems: ReviewQueueItem[] = concepts.map((row) => {
-    const runDecisions = row.extraction_run_id ? decisionsByExtractionRun.get(row.extraction_run_id) ?? [] : [];
-    const matchingDecision = runDecisions.find(
-      (d) => d.candidate_kind === "concept" && d.decision !== "merge",
-    );
     return {
       kind: "concept",
       concept: conceptRowToDomain(row),
-      reconciliation: toReconciliationDecision(matchingDecision),
+      reconciliation: toReconciliationDecision(decisionByCandidateId.get(row.id)),
       flags: (flagsByTarget.get(row.id) ?? []).map(toConceptFlag),
       unit: unitById.get(row.unit_id) ?? null,
       extractionRunId: row.extraction_run_id,
@@ -255,9 +250,7 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
   });
 
   const unitItems: ReviewQueueItem[] = proposedUnits.map((row) => {
-    const runDecisions = row.extraction_run_id ? decisionsByExtractionRun.get(row.extraction_run_id) ?? [] : [];
-    const matchingDecision = runDecisions.find((d) => d.candidate_kind === "unit" && d.decision !== "merge");
-    const reconciliation = toReconciliationDecision(matchingDecision);
+    const reconciliation = toReconciliationDecision(decisionByCandidateId.get(row.id));
     return {
       kind: "unit",
       unit: unitRowToDomain(row),

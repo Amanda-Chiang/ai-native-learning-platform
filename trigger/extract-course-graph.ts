@@ -309,23 +309,35 @@ async function writeExtractionCandidates(
   // the surviving real unit, never the one that got merged.
   // -------------------------------------------------------------
   const unitReconciliations = new Map<string, UnitReconciliationResult>();
+  // localId -> the reconciliation_decisions row this unit's decision was
+  // written to, so the row inserted for it below can be linked back by id
+  // (reconciliation_decisions.candidate_id, migration 0014). Without that
+  // link the review queue can only guess which decision belongs to which
+  // card.
+  const unitDecisionIdByLocalId = new Map<string, string>();
   for (const unit of extraction.units) {
     const reconciliation = await reconcileUnit(classifyUnit, { title: unit.title }, existingUnits);
     unitReconciliations.set(unit.localId, reconciliation);
 
-    const { error: decisionInsertError } = await supabase.from("reconciliation_decisions").insert({
-      course_id: courseId,
-      owner_id: ownerId,
-      extraction_run_id: extractionRunId,
-      candidate_kind: "unit",
-      decision: reconciliation.decision,
-      matched_concept_id: null,
-      matched_unit_id: reconciliation.decision === "merge" ? reconciliation.matchedUnitId : null,
-      reasoning: reconciliation.reasoning,
-    });
-    if (decisionInsertError) {
-      throw new Error(`Failed to record unit reconciliation decision: ${decisionInsertError.message}`);
+    const { data: decisionRow, error: decisionInsertError } = await supabase
+      .from("reconciliation_decisions")
+      .insert({
+        course_id: courseId,
+        owner_id: ownerId,
+        extraction_run_id: extractionRunId,
+        candidate_kind: "unit",
+        decision: reconciliation.decision,
+        matched_concept_id: null,
+        matched_unit_id: reconciliation.decision === "merge" ? reconciliation.matchedUnitId : null,
+        candidate_id: null,
+        reasoning: reconciliation.reasoning,
+      })
+      .select("id")
+      .single();
+    if (decisionInsertError || !decisionRow) {
+      throw new Error(`Failed to record unit reconciliation decision: ${decisionInsertError?.message}`);
     }
+    unitDecisionIdByLocalId.set(unit.localId, decisionRow.id);
   }
 
   const { unitLocalIdToRealId, toInsert: unitsToInsert } = resolveUnitReferences(
@@ -351,6 +363,23 @@ async function writeExtractionCandidates(
       throw new Error(`Failed to insert unit "${unit.title}": ${unitInsertError?.message}`);
     }
     unitLocalIdToRealId.set(unit.localId, insertedUnit.id);
+
+    // Link the decision to the row it just produced. Done as a follow-up
+    // update rather than by reordering (decision after insert) so the
+    // audit record still exists even if the insert itself fails -- the
+    // decision is a record of what the classifier said, independent of
+    // whether the write succeeded.
+    const decisionId = unitDecisionIdByLocalId.get(unit.localId);
+    if (!decisionId) {
+      throw new Error(`No reconciliation decision was recorded for candidate unit "${unit.localId}".`);
+    }
+    const { error: linkError } = await supabase
+      .from("reconciliation_decisions")
+      .update({ candidate_id: insertedUnit.id })
+      .eq("id", decisionId);
+    if (linkError) {
+      throw new Error(`Failed to link unit reconciliation decision to unit ${insertedUnit.id}: ${linkError.message}`);
+    }
   }
 
   // Resolves a concept's unitRef to a real unit id. The hard target
@@ -418,18 +447,23 @@ async function writeExtractionCandidates(
     // reconciliation_decisions.reasoning) -- never a generic
     // placeholder like "auto-decided", for both the real-model-call
     // path and the zero-existing-concepts shortcut alike.
-    const { error: decisionInsertError } = await supabase.from("reconciliation_decisions").insert({
-      course_id: courseId,
-      owner_id: ownerId,
-      extraction_run_id: extractionRunId,
-      candidate_kind: "concept",
-      decision: reconciliation.decision,
-      matched_concept_id: reconciliation.decision === "merge" ? reconciliation.matchedConceptId : null,
-      matched_unit_id: null,
-      reasoning: reconciliation.reasoning,
-    });
-    if (decisionInsertError) {
-      throw new Error(`Failed to record reconciliation decision: ${decisionInsertError.message}`);
+    const { data: decisionRow, error: decisionInsertError } = await supabase
+      .from("reconciliation_decisions")
+      .insert({
+        course_id: courseId,
+        owner_id: ownerId,
+        extraction_run_id: extractionRunId,
+        candidate_kind: "concept",
+        decision: reconciliation.decision,
+        matched_concept_id: reconciliation.decision === "merge" ? reconciliation.matchedConceptId : null,
+        matched_unit_id: null,
+        candidate_id: null,
+        reasoning: reconciliation.reasoning,
+      })
+      .select("id")
+      .single();
+    if (decisionInsertError || !decisionRow) {
+      throw new Error(`Failed to record reconciliation decision: ${decisionInsertError?.message}`);
     }
 
     if (reconciliation.decision === "merge") {
@@ -507,6 +541,19 @@ async function writeExtractionCandidates(
 
     if (insertError || !inserted) {
       throw new Error(`Failed to insert concept "${concept.canonicalName}": ${insertError?.message}`);
+    }
+
+    // Link this decision to the concept row it produced, so the review
+    // queue shows each card its OWN reasoning (migration 0014) instead of
+    // whichever decision of the run happened to be found first.
+    const { error: linkError } = await supabase
+      .from("reconciliation_decisions")
+      .update({ candidate_id: inserted.id })
+      .eq("id", decisionRow.id);
+    if (linkError) {
+      throw new Error(
+        `Failed to link reconciliation decision to concept ${inserted.id}: ${linkError.message}`,
+      );
     }
 
     localIdToRealId.set(concept.localId, inserted.id);
