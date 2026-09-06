@@ -3,8 +3,13 @@
 Per `CLAUDE.md`: read the relevant file here before touching a subsystem.
 This index exists so a fresh agent can find "the relevant file" without
 `ls`-ing the tree and guessing. Full requirements still live in
-`docs/technical-prd.md`; sequencing in `docs/implementation-roadmap.md`;
-current build status in the highest-numbered `specs/NNN-*/tasks.md`.
+`docs/technical-prd.md`; sequencing in `docs/implementation-roadmap.md`
+(see its "Post-MVP work" section for real features built outside that
+sequencing); current build status in the highest-numbered
+`specs/NNN-*/tasks.md` (check that file's own top-of-file addendum first,
+if present — later work sometimes moves a shipped feature's scope without
+renumbering it). `decisions/architecture-log.md` below is the single most
+current source in this repo for "what changed and why."
 
 ## `architecture/` — how the system is actually built, and why
 

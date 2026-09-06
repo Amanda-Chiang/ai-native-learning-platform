@@ -3,13 +3,20 @@
 An AI-native learning platform built as a responsive web application, per
 `docs/technical-prd.md`, sequenced via `docs/implementation-roadmap.md`.
 
-**Status (2026-09-04)**: All six roadmap phases fully implemented and
-verified live, plus a post-completion hardening pass that found and
-fixed real bugs only real browser/Playwright use surfaced (RLS gaps,
-Server/Client Component boundary violations, an unsanitized Storage
-filename, missing input bounds) — see `brain/decisions/
-architecture-log.md`'s entries from 2026-09-02 onward for the full,
-current list; this paragraph is a snapshot, not the source of truth.
+**Status (2026-09-06)**: All six roadmap phases fully implemented and
+verified live, plus two post-completion passes: (1) a hardening pass that
+found and fixed real bugs only real browser/Playwright use surfaced (RLS
+gaps, Server/Client Component boundary violations, an unsanitized Storage
+filename, missing input bounds); (2) a design-system/reskin pass (every
+real route now styled, plus two new real pages — a Today dashboard and a
+spaced-repetition review queue) and a unit-extraction & reconciliation
+feature for `course-graph-ingestion` (fixed a real bug where extraction
+had no path to create a course unit; `course_units` gained a full review
+lifecycle; edges left manual review and now auto-confirm from their
+endpoints). See `brain/decisions/architecture-log.md`'s entries from
+2026-09-02 onward, and `docs/implementation-roadmap.md`'s "Post-MVP work"
+section, for the full current list; this paragraph is a snapshot, not the
+source of truth.
 Phase summary (schemas + benchmark corpus,
 Supabase Auth/Postgres/RLS/Storage/Trigger.dev foundation, course-graph
 ingestion with a real OpenAI extraction pipeline, React Flow + ELK
@@ -35,13 +42,31 @@ per-feature status: each
 chronological record of major design decisions and why, see
 `brain/decisions/architecture-log.md`.
 
-If you're an agent picking this project up cold: read `CLAUDE.md` and
-`AGENTS.md` first (durable rules), then `docs/implementation-roadmap.md`
-for phase sequencing, then the highest-numbered `specs/NNN-*/tasks.md`
-for exactly what's done and what's next — do not assume this file or the
-roadmap's own prose is more current than that. For durable architecture
-context, product commitments, and known lessons/gotchas beyond what's in
-`docs/`, see `brain/README.md` — an index of everything under `brain/`.
+If you're an agent picking this project up cold, read in this order:
+
+1. `CLAUDE.md` and `AGENTS.md` — durable rules, non-negotiable.
+2. `docs/implementation-roadmap.md` — phase sequencing, and its "Post-MVP
+   work" + "Known open items" sections for everything that shipped after
+   the roadmap's own phases (real, done, not reflected in phase numbering).
+3. The highest-numbered `specs/NNN-*/tasks.md` for what's done/next
+   *within* that feature's original scope — but check that file's own
+   top-of-file addendum first (if present) for later work that moved its
+   scope; the addendum, not the checklist, is current in that case.
+4. `brain/decisions/architecture-log.md` — chronological record of every
+   major decision and real bug found, in the order it happened. **This is
+   the single most current source in the repo** — more current than this
+   file, the roadmap, or any spec's prose.
+5. `brain/README.md` — index of everything else under `brain/`
+   (architecture rationale, product commitments, lessons, setup).
+
+Not every real feature in this repo went through Spec Kit's numbered
+`specs/NNN-*` flow — some (design/reskin passes, enhancements to an
+already-shipped feature) were built via `superpowers:brainstorming` →
+`superpowers:writing-plans` → `superpowers:subagent-driven-development`
+instead, living under `docs/superpowers/specs/` and
+`docs/superpowers/plans/`. The roadmap's "Post-MVP work" section is the
+index into those — don't assume `specs/` is the complete list of what
+this repo does.
 
 ## Prerequisites
 

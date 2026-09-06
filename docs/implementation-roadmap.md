@@ -165,6 +165,51 @@ restating per-feature:
   confirmation instead of silently grading. This closes out every item
   on this roadmap.
 
+**Post-MVP work (2026-09-04 through 2026-09-06), outside this roadmap's
+phase numbering:**
+
+- A full design-system + reskin pass: every real route now renders through
+  shared tokens/shell components instead of bare HTML, plus two genuinely
+  new real pages (`/` Today dashboard aggregating exam dates across
+  courses; `/courses/{id}/review` spaced-repetition due-queue), both
+  reading existing `review-scheduler`/`exam-planner`/`courses` data —
+  no new domain logic. Plan: `.claude/plans/staged-wibbling-melody.md`
+  (kept outside `docs/` — a design/reskin pass, not a Spec Kit feature).
+- **Unit extraction & reconciliation** (`course-graph-ingestion`,
+  Phase 2): fixed a real structural bug — extraction had no way to create
+  a `course_units` row and threw on any course with zero units, and there
+  was no UI path to create one. Built via `superpowers:brainstorming` →
+  `superpowers:writing-plans` → `superpowers:subagent-driven-development`
+  rather than `/speckit-*` (an enhancement to an already-shipped feature,
+  not a new one). `course_units` now has the same proposed/confirmed/
+  archived review lifecycle as concepts; edges left manual review
+  entirely and auto-confirm once both endpoint concepts are confirmed.
+  Full rationale for both decisions, plus a live-testing finding that
+  Supabase Realtime had never actually been enabled project-wide (fixed,
+  pre-existing gap): `brain/decisions/architecture-log.md`'s 2026-09-05
+  entries. Design/plan: `docs/superpowers/specs/
+  2026-09-05-unit-extraction-reconciliation-design.md`,
+  `docs/superpowers/plans/2026-09-05-unit-extraction-reconciliation.md`.
+  `specs/004-course-graph-ingestion/{spec,data-model}.md` were amended in
+  place to match current reality — read those, not the original spec/plan
+  history, for current requirements.
+
+Known open items, not yet resolved as of 2026-09-06:
+- `tests/visual/review-queue.spec.ts` navigates to the wrong route
+  (renders `review-scheduler`'s `DueQueue`, not `course-graph-ingestion`'s
+  `ReviewQueue`) — pre-existing, found during the unit-extraction review,
+  not yet fixed.
+- No integration-shaped test composes the full extract → reconcile →
+  confirm → materialize pipeline end-to-end (individual stages are unit
+  tested; the composition is currently verified by source-level
+  assertions and manual trace, per `final-review-fix1-verify.md` in that
+  plan's now-cleaned-up SDD workspace — re-derive from
+  `brain/decisions/architecture-log.md` if that workspace is gone).
+- Task 13 of the unit-extraction plan (a formal 6-scenario live
+  walkthrough) has no recorded "all pass" checkpoint — live testing found
+  and fixed real bugs organically instead, which is arguably stronger
+  coverage, but nothing was formally signed off scenario-by-scenario.
+
 **This section will go stale the moment more work lands** — it is a
 snapshot taken on the date above, not a maintained tracker. The
 authoritative source for "what's actually done" is always each

@@ -3,6 +3,23 @@
 description: "Task list template for feature implementation"
 ---
 
+**Addendum (2026-09-06):** every task below is complete and reflects this
+feature's original scope only. Real, substantial follow-on work landed
+later, outside Spec Kit's numbered-task flow (via `superpowers:brainstorming`
+→ `superpowers:writing-plans` → `superpowers:subagent-driven-development`
+instead of `/speckit-*`), and is **not** reflected in this checklist:
+`course_units` gained a full proposed/confirmed/archived review lifecycle,
+edges left manual review entirely (auto-confirm from their endpoints), and
+extraction gained a unit-reconciliation path parallel to concept
+reconciliation. Source of truth for that work: `docs/superpowers/specs/
+2026-09-05-unit-extraction-reconciliation-design.md` (design),
+`docs/superpowers/plans/2026-09-05-unit-extraction-reconciliation.md`
+(task-by-task plan + execution ledger reference), and this spec's own
+`data-model.md`/`spec.md` (both amended in place to match — check those,
+not this file, for current schema/requirements). Chronological rationale
+for every decision in that work is in
+`brain/decisions/architecture-log.md`'s 2026-09-05 entries.
+
 # Tasks: Course Graph Ingestion
 
 **Input**: Design documents from `/specs/004-course-graph-ingestion/`
