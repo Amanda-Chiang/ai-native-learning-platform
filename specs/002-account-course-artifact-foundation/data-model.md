@@ -32,6 +32,7 @@ are implicitly denied by RLS's default-deny.
 | `mime_type` | `text`, not null | |
 | `size_bytes` | `bigint`, not null | |
 | `status` | `text`, not null | `check (status in ('queued','processing','ready','failed'))`, `default 'queued'` — mirrors the latest `artifact_processing_runs` row for this artifact, updated in the same transaction |
+| `target_unit_id` | `uuid`, nullable | `references course_units(id)` — added later by `0012_unit_extraction_reconciliation.sql` (specs/004). Optional per-upload unit tag, and a **hard rule** at extraction time, not a hint: every concept extracted from this artifact attaches to that unit regardless of what the model returns, including concepts that reconcile as a merge onto an existing concept. Null means "no specific unit", the normal case |
 | `created_at` | `timestamptz`, not null | `default now()` |
 | `updated_at` | `timestamptz`, not null | `default now()`, bumped whenever `status` changes |
 

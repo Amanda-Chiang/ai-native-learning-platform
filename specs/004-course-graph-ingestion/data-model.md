@@ -17,12 +17,36 @@ not exist before this feature (research.md).
 | `course_id` | `uuid` | FK → `courses.id`, cascade delete |
 | `owner_id` | `uuid` | denormalized from `courses.owner_id` |
 | `title` | `text` | not null |
+| `status` | `text` | not null, `check (status in ('proposed','confirmed','archived'))` — added by `0012_unit_extraction_reconciliation.sql`; existing rows backfilled to `'confirmed'` (every pre-0012 unit was owner-authored) |
+| `extraction_run_id` | `uuid` | FK → `extraction_runs.id`, nullable — added by `0012`; null for a manually-created unit, set for an extraction-proposed one |
 | `created_at` | `timestamptz` | default `now()` |
 
-RLS: `select`/`insert`/`update` where `owner_id = auth.uid()` — units are
-directly authorable/renameable by the course owner (unlike concepts/edges,
-a unit is closer to organizational metadata than an extracted claim, so it
-isn't gated behind the proposed/confirmed review flow).
+RLS: `select`/`insert`/`update` where `owner_id = auth.uid()`.
+
+Units have **two** creation paths, and they differ (amended 2026-09-05,
+`0012_unit_extraction_reconciliation.sql` — this reverses the original
+"units are organizational metadata, not an extracted claim, so they aren't
+gated behind review" position, which left extraction with no way to create
+a unit at all):
+
+- **Manual** (`createUnit`, the course owner's own session): inserts
+  `status = 'confirmed'` directly, with `extraction_run_id = null`. The
+  student is the authority on their own course structure, so there is
+  nothing to review. Titles must be non-empty and are rejected as
+  duplicates (case-insensitive) of an existing unit in the same course.
+  The owner can also rename a unit directly.
+- **Extraction-proposed** (the Trigger.dev task's service-role client):
+  inserts `status = 'proposed'` with the originating `extraction_run_id`,
+  and goes through the same proposed/confirmed/archived review flow as
+  concepts. Reviewer confirm/reject/edit writes run under the owner's own
+  session via `course_units_update_own`.
+
+Cross-table invariant enforced in `actions.ts`, not by a constraint: a
+`course_concepts` row may not be `'confirmed'` while its `unit_id` points
+at a unit that isn't `'confirmed'`, and a unit that confirmed concepts
+still reference may not be archived. `getCourseGraph` selects only
+`'confirmed'` units and concepts, so violating either direction makes
+`materializeCourseGraph` throw for the whole course.
 
 ## course_concepts
 
@@ -85,6 +109,16 @@ uniqueness constraint on that pair.
 
 RLS: same shape as `course_concepts`.
 
+Edges do **not** go through manual review (2026-09-05 amendment to
+FR-006, `spec.md`): they never appear in the review queue. An edge
+auto-confirms exactly when both endpoint concepts are `'confirmed'`,
+decided in three places that share one rule — at insert time in the
+extraction task, in the confirm-time cascade in `confirmCandidate`, and in
+`sweepEligibleEdges`, a single deterministic pass run after a bulk confirm
+so the outcome doesn't depend on the order individual confirms executed
+in. An edge whose endpoints are never both confirmed stays `'proposed'`
+and is simply absent from the materialized graph.
+
 ## extraction_runs
 
 New entity (spec.md's "Extraction Run") — one row per attempt to extract
@@ -110,8 +144,10 @@ RLS: `select` where `owner_id = auth.uid()`; writes are service-role only
 ## reconciliation_decisions
 
 New entity (spec.md's "Reconciliation Decision") — one row per candidate
-concept/edge reconciliation classification (research.md's three-way
-`merge`/`distinct`/`uncertain` outcome).
+concept/**unit** reconciliation classification (research.md's three-way
+`merge`/`distinct`/`uncertain` outcome). `'edge'` remains a legal
+`candidate_kind` value, but nothing writes one: edges are never
+reconciled.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -119,9 +155,11 @@ concept/edge reconciliation classification (research.md's three-way
 | `course_id` | `uuid` | FK → `courses.id`, cascade delete |
 | `owner_id` | `uuid` | denormalized |
 | `extraction_run_id` | `uuid` | FK → `extraction_runs.id` |
-| `candidate_kind` | `text` | not null, `check (candidate_kind in ('concept','edge'))` |
+| `candidate_kind` | `text` | not null, `check (candidate_kind in ('concept','edge','unit'))` — `'unit'` added by `0012` |
 | `decision` | `text` | not null, `check (decision in ('merge','distinct','uncertain'))` |
-| `matched_concept_id` | `uuid` | FK → `course_concepts.id`, nullable — set only when `decision = 'merge'` |
+| `matched_concept_id` | `uuid` | FK → `course_concepts.id`, nullable — set only when `decision = 'merge'` on a concept candidate |
+| `matched_unit_id` | `uuid` | FK → `course_units.id`, nullable — added by `0012`; set only when `decision = 'merge'` on a unit candidate |
+| `candidate_id` | `uuid` | nullable, no FK — added by `0014_reconciliation_decision_candidate_id.sql`; the `course_concepts`/`course_units` row this decision produced, paired with `candidate_kind` (same polymorphic shape as `concept_flags.target_kind`/`target_id`). Null for a `'merge'` (no row was produced — `matched_*_id` identifies the row it merged onto) and for rows written before `0014`. The review queue matches a decision to a card by this column; an unmatched card renders no reconciliation text rather than a neighbour's |
 | `reasoning` | `text` | not null — the model's own stated rationale, kept verbatim for auditability (never a generic placeholder like "auto-decided") |
 | `created_at` | `timestamptz` | default `now()` |
 
