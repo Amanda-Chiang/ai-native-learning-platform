@@ -16,6 +16,19 @@ import type { ReviewQueueItem } from "./actions.ts";
 
 type PriorityKey = { tier: number; secondary: number };
 
+/**
+ * Units sort ahead of concepts, unconditionally and ahead of every
+ * urgency signal below: a concept cannot be confirmed while its parent
+ * unit is still 'proposed' (confirmCandidate refuses -- see actions.ts),
+ * so a queue that showed concepts first would walk the reviewer straight
+ * into a block. This is an ordering *constraint* of the workflow, not an
+ * urgency heuristic, which is why it's a separate, higher-precedence key
+ * rather than folded into the tiers below.
+ */
+function kindTierOf(item: ReviewQueueItem): number {
+  return item.kind === "unit" ? 0 : 1;
+}
+
 function priorityOf(item: ReviewQueueItem): PriorityKey {
   // Units aren't flaggable (submitFlag only accepts "concept"/"edge"
   // targets -- an edge can still be flagged even though it no longer
@@ -42,6 +55,11 @@ function priorityOf(item: ReviewQueueItem): PriorityKey {
 
 export function sortReviewQueueByPriority(items: ReviewQueueItem[]): ReviewQueueItem[] {
   return [...items].sort((a, b) => {
+    const kindTierA = kindTierOf(a);
+    const kindTierB = kindTierOf(b);
+    if (kindTierA !== kindTierB) {
+      return kindTierA - kindTierB;
+    }
     const priorityA = priorityOf(a);
     const priorityB = priorityOf(b);
     if (priorityA.tier !== priorityB.tier) {

@@ -40,3 +40,31 @@ export function resolveOtherEndpoint(
 export function shouldAutoConfirmEdge(otherEndpointStatus: string | undefined): boolean {
   return otherEndpointStatus === "confirmed";
 }
+
+/**
+ * Pure: given every currently-'proposed' edge of a course and the set of
+ * that course's currently-'confirmed' concept ids, returns the ids of the
+ * edges that are now eligible to auto-confirm (both endpoints confirmed).
+ *
+ * This is the decision half of actions.ts's sweepEligibleEdges -- the
+ * deterministic backstop that runs once after a batch of concept confirms
+ * lands, rather than per-confirm. The per-confirm cascade
+ * (autoConfirmEligibleEdges) reads statuses as they were at the moment
+ * that one concept was confirmed, so two concepts joined by an edge and
+ * confirmed close together can each observe the other as still
+ * 'proposed', permanently losing the edge (there is no other path by
+ * which it could ever become visible). Re-deciding from the final state
+ * of the whole course removes that dependence on ordering/concurrency
+ * entirely.
+ */
+export function selectSweepableEdgeIds(
+  proposedEdges: Array<{ id: string; source_concept_id: string; target_concept_id: string }>,
+  confirmedConceptIds: ReadonlySet<string>,
+): string[] {
+  return proposedEdges
+    .filter(
+      (edge) =>
+        confirmedConceptIds.has(edge.source_concept_id) && confirmedConceptIds.has(edge.target_concept_id),
+    )
+    .map((edge) => edge.id);
+}

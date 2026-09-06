@@ -32,9 +32,41 @@ function conceptItem(overrides: {
       reason: "...",
       createdAt: "2026-01-01T00:00:00Z",
     })),
+    unit: { id: "unit-1", courseId: "course-1", title: "Unit 1", status: "confirmed" },
     extractionRunId: "run-1",
   };
 }
+
+function unitItem(id: string, decision?: "merge" | "distinct" | "uncertain"): ReviewQueueItem {
+  return {
+    kind: "unit",
+    unit: { id, courseId: "course-1", title: id, status: "proposed" },
+    reconciliation: decision
+      ? { decision, matchedConceptId: null, matchedUnitId: null, reasoning: "..." }
+      : null,
+    otherExistingUnitTitles: [],
+    extractionRunId: "run-1",
+  };
+}
+
+test("every unit sorts before every concept -- a concept can't be confirmed until its unit is", () => {
+  const unit = unitItem("unit-a");
+  const flaggedConcept = conceptItem({ id: "flagged", flags: 3 });
+
+  const sorted = sortReviewQueueByPriority([flaggedConcept, unit]);
+
+  assert.equal(sorted[0].kind, "unit");
+  assert.equal(sorted[1].kind, "concept");
+});
+
+test("within units, an 'uncertain' one still sorts before an ordinary one", () => {
+  const ordinary = unitItem("ordinary");
+  const uncertain = unitItem("uncertain", "uncertain");
+
+  const sorted = sortReviewQueueByPriority([ordinary, uncertain]);
+
+  assert.equal(sorted[0].kind === "unit" && sorted[0].unit.id, "uncertain");
+});
 
 test("a flagged item sorts before an unflagged one, regardless of confidence", () => {
   const flagged = conceptItem({ id: "flagged", confidence: 0.99, flags: 1 });

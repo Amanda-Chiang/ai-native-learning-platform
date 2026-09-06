@@ -6,6 +6,7 @@ import {
   rejectCandidate,
   editCandidate,
   getReviewQueue,
+  sweepEligibleEdges,
   type ReviewQueueItem,
 } from "@/features/course-graph-ingestion/actions.ts";
 import { createClient } from "@/lib/supabase/client.ts";
@@ -68,6 +69,21 @@ function CandidateCard({
         ) : item.kind === "concept" ? (
           <>
             <h3 style={s.cardTitle}>{item.concept.canonicalName}</h3>
+            {/* Which unit this concept files under, and whether that unit
+                is itself still awaiting review -- a concept can't be
+                confirmed before its unit is (actions.ts's
+                confirmCandidate guard), so the dependency has to be
+                visible on the card rather than only discovered as an
+                error after clicking Confirm. */}
+            <p style={s.aliases}>
+              {item.unit === null ? (
+                <span style={s.unitPending}>Unit: unknown (this concept points at a unit not found in this course)</span>
+              ) : item.unit.status === "confirmed" ? (
+                <>Unit: {item.unit.title}</>
+              ) : (
+                <span style={s.unitPending}>Unit: {item.unit.title} — confirm this unit first</span>
+              )}
+            </p>
             {item.concept.aliases.length > 0 && (
               <p style={s.aliases}>Also known as: {item.concept.aliases.join(", ")}</p>
             )}
@@ -160,6 +176,7 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errorById, setErrorById] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   // On page load, if any leftover 'proposed' candidate from a prior
   // extraction run is still sitting unreviewed, re-open the popup for
@@ -219,16 +236,20 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
     setActiveModalRunId(null);
   }
 
-  async function handleConfirm(item: ReviewQueueItem) {
+  // Returns the server's error (or null) as well as rendering it on the
+  // card, so a bulk caller can count real failures instead of assuming
+  // every dispatched confirm succeeded.
+  async function handleConfirm(item: ReviewQueueItem): Promise<string | null> {
     const id = itemId(item);
     setPendingId(id);
     const { error } = await confirmCandidate(item.kind, id);
     setPendingId(null);
     if (error) {
       setErrorById((e) => ({ ...e, [id]: error }));
-      return;
+      return error;
     }
     setItems((current) => current.filter((i) => itemId(i) !== id));
+    return null;
   }
 
   async function handleReject(item: ReviewQueueItem) {
@@ -294,9 +315,62 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
     }
   }, [activeModalRunId, modalItems.length]);
 
+  /**
+   * Bulk confirm, in the one order the server actually allows: every
+   * pending unit in this run first, then (if concepts were asked for)
+   * the concepts. confirmCandidate refuses a concept whose unit is
+   * still 'proposed', so a "Confirm N Concepts" click on a fresh run --
+   * where the units are proposed too -- would otherwise fail for every
+   * single concept. Units are confirmed regardless of which bulk button
+   * was pressed, because they are a precondition of the concepts, not a
+   * separate opt-in.
+   *
+   * Sequential, not Promise.all: correctness of the edge auto-confirm
+   * cascade previously depended on Next.js dispatching Server Function
+   * calls one at a time ("an implementation detail [that] may change"),
+   * and concurrent confirms of two edge-joined concepts can each read
+   * the other endpoint as still 'proposed'. sweepEligibleEdges below is
+   * the deterministic backstop; sequencing here also keeps the per-item
+   * error reporting (pendingId is a single id) coherent, and makes the
+   * units-before-concepts ordering above actually hold.
+   *
+   * Failures are never swallowed: each one renders on its own card via
+   * handleConfirm, and the count is summarised in the modal footer so a
+   * reviewer who clicked a bulk button gets a signal even if the failing
+   * card is scrolled out of view.
+   */
   async function handleBulkConfirm(kind: ReviewQueueItem["kind"]) {
-    const toConfirm = modalItems.filter((i) => i.kind === kind);
-    await Promise.all(toConfirm.map((i) => handleConfirm(i)));
+    setBulkError(null);
+    const ordered = [
+      ...modalItems.filter((i) => i.kind === "unit"),
+      ...(kind === "concept" ? modalItems.filter((i) => i.kind === "concept") : []),
+    ];
+
+    let failures = 0;
+    let confirmedAnyConcept = false;
+    for (const item of ordered) {
+      const error = await handleConfirm(item);
+      if (error) failures += 1;
+      else if (item.kind === "concept") confirmedAnyConcept = true;
+    }
+
+    // Deterministic backstop for the edge cascade (see actions.ts):
+    // re-checks every proposed edge in the course once, after the whole
+    // batch has landed, instead of trusting the per-confirm cascade to
+    // have observed the final statuses.
+    if (confirmedAnyConcept) {
+      const { error: sweepError } = await sweepEligibleEdges(courseId);
+      if (sweepError) {
+        setBulkError(`Confirmed, but relationships could not be re-checked: ${sweepError}`);
+        return;
+      }
+    }
+
+    if (failures > 0) {
+      setBulkError(
+        `${failures} candidate${failures === 1 ? "" : "s"} could not be confirmed -- see the message on each card.`,
+      );
+    }
   }
 
   function renderCard(item: ReviewQueueItem) {
@@ -357,6 +431,11 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
             </div>
             <ul style={s.modalList}>{modalItems.map((item) => renderCard(item))}</ul>
             <div style={s.modalFooter}>
+              {bulkError && (
+                <p style={s.error} role="alert">
+                  {bulkError}
+                </p>
+              )}
               {bulkKinds.map((kind) => {
                 const count = modalItems.filter((i) => i.kind === kind).length;
                 return (
@@ -416,6 +495,7 @@ const s: Record<string, React.CSSProperties> = {
   flags: { fontSize: 12.5, color: "var(--clay)" },
   flagList: { margin: "4px 0 0", paddingLeft: 18 },
   error: { margin: 0, fontSize: 12.5, color: "var(--clay)" },
+  unitPending: { color: "var(--urgent-amber)", fontWeight: 600 },
   actionColumn: { flexShrink: 0, width: 96, display: "flex", flexDirection: "column", gap: 6 },
   input: {
     padding: "8px 10px",

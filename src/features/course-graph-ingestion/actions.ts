@@ -19,7 +19,7 @@ import type {
 } from "@/lib/supabase/database.types.ts";
 import { validateFlagReason } from "@/features/course-graph-ingestion/flag-validation.ts";
 import { sortReviewQueueByPriority } from "@/features/course-graph-ingestion/review-queue-priority.ts";
-import { resolveOtherEndpoint, shouldAutoConfirmEdge } from "./edge-auto-confirm.ts";
+import { resolveOtherEndpoint, shouldAutoConfirmEdge, selectSweepableEdgeIds } from "./edge-auto-confirm.ts";
 
 /**
  * Server action contracts: specs/004-course-graph-ingestion/contracts/ingestion-actions.md
@@ -139,6 +139,17 @@ export type ReviewQueueItem =
       concept: CourseConcept;
       reconciliation: ReconciliationDecision | null;
       flags: ConceptFlag[];
+      /** The unit this concept belongs to, resolved for display so a
+       * reviewer can see (a) which unit they're filing this concept
+       * under and (b) whether that unit is itself still 'proposed' --
+       * confirmCandidate refuses to confirm a concept whose unit isn't
+       * confirmed yet (otherwise a confirmed concept would reference a
+       * unit getCourseGraph filters out, and materializeCourseGraph
+       * throws for the whole course). Null only if the concept's
+       * unit_id doesn't resolve to a row of this course at all, which
+       * is surfaced as an explicit "unknown unit" in the UI rather than
+       * silently rendered as "no unit". */
+      unit: CourseUnit | null;
       /** The extraction_runs row this candidate came from -- null for
        * anything that never went through the pipeline (there is none for
        * concepts today, but kept nullable for consistency with the unit
@@ -186,25 +197,25 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
   // and extract-course-graph.ts's insert-time check).
   const [conceptsRes, unitsRes, decisionsRes, flagsRes] = await Promise.all([
     supabase.from("course_concepts").select("*").eq("course_id", courseId).eq("status", "proposed"),
-    supabase.from("course_units").select("*").eq("course_id", courseId).eq("status", "proposed"),
+    // Every unit of the course, whatever its status -- one query serving
+    // three needs: the 'proposed' ones are themselves review candidates,
+    // the 'confirmed' ones' titles feed the "distinct" mitigation below,
+    // and all of them are needed to resolve each proposed concept's own
+    // parent unit for display (a concept can only be confirmed once its
+    // unit is, so the reviewer has to be able to see that unit's state).
+    supabase.from("course_units").select("*").eq("course_id", courseId),
     supabase.from("reconciliation_decisions").select("*").eq("course_id", courseId),
     supabase.from("concept_flags").select("*").eq("course_id", courseId),
   ]);
 
   const concepts = conceptsRes.data ?? [];
-  const proposedUnits = unitsRes.data ?? [];
+  const allUnits = unitsRes.data ?? [];
   const decisions = decisionsRes.data ?? [];
   const flags = flagsRes.data ?? [];
 
-  // Every already-confirmed unit's title -- used for the "distinct"
-  // mitigation below, so it needs status='confirmed', a separate
-  // query from the 'proposed' one above (different filter).
-  const { data: confirmedUnitRows } = await supabase
-    .from("course_units")
-    .select("title")
-    .eq("course_id", courseId)
-    .eq("status", "confirmed");
-  const confirmedUnitTitles = (confirmedUnitRows ?? []).map((u) => u.title);
+  const proposedUnits = allUnits.filter((u) => u.status === "proposed");
+  const confirmedUnitTitles = allUnits.filter((u) => u.status === "confirmed").map((u) => u.title);
+  const unitById = new Map(allUnits.map((u) => [u.id, unitRowToDomain(u)]));
 
   // reconciliation_decisions doesn't carry a direct FK to the concept it
   // evaluated (it's a record of a moment in the pipeline, not a foreign
@@ -238,6 +249,7 @@ export async function getReviewQueue(courseId: string): Promise<ReviewQueueItem[
       concept: conceptRowToDomain(row),
       reconciliation: toReconciliationDecision(matchingDecision),
       flags: (flagsByTarget.get(row.id) ?? []).map(toConceptFlag),
+      unit: unitById.get(row.unit_id) ?? null,
       extractionRunId: row.extraction_run_id,
     };
   });
@@ -282,6 +294,48 @@ export async function confirmCandidate(
   }
   if (existing.status !== "proposed") {
     return { error: `This ${kind} is already "${existing.status}", not "proposed" -- nothing to confirm.` };
+  }
+
+  // A concept may not become 'confirmed' while the unit it belongs to is
+  // still 'proposed' (or archived). getCourseGraph selects only
+  // status='confirmed' units, so a confirmed concept pointing at a
+  // non-confirmed unit makes materializeCourseGraph throw and 500s the
+  // whole Atlas route for the course -- permanently, with no self-healing
+  // path the user can discover. The unit review gate is deliberately NOT
+  // auto-satisfied here (we don't silently confirm the unit on the
+  // reviewer's behalf): unit review is its own independent gate, and it is
+  // the design's own mitigation for the confidently-wrong-"distinct"
+  // duplicate-unit risk. The review queue orders units ahead of concepts
+  // and bulk-confirm confirms units first, so in the normal flow this
+  // guard never fires; when it does, it says exactly what to do.
+  if (kind === "concept") {
+    const { data: conceptRow, error: conceptError } = await supabase
+      .from("course_concepts")
+      .select("unit_id")
+      .eq("id", id)
+      .single();
+    if (conceptError || !conceptRow) {
+      return { error: `No concept found with id "${id}".` };
+    }
+    // unit_id is NOT NULL in the schema today, but the domain type allows
+    // null -- a concept with no unit has no dependency to gate on.
+    if (conceptRow.unit_id) {
+      const { data: unitRow, error: unitError } = await supabase
+        .from("course_units")
+        .select("title, status")
+        .eq("id", conceptRow.unit_id)
+        .single();
+      if (unitError || !unitRow) {
+        return {
+          error: `This concept's unit (id "${conceptRow.unit_id}") could not be loaded, so it cannot be confirmed yet.`,
+        };
+      }
+      if (unitRow.status !== "confirmed") {
+        return {
+          error: `Cannot confirm this concept: its unit "${unitRow.title}" must be confirmed first.`,
+        };
+      }
+    }
   }
 
   // course_units has no `updated_at` column (unlike course_concepts/
@@ -331,7 +385,19 @@ async function autoConfirmEligibleEdges(
     .eq("status", "proposed")
     .or(`source_concept_id.eq.${confirmedConceptId},target_concept_id.eq.${confirmedConceptId}`);
 
-  if (edgesError || !candidateEdges) return;
+  // Never a silent no-op: an edge that misses this cascade has no other
+  // path to becoming visible, so a failed query has to leave a trace
+  // somewhere a developer can find it (server logs -- same convention as
+  // concept-atlas's adapter). sweepEligibleEdges is the actual
+  // correctness backstop; this logging is what makes a failure here
+  // diagnosable rather than invisible.
+  if (edgesError || !candidateEdges) {
+    console.error(
+      `[course-graph-ingestion] failed to load proposed edges touching concept ${confirmedConceptId} for auto-confirm:`,
+      edgesError?.message ?? "no rows returned",
+    );
+    return;
+  }
 
   for (const edge of candidateEdges) {
     const otherConceptId = resolveOtherEndpoint(edge, confirmedConceptId);
@@ -342,11 +408,79 @@ async function autoConfirmEligibleEdges(
       .eq("id", otherConceptId)
       .single();
 
-    if (otherConceptError || !otherConcept) continue;
+    if (otherConceptError || !otherConcept) {
+      console.error(
+        `[course-graph-ingestion] failed to read status of concept ${otherConceptId} while auto-confirming edge ${edge.id}:`,
+        otherConceptError?.message ?? "no rows returned",
+      );
+      continue;
+    }
     if (!shouldAutoConfirmEdge(otherConcept.status)) continue;
 
-    await confirmCandidate("edge", edge.id);
+    const { error: confirmError } = await confirmCandidate("edge", edge.id);
+    if (confirmError) {
+      console.error(`[course-graph-ingestion] failed to auto-confirm edge ${edge.id}: ${confirmError}`);
+    }
   }
+}
+
+/**
+ * Deterministic backstop for the edge cascade: re-decides, from the
+ * course's CURRENT state, every 'proposed' edge whose both endpoint
+ * concepts are now 'confirmed', and confirms them in one batched update.
+ *
+ * Called once after a bulk-confirm batch finishes (ReviewQueue's
+ * handleBulkConfirm), not per concept. That's the point: the per-confirm
+ * cascade above decides from statuses as of the moment one concept was
+ * confirmed, so its correctness depends on the order (and concurrency) in
+ * which N individual confirmCandidate calls happen to run -- and Next.js
+ * explicitly documents its one-at-a-time Server Function dispatch as an
+ * implementation detail that may change. This pass depends on none of
+ * that, and it's cheaper than the N+M round trips it backstops.
+ *
+ * Returns a real error string rather than swallowing it, since a failed
+ * sweep means relationships may be silently missing from the Atlas.
+ */
+export async function sweepEligibleEdges(courseId: string): Promise<{ confirmed: number; error: string | null }> {
+  const supabase = await createClient();
+
+  const [edgesRes, conceptsRes] = await Promise.all([
+    supabase
+      .from("concept_edges")
+      .select("id, source_concept_id, target_concept_id")
+      .eq("course_id", courseId)
+      .eq("status", "proposed"),
+    supabase.from("course_concepts").select("id").eq("course_id", courseId).eq("status", "confirmed"),
+  ]);
+
+  if (edgesRes.error || !edgesRes.data) {
+    const message = edgesRes.error?.message ?? "Could not load this course's proposed relationships.";
+    console.error(`[course-graph-ingestion] edge sweep failed to load proposed edges: ${message}`);
+    return { confirmed: 0, error: message };
+  }
+  if (conceptsRes.error || !conceptsRes.data) {
+    const message = conceptsRes.error?.message ?? "Could not load this course's confirmed concepts.";
+    console.error(`[course-graph-ingestion] edge sweep failed to load confirmed concepts: ${message}`);
+    return { confirmed: 0, error: message };
+  }
+
+  const confirmedConceptIds = new Set(conceptsRes.data.map((c) => c.id));
+  const eligibleIds = selectSweepableEdgeIds(edgesRes.data, confirmedConceptIds);
+  if (eligibleIds.length === 0) {
+    return { confirmed: 0, error: null };
+  }
+
+  const { error: updateError } = await supabase
+    .from("concept_edges")
+    .update({ status: "confirmed", updated_at: new Date().toISOString() })
+    .in("id", eligibleIds);
+
+  if (updateError) {
+    console.error(`[course-graph-ingestion] edge sweep failed to confirm edges: ${updateError.message}`);
+    return { confirmed: 0, error: updateError.message };
+  }
+
+  return { confirmed: eligibleIds.length, error: null };
 }
 
 export async function rejectCandidate(
@@ -354,6 +488,49 @@ export async function rejectCandidate(
   id: string,
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
+
+  // Same status guard confirmCandidate has -- rejecting something that is
+  // already confirmed/archived was a real asymmetry between the two
+  // actions (an already-'confirmed' row could be silently archived out
+  // from under everything referencing it).
+  const { data: existing, error: fetchError } = await supabase
+    .from(TABLE_BY_KIND[kind])
+    .select("status")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !existing) {
+    return { error: `No ${kind} found with id "${id}".` };
+  }
+  if (existing.status !== "proposed") {
+    return { error: `This ${kind} is already "${existing.status}", not "proposed" -- nothing to reject.` };
+  }
+
+  // The reject-side half of confirmCandidate's concept->unit invariant:
+  // archiving a unit that confirmed concepts still point at produces the
+  // exact same materializeCourseGraph throw (a confirmed concept
+  // referencing a unit getCourseGraph no longer selects), and unlike the
+  // confirm case it isn't recoverable by confirming something -- there is
+  // no reparenting UI. Refuse instead.
+  if (kind === "unit") {
+    const { data: dependents, error: dependentsError } = await supabase
+      .from("course_concepts")
+      .select("id")
+      .eq("unit_id", id)
+      .eq("status", "confirmed")
+      .limit(1);
+
+    if (dependentsError) {
+      return {
+        error: `Could not check whether confirmed concepts still belong to this unit: ${dependentsError.message}`,
+      };
+    }
+    if ((dependents ?? []).length > 0) {
+      return {
+        error: "Cannot reject this unit: confirmed concepts still belong to it.",
+      };
+    }
+  }
 
   // Archive, never delete (FR-007) -- preserves the extraction record.
   // Same `table`-union-collapses-to-`never` reasoning as confirmCandidate above.
