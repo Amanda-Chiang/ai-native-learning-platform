@@ -494,9 +494,18 @@ async function writeExtractionCandidates(
         throw new Error(`Failed to load existing source_anchors for concept ${matched.id}.`);
       }
 
+      // The target_unit_id hard rule wins over the merged-onto concept's
+      // prior unit assignment (design.md goal 3: "every concept extracted
+      // from that artifact attaches to the tagged unit, with no model
+      // discretion"). A merge otherwise left the existing concept where it
+      // was, so a user who tagged an upload "this is for Dynamic
+      // Programming" would still find some of its concepts in other units
+      // with no explanation -- a "hard rule" that silently wasn't one.
+      // Only the unit moves; everything else about a merge stays additive.
       const { error: updateError } = await supabase
         .from("course_concepts")
         .update({
+          ...(hardTargetUnitId ? { unit_id: hardTargetUnitId } : {}),
           aliases: mergedAliases,
           source_anchors: [
             ...existingRow.source_anchors,

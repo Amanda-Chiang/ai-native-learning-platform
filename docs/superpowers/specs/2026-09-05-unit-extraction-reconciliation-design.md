@@ -36,7 +36,16 @@ queued" or "queued zero concepts" to the student.
 3. Let an upload be optionally tagged to a specific unit
    (`target_unit_id`), and treat that as a hard rule: every concept
    extracted from that artifact attaches to the tagged unit, with no
-   model discretion.
+   model discretion. This holds for merged concepts too — when a
+   candidate from a hard-targeted upload reconciles as `merge` onto an
+   already-existing concept, that existing concept's `unit_id` is
+   **moved** to the target unit (2026-09-06 amendment; a merge is
+   otherwise purely additive — aliases and source anchors — but the
+   hard rule is explicitly "no model discretion, no exceptions", and
+   silently exempting merges made it a hard rule that wasn't). The
+   response's `units` array must be empty for such an upload; if the
+   model returns units anyway, the run fails rather than materializing
+   proposed units no concept will ever reference.
 4. Minimize duplicate-unit risk without building a bigger "detect and
    merge two independently-already-confirmed entities" system (that
    remains an explicit non-goal, matching the same limitation the
