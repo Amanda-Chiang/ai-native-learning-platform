@@ -19,6 +19,13 @@
       "status": "proposed",
       "confidence": 0.82
     },
+    "unit": {
+      "id": "unit-demo-graphs",
+      "courseId": "demo",
+      "title": "Graphs",
+      "status": "confirmed"
+    },
+    "extractionRunId": "extraction-run-demo-1",
     "reconciliation": null,
     "flags": []
   },
@@ -42,6 +49,13 @@
       "status": "proposed",
       "confidence": 0.6
     },
+    "unit": {
+      "id": "unit-demo-graphs",
+      "courseId": "demo",
+      "title": "Graphs",
+      "status": "confirmed"
+    },
+    "extractionRunId": "extraction-run-demo-2",
     "reconciliation": {
       "decision": "uncertain",
       "matchedConceptId": null,
