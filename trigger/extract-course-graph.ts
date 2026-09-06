@@ -153,21 +153,35 @@ export const extractCourseGraphTask = task({
       return markFailed(supabase, run.id, `Failed to load existing units: ${existingUnitsError.message}`);
     }
 
-    let hardTargetUnit: { id: string; title: string } | null = null;
+    const existingUnits: ExistingUnitSummary[] = (existingUnitRows ?? []).map((u) => ({ id: u.id, title: u.title }));
+    const existingUnitIdsForTargetCheck = new Set(existingUnits.map((u) => u.id));
+
+    let hardTargetUnit: { id: string; title: string; status: string } | null = null;
     if (artifact.target_unit_id) {
       const { data: targetUnitRow, error: targetUnitError } = await supabase
         .from("course_units")
         .select("id, title, status")
         .eq("id", artifact.target_unit_id)
+        .eq("course_id", payload.courseId)
         .single();
 
-      if (targetUnitError || !targetUnitRow || targetUnitRow.status === "archived") {
+      // Scoped to this course (course_id eq above) and, redundantly but
+      // deliberately, checked against the same existingUnitIds set the
+      // rest of this task already trusts (N2): target_unit_id is
+      // client-supplied (artifact-board.tsx's upload picker) and this task
+      // runs under the service-role client, so RLS provides no backstop --
+      // a crafted or stale id pointing at another course's unit must be
+      // caught here, not discovered later as a cross-course ontology break.
+      if (
+        targetUnitError ||
+        !targetUnitRow ||
+        targetUnitRow.status === "archived" ||
+        !existingUnitIdsForTargetCheck.has(targetUnitRow.id)
+      ) {
         return markFailed(supabase, run.id, `This artifact's target unit no longer exists or has been archived.`);
       }
-      hardTargetUnit = { id: targetUnitRow.id, title: targetUnitRow.title };
+      hardTargetUnit = { id: targetUnitRow.id, title: targetUnitRow.title, status: targetUnitRow.status };
     }
-
-    const existingUnits: ExistingUnitSummary[] = (existingUnitRows ?? []).map((u) => ({ id: u.id, title: u.title }));
 
     // Unreadable artifact: a distinct failure status (FR-012), same
     // file-existence check pattern already proven in ingest-artifact.ts.
@@ -235,6 +249,7 @@ export const extractCourseGraphTask = task({
         createOpenAiUnitReconciliationClassifier(openai, EXTRACTION_MODEL),
         existingUnits,
         hardTargetUnit?.id ?? null,
+        hardTargetUnit?.status ?? null,
       );
     } catch (err) {
       return markFailed(
@@ -282,6 +297,7 @@ async function writeExtractionCandidates(
   classifyUnit: UnitReconciliationClassifier,
   existingUnits: ExistingUnitSummary[],
   hardTargetUnitId: string | null,
+  hardTargetUnitStatus: string | null,
 ): Promise<{ conceptsExtracted: number; edgesExtracted: number; edgesDroppedSelfReferential: number }> {
   // Every unit id the model/classifier was actually shown -- anything
   // outside this set that comes back is a hallucination, not a value to
@@ -418,7 +434,7 @@ async function writeExtractionCandidates(
   // extraction should merge onto.
   const { data: existingRows, error: existingError } = await supabase
     .from("course_concepts")
-    .select("id, canonical_name, aliases, description")
+    .select("id, canonical_name, aliases, description, status")
     .eq("course_id", courseId)
     .in("status", ["proposed", "confirmed"]);
 
@@ -432,6 +448,12 @@ async function writeExtractionCandidates(
     aliases: row.aliases,
     description: row.description,
   }));
+  // Looked up separately from the ExistingConceptSummary shape above
+  // (which is the classifier's input contract, not a place to smuggle in
+  // an extra field) -- needed only for the merge-write guard below (N1).
+  const existingConceptStatusById = new Map(
+    (existingRows ?? []).map((row) => [row.id, row.status]),
+  );
 
   const localIdToRealId = new Map<string, string>();
 
@@ -502,10 +524,33 @@ async function writeExtractionCandidates(
       // Programming" would still find some of its concepts in other units
       // with no explanation -- a "hard rule" that silently wasn't one.
       // Only the unit moves; everything else about a merge stays additive.
+      //
+      // Exception (2026-09-06, N1 fix): the merged-onto concept can
+      // already be 'confirmed', and the hard-target unit only has to be
+      // non-archived (the upload picker deliberately offers 'proposed'
+      // units too -- that's the normal state before a unit itself is
+      // reviewed). Moving a CONFIRMED concept onto a unit that isn't also
+      // 'confirmed' would recreate exactly the state confirmCandidate's
+      // own guard exists to prevent (a confirmed concept referencing a
+      // non-confirmed unit -- getCourseGraph only selects confirmed units,
+      // so materializeCourseGraph throws and /atlas 500s for the whole
+      // course), reached through this merge path instead of through
+      // confirmCandidate. A 'proposed' merged-onto concept has no such
+      // restriction -- a proposed concept pointing at a proposed unit is
+      // the ordinary pre-review state. Skipping the move here does not
+      // block the merge itself: aliases/source_anchors/updated_at still
+      // write normally, the concept just keeps its existing unit_id until
+      // a later run (or the reviewer) resolves it.
+      const canMoveUnit = shouldMoveConceptUnitOnMerge(
+        hardTargetUnitId,
+        hardTargetUnitStatus,
+        existingConceptStatusById.get(matched.id) ?? null,
+      );
+
       const { error: updateError } = await supabase
         .from("course_concepts")
         .update({
-          ...(hardTargetUnitId ? { unit_id: hardTargetUnitId } : {}),
+          ...(canMoveUnit && hardTargetUnitId ? { unit_id: hardTargetUnitId } : {}),
           aliases: mergedAliases,
           source_anchors: [
             ...existingRow.source_anchors,
@@ -712,6 +757,38 @@ export function resolveEdgeEndpoints(
  */
 export function shouldEdgeAutoConfirm(sourceStatus: string | undefined, targetStatus: string | undefined): boolean {
   return sourceStatus === "confirmed" && targetStatus === "confirmed";
+}
+
+/**
+ * Pure: decides whether a merge onto an existing concept should also move
+ * that concept's unit_id to the upload's hard-target unit (design.md goal
+ * 3's 2026-09-06 exception, N1 fix).
+ *
+ * The hard rule ("every concept from a hard-targeted upload attaches to
+ * the tagged unit, no model discretion") normally wins even over a
+ * merged-onto concept's prior unit. But the upload picker offers
+ * non-archived units, including 'proposed' ones, while the concept being
+ * merged onto can already be 'confirmed' -- moving a CONFIRMED concept
+ * onto a unit that isn't itself 'confirmed' would recreate the exact
+ * invariant confirmCandidate's own guard exists to prevent (a confirmed
+ * concept referencing a non-confirmed unit, which makes
+ * materializeCourseGraph throw for the whole course). So the move is
+ * skipped in that one case; a 'proposed' merged-onto concept has no such
+ * restriction, since pointing at a 'proposed' unit is its ordinary
+ * pre-review state.
+ *
+ * Factored out from writeExtractionCandidates specifically so this
+ * invariant is testable without a live Supabase client
+ * (tests/unit/course-graph-ingestion/merge-unit-reassignment.test.ts).
+ */
+export function shouldMoveConceptUnitOnMerge(
+  hardTargetUnitId: string | null,
+  hardTargetUnitStatus: string | null,
+  mergedConceptStatus: string | null,
+): boolean {
+  if (hardTargetUnitId === null) return false;
+  if (mergedConceptStatus !== "confirmed") return true;
+  return hardTargetUnitStatus === "confirmed";
 }
 
 /**

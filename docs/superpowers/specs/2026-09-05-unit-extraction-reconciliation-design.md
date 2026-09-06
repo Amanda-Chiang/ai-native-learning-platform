@@ -46,6 +46,25 @@ queued" or "queued zero concepts" to the student.
    response's `units` array must be empty for such an upload; if the
    model returns units anyway, the run fails rather than materializing
    proposed units no concept will ever reference.
+
+   **Exception (2026-09-06):** this reassignment does not override an
+   already-`confirmed` concept's `unit_id` unless the target unit is
+   *also* `confirmed`. The upload picker offers non-archived units,
+   including `proposed` ones, so a hard target can itself be
+   `proposed` while the concept being merged onto is already
+   `confirmed` (confirmed under a different, earlier-reviewed unit).
+   Moving that confirmed concept onto a proposed unit would recreate
+   the exact invariant violation `confirmCandidate`'s own unit-status
+   guard exists to prevent — a confirmed concept referencing a
+   non-confirmed unit, which makes `getCourseGraph`/
+   `materializeCourseGraph` throw for the whole course — reached
+   through the merge path instead of through `confirmCandidate`. When
+   this exception applies, the unit_id move is skipped but the rest of
+   the merge (aliases, source anchors, `updated_at`) still happens; the
+   concept is left on its existing unit until a later run or reviewer
+   action resolves it. A `proposed` merged-onto concept has no such
+   restriction — pointing at a `proposed` target unit is the ordinary
+   pre-review state, so the move always applies there.
 4. Minimize duplicate-unit risk without building a bigger "detect and
    merge two independently-already-confirmed entities" system (that
    remains an explicit non-goal, matching the same limitation the
