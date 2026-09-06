@@ -283,6 +283,26 @@ async function writeExtractionCandidates(
   existingUnits: ExistingUnitSummary[],
   hardTargetUnitId: string | null,
 ): Promise<{ conceptsExtracted: number; edgesExtracted: number; edgesDroppedSelfReferential: number }> {
+  // Every unit id the model/classifier was actually shown -- anything
+  // outside this set that comes back is a hallucination, not a value to
+  // trust (see resolveConceptUnitId and resolveUnitReferences below).
+  const existingUnitIds = new Set(existingUnits.map((u) => u.id));
+
+  // A hard-targeted upload's prompt states the "units" array MUST be
+  // empty (openai-extraction-call.ts's buildExtractionPrompt). Returning
+  // units anyway is a genuine contract violation: every concept from this
+  // artifact hard-attaches to the target unit, so any unit created here
+  // would be an orphan -- a proposed unit no concept references, shown to
+  // the reviewer as an out-of-context candidate. Surfaced as a real
+  // failure (the run is marked failed with this reason) rather than
+  // silently materialized, same defense-in-depth stance the hard override
+  // in resolveConceptUnitId takes.
+  if (hardTargetUnitId && extraction.units.length > 0) {
+    throw new Error(
+      `This artifact is hard-targeted at unit ${hardTargetUnitId}, but the extraction response returned ${extraction.units.length} unit(s) despite the prompt requiring an empty "units" array.`,
+    );
+  }
+
   // -------------------------------------------------------------
   // Units resolve BEFORE concepts (design.md's write ordering) --
   // a concept whose candidate unit gets merged away must land under
@@ -308,7 +328,11 @@ async function writeExtractionCandidates(
     }
   }
 
-  const { unitLocalIdToRealId, toInsert: unitsToInsert } = resolveUnitReferences(extraction.units, unitReconciliations);
+  const { unitLocalIdToRealId, toInsert: unitsToInsert } = resolveUnitReferences(
+    extraction.units,
+    unitReconciliations,
+    existingUnitIds,
+  );
 
   for (const unit of unitsToInsert) {
     const { data: insertedUnit, error: unitInsertError } = await supabase
@@ -335,10 +359,27 @@ async function writeExtractionCandidates(
   // the prompt-level instruction (design.md).
   function resolveConceptUnitId(unitRef: ExtractionResult["concepts"][number]["unitRef"]): string {
     if (hardTargetUnitId) return hardTargetUnitId;
-    if (unitRef.kind === "existing") return unitRef.unitId;
+    if (unitRef.kind === "existing") {
+      // Mirror of the matchedConceptId check below (design.md: "a unitRef
+      // that resolves to nothing ... throws immediately -- same
+      // invariant-violation handling as today's matchedConceptId-not-found
+      // check"). Without it, a hallucinated id fails as an opaque FK/uuid
+      // error at insert time at best -- and at worst is a REAL unit id
+      // belonging to a DIFFERENT course, which passes the FK and passes
+      // RLS (service-role client) and silently attaches this course's
+      // concepts to another course's unit.
+      if (!existingUnitIds.has(unitRef.unitId)) {
+        throw new Error(
+          `Concept's unitRef.unitId "${unitRef.unitId}" is not among the existing units this extraction was shown for course ${courseId}.`,
+        );
+      }
+      return unitRef.unitId;
+    }
     const realId = unitLocalIdToRealId.get(unitRef.localId);
     if (!realId) {
-      throw new Error(`Concept's unitRef.localId "${unitRef.localId}" did not resolve to a real unit id.`);
+      throw new Error(
+        `Concept's unitRef.localId "${unitRef.localId}" is not present in this extraction response's own "units" array, so it did not resolve to a real unit id.`,
+      );
     }
     return realId;
   }
@@ -632,6 +673,7 @@ export function shouldEdgeAutoConfirm(sourceStatus: string | undefined, targetSt
 export function resolveUnitReferences(
   units: CandidateUnit[],
   reconciliations: Map<string, UnitReconciliationResult>,
+  existingUnitIds: ReadonlySet<string>,
 ): {
   unitLocalIdToRealId: Map<string, string>;
   toInsert: CandidateUnit[];
@@ -645,6 +687,16 @@ export function resolveUnitReferences(
       throw new Error(`Candidate unit "${unit.localId}" has no reconciliation decision.`);
     }
     if (reconciliation.decision === "merge") {
+      // Same check the concept path makes on matchedConceptId: the
+      // classifier returning an id it was never shown is an invariant
+      // violation (a hallucinated id, or -- worse -- a real unit id from
+      // another course), not something to write into the map and let a
+      // downstream FK/RLS layer decide about.
+      if (!existingUnitIds.has(reconciliation.matchedUnitId)) {
+        throw new Error(
+          `Unit reconciliation returned matchedUnitId "${reconciliation.matchedUnitId}", which is not among the existing units it was given.`,
+        );
+      }
       unitLocalIdToRealId.set(unit.localId, reconciliation.matchedUnitId);
     } else {
       toInsert.push(unit);
