@@ -55,7 +55,18 @@ export default async function globalSetup() {
 
   const { data: unit, error: unitError } = await admin
     .from("course_units")
-    .insert({ course_id: course.id, owner_id: userId, title: "Graphs" })
+    // status/extraction_run_id are required as of migration 0012 (units
+    // gained the proposed/confirmed review lifecycle) -- course_units.status
+    // is NOT NULL with no default, so an insert omitting it fails outright.
+    // 'confirmed' is what this fixture means: an owner-authored unit whose
+    // concepts are already confirmed below.
+    .insert({
+      course_id: course.id,
+      owner_id: userId,
+      title: "Graphs",
+      status: "confirmed",
+      extraction_run_id: null,
+    })
     .select()
     .single();
   if (unitError || !unit) {
