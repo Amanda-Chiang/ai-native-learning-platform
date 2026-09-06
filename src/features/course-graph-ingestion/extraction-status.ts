@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server.ts";
 
 export type ExtractionStatusView = {
   artifactId: string;
-  artifactFilename: string;
   runId: string;
   status: "queued" | "processing" | "completed" | "failed";
   failureReason: string | null;
@@ -13,8 +12,12 @@ export type ExtractionStatusView = {
 };
 
 /**
- * The latest extraction_runs row per artifact, joined with the
- * artifact's own filename for display. An artifact with no
+ * The latest extraction_runs row per artifact. The filename is
+ * deliberately NOT joined in here: ArtifactBoard, the only consumer,
+ * renders it from its own live `artifacts` state, so joining it a second
+ * time meant an extra query per course page load whose only other effect
+ * was a `?? artifactId` raw-UUID stand-in for a filename that failed to
+ * resolve. An artifact with no
  * extraction_runs row at all (upload still queued/processing at the
  * artifacts-table level, extraction hasn't started yet) is simply
  * absent from this list -- not fabricated as a fake "queued" status,
@@ -51,19 +54,13 @@ export async function getExtractionStatuses(courseId: string): Promise<Extractio
     }
   }
 
-  const artifactIds = [...latestByArtifact.keys()];
   const runIds = [...latestByArtifact.values()].map((run) => run.id);
 
-  const [{ data: artifacts }, { data: unitDecisions }] = await Promise.all([
-    supabase.from("artifacts").select("id, original_filename").in("id", artifactIds),
-    supabase
-      .from("reconciliation_decisions")
-      .select("extraction_run_id")
-      .eq("candidate_kind", "unit")
-      .in("extraction_run_id", runIds),
-  ]);
-
-  const filenameByArtifactId = new Map((artifacts ?? []).map((a) => [a.id, a.original_filename]));
+  const { data: unitDecisions } = await supabase
+    .from("reconciliation_decisions")
+    .select("extraction_run_id")
+    .eq("candidate_kind", "unit")
+    .in("extraction_run_id", runIds);
 
   const unitCountByRunId = new Map<string, number>();
   for (const decision of unitDecisions ?? []) {
@@ -72,7 +69,6 @@ export async function getExtractionStatuses(courseId: string): Promise<Extractio
 
   return [...latestByArtifact.entries()].map(([artifactId, run]) => ({
     artifactId,
-    artifactFilename: filenameByArtifactId.get(artifactId) ?? artifactId,
     runId: run.id,
     status: run.status,
     failureReason: run.failure_reason,

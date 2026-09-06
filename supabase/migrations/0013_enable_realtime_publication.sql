@@ -11,5 +11,26 @@
 -- No prior migration ever added a table to this publication -- it was
 -- never configured at all, in code or otherwise.
 
-alter publication supabase_realtime add table public.artifacts;
-alter publication supabase_realtime add table public.extraction_runs;
+-- Guarded rather than bare: `alter publication ... add table` errors with
+-- "relation is already member of publication" on a re-run, or on any
+-- project where the table was added through the dashboard instead. Same
+-- `if not exists` house style every other migration in this repo uses.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'artifacts'
+  ) then
+    alter publication supabase_realtime add table public.artifacts;
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'extraction_runs'
+  ) then
+    alter publication supabase_realtime add table public.extraction_runs;
+  end if;
+end $$;

@@ -10,7 +10,11 @@
       "description": "A linear ordering of a DAG's vertices such that every directed edge points from an earlier vertex to a later one in the ordering.",
       "importanceScore": 0.75,
       "sourceAnchors": [
-        { "artifactId": "lecture-10-depth-first-search", "locator": "Topological Sort section", "excerpt": "Order the vertices linearly such that all edges point forward" }
+        {
+          "artifactId": "lecture-10-depth-first-search",
+          "locator": "Topological Sort section",
+          "excerpt": "Order the vertices linearly such that all edges point forward"
+        }
       ],
       "status": "proposed",
       "confidence": 0.82
@@ -29,7 +33,11 @@
       "description": "Explores graph nodes in increasing order of distance from a source vertex.",
       "importanceScore": 0.9,
       "sourceAnchors": [
-        { "artifactId": "lecture-11-more-graphs", "locator": "review section", "excerpt": "BFS revisited for shortest paths" }
+        {
+          "artifactId": "lecture-11-more-graphs",
+          "locator": "review section",
+          "excerpt": "BFS revisited for shortest paths"
+        }
       ],
       "status": "proposed",
       "confidence": 0.6
@@ -40,24 +48,12 @@
       "reasoning": "Possibly the same as the existing \"Breadth-First Search\" concept, but the extracted description is too thin to be confident it isn't a distinct review-specific concept."
     },
     "flags": [
-      { "id": "flag-demo-1", "reporterId": "student-demo-1", "reason": "This looks like a duplicate of Breadth-First Search.", "createdAt": "2026-08-30T10:00:00Z" }
+      {
+        "id": "flag-demo-1",
+        "reporterId": "student-demo-1",
+        "reason": "This looks like a duplicate of Breadth-First Search.",
+        "createdAt": "2026-08-30T10:00:00Z"
+      }
     ]
-  },
-  {
-    "kind": "edge",
-    "edge": {
-      "id": "edge-demo-1",
-      "sourceConceptId": "concept-demo-1",
-      "targetConceptId": "concept-bfs-real",
-      "relationType": "used_in",
-      "explanation": "Topological sort can be computed via repeated BFS-based Kahn's algorithm on in-degree counts.",
-      "sourceAnchors": [
-        { "artifactId": "lecture-10-depth-first-search", "locator": "Kahn's algorithm sidebar", "excerpt": "Uses BFS-like processing of zero-in-degree nodes" }
-      ],
-      "status": "proposed",
-      "confidence": 0.7
-    },
-    "reconciliation": null,
-    "flags": []
   }
 ]

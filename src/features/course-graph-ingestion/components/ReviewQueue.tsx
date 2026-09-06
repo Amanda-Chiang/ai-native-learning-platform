@@ -410,12 +410,13 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
     <div style={s.section}>
       <h2 style={s.subsectionTitle}>Pending review</h2>
       <p style={s.sectionDesc}>
-        Concepts and relationships extraction proposed from your uploads -- confirm, edit, or reject each one before
-        it becomes part of the real concept graph.
+        Concepts and units extraction proposed from your uploads -- confirm, edit, or reject each one before it
+        becomes part of the real concept graph. Relationships aren't reviewed here: each one confirms itself once
+        both concepts it connects are confirmed.
       </p>
 
       {items.length === 0 ? (
-        <p style={s.empty}>No proposed concepts or relationships waiting for review.</p>
+        <p style={s.empty}>No proposed concepts or units waiting for review.</p>
       ) : (
         <ul style={s.list}>{items.map((item) => renderCard(item))}</ul>
       )}

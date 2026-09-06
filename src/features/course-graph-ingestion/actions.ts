@@ -4,15 +4,12 @@ import { createClient } from "@/lib/supabase/server.ts";
 import { materializeCourseGraph } from "@/features/course-graph-ingestion/materialize-course-graph.ts";
 import {
   isCourseConcept,
-  isConceptEdge,
   type CourseConcept,
-  type ConceptEdge,
   type CourseUnit,
 } from "@/types/domain/index.ts";
 import type { CourseGraph } from "@/types/graph/course-graph.ts";
 import type {
   CourseConceptRow,
-  ConceptEdgeRow,
   CourseUnitRow,
   ReconciliationDecisionRow,
   ConceptFlagRow,
@@ -35,20 +32,6 @@ function conceptRowToDomain(row: CourseConceptRow): CourseConcept {
     aliases: row.aliases,
     description: row.description,
     importanceScore: row.importance_score,
-    sourceAnchors: row.source_anchors,
-    status: row.status,
-    confidence: row.confidence,
-  };
-}
-
-function edgeRowToDomain(row: ConceptEdgeRow): ConceptEdge {
-  return {
-    id: row.id,
-    sourceConceptId: row.source_concept_id,
-    targetConceptId: row.target_concept_id,
-    relationType: row.relation_type,
-    relationTypeNote: row.relation_type_note ?? undefined,
-    explanation: row.explanation,
     sourceAnchors: row.source_anchors,
     status: row.status,
     confidence: row.confidence,
@@ -101,6 +84,28 @@ export async function createUnit(
 
   if (!user) {
     return { error: "You must be signed in to create a unit." };
+  }
+
+  // Duplicate-title check (design.md's add-unit-form error table). On a
+  // feature whose whole purpose is duplicate-unit avoidance, silently
+  // accepting a second "Graphs" would undercut the reconciliation the
+  // extraction side spends an OpenAI call per candidate on. Compared
+  // case-insensitively on the trimmed title, and against archived units
+  // too -- re-adding a title the owner previously rejected should be an
+  // explicit act (rename or un-archive), not a silent second row.
+  const { data: siblingUnits, error: siblingError } = await supabase
+    .from("course_units")
+    .select("title")
+    .eq("course_id", courseId);
+
+  if (siblingError) {
+    return { error: `Could not check this course's existing units: ${siblingError.message}` };
+  }
+  const duplicate = (siblingUnits ?? []).find(
+    (u) => u.title.trim().toLowerCase() === trimmedTitle.toLowerCase(),
+  );
+  if (duplicate) {
+    return { error: `This course already has a unit called "${duplicate.title}".` };
   }
 
   // Manually-created units are authoritative immediately (design.md) --
@@ -541,7 +546,6 @@ export async function rejectCandidate(
 export type ConceptEdit = Partial<
   Pick<CourseConcept, "canonicalName" | "aliases" | "description" | "importanceScore">
 >;
-export type EdgeEdit = Partial<Pick<ConceptEdge, "relationType" | "relationTypeNote" | "explanation">>;
 export type UnitEdit = Partial<Pick<CourseUnit, "title">>;
 
 export async function editCandidate(
@@ -550,19 +554,23 @@ export async function editCandidate(
   edits: ConceptEdit,
 ): Promise<{ error: string | null }>;
 export async function editCandidate(
-  kind: "edge",
-  id: string,
-  edits: EdgeEdit,
-): Promise<{ error: string | null }>;
-export async function editCandidate(
   kind: "unit",
   id: string,
   edits: UnitEdit,
 ): Promise<{ error: string | null }>;
+/**
+ * Edges have no edit path (and no EdgeEdit type): they left the review
+ * queue in the 2026-09-05 FR-006 amendment, so nothing ever calls one.
+ * The edge branch that used to live here was unreachable, untested code
+ * kept only because it predated that change -- removed rather than left
+ * as a plausible-looking API nothing exercises. If edge editing ever
+ * comes back it belongs with whatever UI introduces it, written against
+ * that UI's real requirements.
+ */
 export async function editCandidate(
-  kind: "concept" | "edge" | "unit",
+  kind: "concept" | "unit",
   id: string,
-  edits: ConceptEdit | EdgeEdit | UnitEdit,
+  edits: ConceptEdit | UnitEdit,
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
@@ -587,63 +595,35 @@ export async function editCandidate(
     return { error: error?.message ?? null };
   }
 
-  if (kind === "concept") {
-    const { data: existing, error: fetchError } = await supabase
-      .from("course_concepts")
-      .select("*")
-      .eq("id", id)
-      .single();
-    if (fetchError || !existing) {
-      return { error: `No concept found with id "${id}".` };
-    }
-
-    const conceptEdits = edits as ConceptEdit;
-    const merged = {
-      ...conceptRowToDomain(existing),
-      ...conceptEdits,
-    };
-    // Re-validated against isCourseConcept's real rules -- never allows
-    // an edit that would produce an invalid record (source_anchors,
-    // status, confidence are not part of ConceptEdit's type, so they
-    // can't be touched here at all).
-    if (!isCourseConcept(merged)) {
-      return { error: "This edit would produce an invalid concept (check aliases/canonicalName rules)." };
-    }
-
-    const { error } = await supabase
-      .from("course_concepts")
-      .update({
-        canonical_name: merged.canonicalName,
-        aliases: merged.aliases,
-        description: merged.description,
-        importance_score: merged.importanceScore,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    return { error: error?.message ?? null };
-  }
-
   const { data: existing, error: fetchError } = await supabase
-    .from("concept_edges")
+    .from("course_concepts")
     .select("*")
     .eq("id", id)
     .single();
   if (fetchError || !existing) {
-    return { error: `No edge found with id "${id}".` };
+    return { error: `No concept found with id "${id}".` };
   }
 
-  const edgeEdits = edits as EdgeEdit;
-  const merged = { ...edgeRowToDomain(existing), ...edgeEdits };
-  if (!isConceptEdge(merged)) {
-    return { error: "This edit would produce an invalid edge (check relationType/relationTypeNote pairing)." };
+  const conceptEdits = edits as ConceptEdit;
+  const merged = {
+    ...conceptRowToDomain(existing),
+    ...conceptEdits,
+  };
+  // Re-validated against isCourseConcept's real rules -- never allows
+  // an edit that would produce an invalid record (source_anchors,
+  // status, confidence are not part of ConceptEdit's type, so they
+  // can't be touched here at all).
+  if (!isCourseConcept(merged)) {
+    return { error: "This edit would produce an invalid concept (check aliases/canonicalName rules)." };
   }
 
   const { error } = await supabase
-    .from("concept_edges")
+    .from("course_concepts")
     .update({
-      relation_type: merged.relationType,
-      relation_type_note: merged.relationTypeNote ?? null,
-      explanation: merged.explanation,
+      canonical_name: merged.canonicalName,
+      aliases: merged.aliases,
+      description: merged.description,
+      importance_score: merged.importanceScore,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);

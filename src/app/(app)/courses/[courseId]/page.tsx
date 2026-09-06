@@ -59,12 +59,5 @@ const s: Record<string, React.CSSProperties> = {
   },
   section: { display: "flex", flexDirection: "column", gap: 4 },
   sectionTitle: { margin: 0, fontSize: 20, fontWeight: 500, letterSpacing: "-0.025em", color: "var(--text-primary)" },
-  subsectionTitle: {
-    margin: 0,
-    fontSize: 16,
-    fontWeight: 500,
-    letterSpacing: "-0.02em",
-    color: "var(--text-primary)",
-  },
   sectionDesc: { margin: 0, fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.55, letterSpacing: "-0.005em" },
 };
