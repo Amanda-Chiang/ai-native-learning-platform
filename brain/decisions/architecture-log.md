@@ -951,3 +951,69 @@ partially applying a multi-step write silently); the dead row itself
 is real leftover data, not a code defect -- decided to leave orphan
 cleanup out of scope rather than add a reconciliation job for a
 failure mode this specific bug can no longer produce.
+
+## 2026-09-05 — `course_units` gains a proposed/confirmed/archived review lifecycle
+
+Reverses this project's original position that units are "organizational
+metadata, not an extracted claim," and so exempt from the review flow
+concepts and edges go through (stated in `0003_course_ontology.sql`'s own
+comment and `specs/004-course-graph-ingestion/data-model.md`). Two things
+forced the reversal: extraction had **no path to create a unit at all**, so
+a course whose owner hadn't hand-authored units first could not be
+extracted into; and auto-creating units without review runs straight into
+the "confidently-wrong `distinct`" duplicate-unit problem the feature's own
+design doc names as its main residual risk. Units now mirror
+`course_concepts` exactly (`status`, `extraction_run_id`, migration
+`0012_unit_extraction_reconciliation.sql`), with manual `createUnit` still
+inserting `'confirmed'` directly — the student is the authority on their
+own course structure, so there is nothing there to review.
+
+Consequence that has to be enforced in code, not by a constraint: a
+confirmed concept may never reference a non-confirmed unit, because
+`getCourseGraph` selects only confirmed rows of both and
+`materializeCourseGraph` throws on the dangling reference — a whole-course
+Atlas outage. `confirmCandidate` refuses a concept until its unit is
+confirmed (it deliberately does not auto-confirm the unit, which would
+throw away the review gate this decision exists to create), and
+`rejectCandidate` refuses to archive a unit confirmed concepts still point
+at.
+
+## 2026-09-05 — Edges leave human review entirely and auto-confirm from their endpoints
+
+Relationships no longer appear in the review queue (2026-09-05 amendment to
+FR-006, `specs/004-course-graph-ingestion/spec.md`). An edge auto-confirms
+exactly when both concepts it connects are themselves `'confirmed'`.
+
+Rationale: per-edge review was redundant once concept-level trust exists —
+a reviewer who has confirmed both endpoints has already vouched for the
+claim's vocabulary, and reviewing the relationship separately was work
+without a distinct decision behind it. This preserves the human-reviewed
+trust chain *transitively* rather than dropping it: nothing enters the
+graph that a human didn't confirm, but confirmation happens at the level
+where the human actually has an opinion.
+
+Cost, accepted knowingly: the auto-confirm decision is now the only path an
+edge has into the graph, so a missed decision loses a relationship
+silently. Mitigated by making it a decision made in three places from one
+shared rule (insert-time in the extraction task, the confirm-time cascade,
+and `sweepEligibleEdges` — one deterministic post-batch pass), so
+correctness doesn't depend on the order or concurrency in which individual
+confirms happened to run.
+
+## 2026-09-05 — Supabase Realtime had never actually been enabled, project-wide
+
+Found while live-testing this feature's extraction-status UI: the
+`supabase_realtime` publication had **zero tables in it** on the real
+project, and no migration had ever added one. Every Realtime subscription
+in this codebase — including `artifact-board.tsx`'s, claimed live since
+`account-course-artifact-foundation` (FR-011, "updates without manual
+reload") — had therefore never delivered a single event. A pre-existing gap
+this branch's live testing surfaced, not one this branch introduced. Fixed
+by `0013_enable_realtime_publication.sql`, which enables `artifacts` and
+`extraction_runs`.
+
+The takeaway is the one already recorded on 2026-09-02: a feature that
+depends on infrastructure state is not verified by typechecking or unit
+tests around it. Anything Realtime-backed added from here needs its table
+added to that publication in the same migration that introduces it, or it
+is a silent no-op.
