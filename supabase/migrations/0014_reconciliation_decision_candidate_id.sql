@@ -27,8 +27,20 @@
 --     queue renders no reconciliation text for those rather than
 --     guessing at one.
 
-alter table public.reconciliation_decisions
-  add column candidate_id uuid;
+-- Guarded rather than bare add column: same `if not exists` house style
+-- 0013 established (M2) for exactly this class of re-run/dashboard-drift
+-- hazard.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'reconciliation_decisions'
+      and column_name = 'candidate_id'
+  ) then
+    alter table public.reconciliation_decisions add column candidate_id uuid;
+  end if;
+end $$;
 
 create index if not exists reconciliation_decisions_candidate_id_idx
   on public.reconciliation_decisions (candidate_id);
