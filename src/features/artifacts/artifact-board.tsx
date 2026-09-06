@@ -6,22 +6,11 @@ import { uploadArtifact, type Artifact } from "@/features/artifacts/actions.ts";
 import type { ArtifactStatus } from "@/features/artifacts/status.ts";
 import type { CourseUnit } from "@/types/domain/index.ts";
 import type { ExtractionStatusView } from "@/features/course-graph-ingestion/extraction-status.ts";
+import {
+  getDisplayStatus,
+  type DisplayStatusInputExtraction,
+} from "@/features/artifacts/display-status.ts";
 import { IconUpload, IconFile } from "@/components/icons.tsx";
-
-// Upload-stage labels/colors -- only for the two non-terminal artifact
-// statuses. "ready" and "failed" at the artifact level are folded into
-// the combined-status derivation below (getDisplayStatus), since both
-// need to be disambiguated against the separate extraction-stage state
-// rather than shown on their own.
-const UPLOAD_STAGE_LABEL: Record<"queued" | "processing", string> = {
-  queued: "Queued",
-  processing: "Processing…",
-};
-
-const UPLOAD_STAGE_COLOR: Record<"queued" | "processing", { bg: string; color: string }> = {
-  processing: { bg: "var(--denim-muted)", color: "var(--denim)" },
-  queued: { bg: "var(--border)", color: "var(--text-tertiary)" },
-};
 
 /**
  * Live extraction_runs state for one artifact, keyed by artifact_id.
@@ -32,90 +21,7 @@ const UPLOAD_STAGE_COLOR: Record<"queued" | "processing", { bg: string; color: s
  * a newer run's event has since landed for this same artifact_id -- if
  * so, its stale count must be discarded rather than applied.
  */
-type ExtractionInfo = {
-  runId: string;
-  status: ExtractionStatusView["status"];
-  failureReason: string | null;
-  conceptsExtracted: number;
-  unitsCreatedOrMatched: number;
-};
-
-type DisplayStatus = {
-  label: string;
-  bg: string;
-  color: string;
-  failureReason: string | null;
-  counts: { conceptsExtracted: number; unitsCreatedOrMatched: number } | null;
-};
-
-/**
- * Derives ONE combined display status per artifact from the two
- * independent pieces of live state (artifact upload status +
- * extraction_runs status), per the design decision to keep the two-stage
- * data model as-is but fold the UI into a single badge:
- *
- * - artifact.status === "failed" -> "Upload failed" (the file itself
- *   never became usable -- distinct from extraction failing on a fine
- *   file, e.g. a real OpenAI rate-limit hit).
- * - artifact.status is "queued"/"processing" -> show that upload stage.
- * - artifact.status === "ready" but no extraction_runs row yet, or the
- *   latest run is "queued"/"processing" -> "Extracting…" (a derived
- *   label, not a stored enum value -- there's no single column that
- *   means this).
- * - latest extraction run "completed" -> "Ready", with real
- *   concepts/units counts.
- * - latest extraction run "failed" -> "Extraction failed", worded
- *   distinctly from "Upload failed" so a rate-limit-style failure never
- *   reads as "this file is broken".
- */
-function getDisplayStatus(artifact: Artifact, extraction: ExtractionInfo | undefined): DisplayStatus {
-  if (artifact.status === "failed") {
-    return {
-      label: "Upload failed",
-      bg: "var(--clay-muted)",
-      color: "var(--clay)",
-      failureReason: artifact.failureReason,
-      counts: null,
-    };
-  }
-
-  if (artifact.status !== "ready") {
-    return {
-      label: UPLOAD_STAGE_LABEL[artifact.status],
-      ...UPLOAD_STAGE_COLOR[artifact.status],
-      failureReason: null,
-      counts: null,
-    };
-  }
-
-  if (!extraction || extraction.status === "queued" || extraction.status === "processing") {
-    return {
-      label: "Extracting…",
-      bg: "var(--denim-muted)",
-      color: "var(--denim)",
-      failureReason: null,
-      counts: null,
-    };
-  }
-
-  if (extraction.status === "completed") {
-    return {
-      label: "Ready",
-      bg: "var(--teal-muted)",
-      color: "var(--teal)",
-      failureReason: null,
-      counts: { conceptsExtracted: extraction.conceptsExtracted, unitsCreatedOrMatched: extraction.unitsCreatedOrMatched },
-    };
-  }
-
-  return {
-    label: "Extraction failed",
-    bg: "var(--clay-muted)",
-    color: "var(--clay)",
-    failureReason: extraction.failureReason,
-    counts: null,
-  };
-}
+type ExtractionInfo = DisplayStatusInputExtraction & { runId: string };
 
 /**
  * Client Component: upload form + a live-updating artifact list.
