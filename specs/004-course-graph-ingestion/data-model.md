@@ -82,6 +82,22 @@ exactly the case `owner_id = auth.uid()` already covers — no separate
 service-role path needed for the review actions themselves, only for the
 extraction task's initial writes).
 
+**Amended 2026-09-07** (spec.md FR-006's own amendment; full rationale in
+`brain/decisions/architecture-log.md`): "background task writes `proposed`
+rows" above is no longer unconditional. A freshly-extracted concept writes
+`status = 'confirmed'` directly when the unit it files under is already
+`'confirmed'` AND its own reconciliation decision isn't `'uncertain'`
+(`trigger/extract-course-graph.ts`'s `shouldAutoConfirmConcept`); otherwise
+it still writes `'proposed'` as before, and if that was only because its
+unit wasn't confirmed yet, it catches up automatically the moment a
+reviewer confirms that unit (`actions.ts`'s `autoConfirmEligibleConcepts`).
+Units, not concepts, are now the side of extraction manual review actually
+gates. `rejectCandidate`'s "only a `'proposed'` row can be rejected" rule
+(implied by "background task writes `proposed` rows") also gained one
+exception: a `'confirmed'` concept can be rejected (archived) too, guarded
+by the same "no confirmed relationship may still reference it" check
+`course_units` already had for its own confirmed-dependents case.
+
 ## concept_edges
 
 Persisted form of `ConceptEdge` (`src/types/domain/concept-edge.ts`).

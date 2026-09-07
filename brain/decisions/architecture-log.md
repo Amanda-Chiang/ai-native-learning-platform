@@ -1017,3 +1017,122 @@ depends on infrastructure state is not verified by typechecking or unit
 tests around it. Anything Realtime-backed added from here needs its table
 added to that publication in the same migration that introduces it, or it
 is a silent no-op.
+
+## 2026-09-07 — Real bug: duplicate DOM ids broke the review-queue Edit/Save flow
+
+Reported directly: clicking Save after editing a proposed concept/unit in
+`ReviewQueue.tsx` discarded the edit. Root cause: the same candidate can be
+on-screen twice at once — the always-visible list and the run-scoped popup
+both rendered off the same `items` state, and every real item has a
+non-null `extractionRunId`, so the overlap was the default case, not an
+edge case. `CandidateCard`'s edit `<form id="edit-form-${id}">` was built
+from the item id alone, so both copies got the identical DOM id; a
+duplicate id makes the `form="..."` attribute on the input/textarea bind
+to whichever element the browser matches first, so a Save from one copy
+could submit the *other* copy's stale, unedited values. Fixed by
+qualifying the form id by which surface it's on.
+
+## 2026-09-07 — The plain always-visible list is removed; the popup is the only review surface
+
+Once the duplicate-id bug above made the dual-surface design's cost
+visible, the product call was to drop the persistent list entirely rather
+than just fix the id collision. `proposed` is a valid, indefinitely
+resting status (`course_concepts`/`course_units`' own check constraints
+have no default/expiry), so dismissing the popup (`×`) is a deferral, not
+a forced decision — it never mutates status, and nothing auto-reopens it
+for the same leftover run afterward. The only way back to a dismissed
+run's candidates is a fresh navigation/reload of that course's Material
+page, which recomputes `activeModalRunId` from real current data.
+Consequence accepted knowingly: there is now no persistent affordance
+elsewhere signaling that candidates are waiting — a reviewer has to land
+on that specific page to see them.
+
+Bulk-confirm was also hardened in the same pass: it now excludes any
+candidate whose reconciliation decision is `"uncertain"` (and any concept
+whose *unit* is uncertain, since it wouldn't be confirmable anyway) —
+previously a bulk click could confirm an uncertain match right alongside
+routine candidates. The button's displayed count is deliberately the full
+per-kind total in the popup, not just the bulk-confirmable subset (every
+candidate, uncertain or not, is already visible on its own card right
+above the button), with a post-click "N uncertain skipped — review
+individually" notice when applicable. Each concept card also now shows
+the extraction pipeline's own per-item confidence score, separate from the
+uncertain flag — surfacing scrutiny-worthy candidates even when the
+dedup-matcher didn't flag them.
+
+## 2026-09-07 — Units become the sole review-gated side of extraction; concepts auto-confirm
+
+Reverses part of the 2026-09-05 decision that gave units the same
+proposed/confirmed/archived review lifecycle as concepts. Prompted by a
+direct product complaint: reviewing both concepts and units in the same
+popup was confusing, and users don't want the extra per-concept work.
+
+Rather than drop review entirely (considered and rejected — see below),
+the fix is to keep exactly one side gated, chosen by which side is
+actually more error-prone. That's units, not concepts, per this
+project's own prior documentation: `docs/superpowers/specs/
+2026-09-05-unit-extraction-reconciliation-design.md`'s "Mitigation for
+the 'confidently-wrong distinct' residual risk" section names unit
+reconciliation as the still-open risk, because a unit candidate is
+classified against nothing but a bare title — thin signal, easy to
+misjudge "new" vs. "same unit, different phrasing" (e.g. "Graphs" vs.
+"Graph Algorithms"). Concepts get the same three-way merge/distinct/
+uncertain classifier, but with much richer signal (full description,
+aliases, source anchors), so their classification is meaningfully more
+trustworthy — and concepts were the original, more mature half of this
+review design (US3/FR-005) to begin with.
+
+Mechanism (mirrors the edge auto-confirm pattern this feature already
+established, applied one level up):
+- **Insert time** (`trigger/extract-course-graph.ts`,
+  `shouldAutoConfirmConcept(unitStatus, reconciliationDecision)`): a
+  freshly-extracted concept inserts straight to `'confirmed'` when the
+  unit it files under is already `'confirmed'` AND its own reconciliation
+  decision isn't `"uncertain"`. Otherwise it inserts `'proposed'` as
+  before.
+- **Confirm time** (`actions.ts`'s `autoConfirmEligibleConcepts`, called
+  from `confirmCandidate`'s unit branch, decision logic factored into
+  `concept-auto-confirm.ts`): the moment a reviewer confirms a unit,
+  every `'proposed'` concept under it is re-checked and auto-confirms
+  unless it's itself an uncertain match — cascading again into
+  `autoConfirmEligibleEdges` for every edge that concept completes, with
+  zero changes needed to the edge cascade itself.
+- No sweep/backstop pass was needed for this cascade the way edges needed
+  one: a concept depends on exactly one unit, never two units converging,
+  so there's no two-sided race to backstop — the per-confirm cascade
+  alone is deterministic.
+- `ReviewQueue.tsx`'s concept bulk-confirm became dead code under this
+  model (every concept that would qualify gets swept by its sibling
+  unit-confirm cascade first) and was removed; the popup's only bulk
+  action is now "Confirm N Units". Confirming a unit can now cascade-
+  confirm sibling concepts the client didn't touch, so `handleConfirm`
+  refetches the whole review queue after a unit confirms rather than
+  locally splicing just that one item — a local patch can't reflect a
+  server-side side effect it doesn't know happened.
+- `rejectCandidate`'s "'proposed'-only" guard gained one deliberate
+  exception: a concept can now be archived from `'confirmed'` too (not
+  only edges/units, which stay `'proposed'`-only), since a concept is
+  very often already confirmed by the time anyone looks at it. Gained the
+  matching dependents guard `rejectCandidate` already had for units
+  (refuses if confirmed relationships still reference it — the same
+  `materializeCourseGraph` dangling-reference throw, reached from the
+  concept side instead of the unit side).
+
+Considered and rejected: removing the `proposed` review gate entirely
+(insert everything as `'confirmed'`, review only by manual override
+after the fact). Rejected because an uncertain reconciliation match would
+then go live in the Atlas/tutor/assessment pipeline immediately, with no
+signal it might be wrong — indistinguishable from something a human
+actually checked. The chosen design keeps that gate for exactly the
+candidates it exists to catch (uncertain matches, either kind) while
+removing it for the case it was genuine overhead for (routine concepts
+under an already-trusted unit).
+
+Known gap, not yet resolved: `editCandidate`/`rejectCandidate` are now
+capable of acting on an already-confirmed concept, but there is currently
+no UI surface to reach them once a concept has left the review popup (no
+edit/archive affordance exists yet on the Atlas or elsewhere). "Editable
+after confirmation" is a real requirement this session did not fully
+close — the backend is ready, the UI placement is an open question
+(Concept Atlas's `ConceptDetailPanel`? A separate manage-concepts view?)
+deliberately left for a dedicated decision rather than bolted on here.

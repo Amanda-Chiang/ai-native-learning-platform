@@ -165,7 +165,7 @@ restating per-feature:
   confirmation instead of silently grading. This closes out every item
   on this roadmap.
 
-**Post-MVP work (2026-09-04 through 2026-09-06), outside this roadmap's
+**Post-MVP work (2026-09-04 through 2026-09-07), outside this roadmap's
 phase numbering:**
 
 - A full design-system + reskin pass: every real route now renders through
@@ -193,8 +193,27 @@ phase numbering:**
   `specs/004-course-graph-ingestion/{spec,data-model}.md` were amended in
   place to match current reality — read those, not the original spec/plan
   history, for current requirements.
+- **Review-queue fix + units-only review gate** (`course-graph-ingestion`,
+  Phase 2): a real reported bug (editing a proposed concept/unit and
+  clicking Save silently discarded the edit) traced to duplicate DOM ids
+  across the review queue's always-visible list and its popup, both
+  rendering the same candidate at once. Fixed, then the always-visible
+  list was removed outright (the popup is now the only review surface;
+  `proposed` is a valid indefinitely-resting status, so dismissing the
+  popup is a safe deferral, not a forced decision). Separately, reverses
+  part of the 2026-09-05 unit-review decision above: units alone are now
+  the review-gated side of extraction — a routine concept under an
+  already-confirmed unit auto-confirms immediately (at insert time, or via
+  a confirm-time cascade once its unit catches up), while an uncertain
+  reconciliation match (either kind) still always needs individual review.
+  `rejectCandidate` can now archive an already-confirmed concept too, not
+  only a proposed one. `specs/004-course-graph-ingestion/{spec,data-model}.md`
+  amended in place again. Full rationale: `brain/decisions/
+  architecture-log.md`'s 2026-09-07 entries. Known gap: no UI yet exists
+  to edit/reject a concept once it has left the review popup (the server
+  actions support it; nothing calls them from elsewhere yet).
 
-Known open items, not yet resolved as of 2026-09-06:
+Known open items, not yet resolved as of 2026-09-07:
 - `tests/visual/review-queue.spec.ts` navigates to the wrong route
   (renders `review-scheduler`'s `DueQueue`, not `course-graph-ingestion`'s
   `ReviewQueue`) — pre-existing, found during the unit-extraction review,

@@ -145,7 +145,7 @@ export const extractCourseGraphTask = task({
 
     const { data: existingUnitRows, error: existingUnitsError } = await supabase
       .from("course_units")
-      .select("id, title")
+      .select("id, title, status")
       .eq("course_id", payload.courseId)
       .in("status", ["proposed", "confirmed"]);
 
@@ -155,6 +155,13 @@ export const extractCourseGraphTask = task({
 
     const existingUnits: ExistingUnitSummary[] = (existingUnitRows ?? []).map((u) => ({ id: u.id, title: u.title }));
     const existingUnitIdsForTargetCheck = new Set(existingUnits.map((u) => u.id));
+    // Seeds writeExtractionCandidates's own unit-status map (units, not
+    // concepts, are the review-gated side of extraction as of 2026-09-07
+    // -- see shouldAutoConfirmConcept below) -- every existing unit this
+    // extraction was shown, confirmed or not.
+    const existingUnitStatusById = new Map(
+      (existingUnitRows ?? []).map((u) => [u.id, u.status] as const),
+    );
 
     let hardTargetUnit: { id: string; title: string; status: string } | null = null;
     if (artifact.target_unit_id) {
@@ -248,6 +255,7 @@ export const extractCourseGraphTask = task({
         classify,
         createOpenAiUnitReconciliationClassifier(openai, EXTRACTION_MODEL),
         existingUnits,
+        existingUnitStatusById,
         hardTargetUnit?.id ?? null,
         hardTargetUnit?.status ?? null,
       );
@@ -296,6 +304,7 @@ async function writeExtractionCandidates(
   classify: ReconciliationClassifier,
   classifyUnit: UnitReconciliationClassifier,
   existingUnits: ExistingUnitSummary[],
+  existingUnitStatusById: ReadonlyMap<string, string>,
   hardTargetUnitId: string | null,
   hardTargetUnitStatus: string | null,
 ): Promise<{ conceptsExtracted: number; edgesExtracted: number; edgesDroppedSelfReferential: number }> {
@@ -303,6 +312,11 @@ async function writeExtractionCandidates(
   // outside this set that comes back is a hallucination, not a value to
   // trust (see resolveConceptUnitId and resolveUnitReferences below).
   const existingUnitIds = new Set(existingUnits.map((u) => u.id));
+  // Resolved unit id -> its status, for shouldAutoConfirmConcept below --
+  // seeded from every existing unit this extraction was shown, then
+  // extended with each freshly-inserted unit ('proposed' by construction,
+  // right after the insert below).
+  const unitStatusById = new Map(existingUnitStatusById);
 
   // A hard-targeted upload's prompt states the "units" array MUST be
   // empty (openai-extraction-call.ts's buildExtractionPrompt). Returning
@@ -379,6 +393,7 @@ async function writeExtractionCandidates(
       throw new Error(`Failed to insert unit "${unit.title}": ${unitInsertError?.message}`);
     }
     unitLocalIdToRealId.set(unit.localId, insertedUnit.id);
+    unitStatusById.set(insertedUnit.id, "proposed");
 
     // Link the decision to the row it just produced. Done as a follow-up
     // update rather than by reordering (decision after insert) so the
@@ -570,23 +585,40 @@ async function writeExtractionCandidates(
       continue;
     }
 
-    // "distinct" and "uncertain" both get their own proposed row --
-    // "uncertain" is still visible to a reviewer as its own candidate,
-    // distinguished from "distinct" only via its reconciliation_decisions
-    // row (FR-005: never silently auto-merged, but also never silently
-    // dropped).
+    // "distinct" and "uncertain" both get their own row -- "uncertain" is
+    // still visible to a reviewer as its own candidate, distinguished
+    // from "distinct" only via its reconciliation_decisions row (FR-005:
+    // never silently auto-merged, but also never silently dropped).
+    //
+    // Status is 'confirmed' immediately when the unit it files under is
+    // already confirmed AND this isn't itself an uncertain match --
+    // 2026-09-07 decision (architecture-log.md): units, not concepts, are
+    // the review-gated side of extraction (concepts get far richer
+    // classification signal -- full description, aliases, source anchors
+    // -- than a unit's bare title, so their reconciliation is
+    // meaningfully more trustworthy). A concept under a still-'proposed'
+    // unit inserts 'proposed' regardless and catches up automatically the
+    // moment a reviewer confirms that unit (confirmCandidate's own
+    // cascade, actions.ts) -- never confirmed here ahead of its own unit,
+    // which would recreate the exact dangling-reference invariant
+    // violation confirmCandidate's guard exists to prevent.
+    const resolvedUnitId = resolveConceptUnitId(concept.unitRef);
+    const conceptStatus = shouldAutoConfirmConcept(unitStatusById.get(resolvedUnitId), reconciliation.decision)
+      ? "confirmed"
+      : "proposed";
+
     const { data: inserted, error: insertError } = await supabase
       .from("course_concepts")
       .insert({
         course_id: courseId,
         owner_id: ownerId,
-        unit_id: resolveConceptUnitId(concept.unitRef),
+        unit_id: resolvedUnitId,
         canonical_name: concept.canonicalName,
         aliases: concept.aliases,
         description: concept.description,
         importance_score: concept.importanceScore,
         source_anchors: concept.sourceAnchors.map((a) => ({ artifactId, ...a })),
-        status: "proposed",
+        status: conceptStatus,
         confidence: concept.confidence,
         extraction_run_id: extractionRunId,
       })
@@ -757,6 +789,29 @@ export function resolveEdgeEndpoints(
  */
 export function shouldEdgeAutoConfirm(sourceStatus: string | undefined, targetStatus: string | undefined): boolean {
   return sourceStatus === "confirmed" && targetStatus === "confirmed";
+}
+
+/**
+ * Pure: decides whether a just-extracted concept should insert straight
+ * to 'confirmed' instead of 'proposed' (2026-09-07 decision,
+ * architecture-log.md -- units, not concepts, are the review-gated side
+ * of extraction). True only when the unit it files under is itself
+ * already 'confirmed' AND this candidate's own reconciliation wasn't
+ * "uncertain" -- an uncertain match always needs its own individual
+ * review regardless of unit status, same reasoning ReviewQueue.tsx's
+ * bulk-confirm already applies. `unitStatus` of `undefined` (a unit id
+ * this function's caller couldn't resolve a status for) is treated as
+ * "not confirmed" rather than throwing, mirroring shouldEdgeAutoConfirm's
+ * own defensive stance -- the caller already guarantees every unit id a
+ * concept resolves to is real. Factored out specifically so this
+ * invariant is testable without a live Supabase client
+ * (tests/unit/course-graph-ingestion/concept-auto-confirm.test.ts).
+ */
+export function shouldAutoConfirmConcept(
+  unitStatus: string | undefined,
+  reconciliationDecision: "merge" | "distinct" | "uncertain",
+): boolean {
+  return unitStatus === "confirmed" && reconciliationDecision !== "uncertain";
 }
 
 /**

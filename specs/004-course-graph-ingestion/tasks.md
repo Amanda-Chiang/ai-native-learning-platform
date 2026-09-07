@@ -20,6 +20,22 @@ not this file, for current schema/requirements). Chronological rationale
 for every decision in that work is in
 `brain/decisions/architecture-log.md`'s 2026-09-05 entries.
 
+**Further addendum (2026-09-07):** the 2026-09-05 addendum above is now
+partly superseded — a real Edit/Save bug in `ReviewQueue.tsx` (duplicate
+DOM ids across its always-visible list and its popup) led to removing that
+list entirely (the popup is now the only review surface), and separately,
+units alone became the review-gated side of extraction: a routine concept
+under an already-confirmed unit now auto-confirms (at insert time or via a
+confirm-time cascade when its unit catches up), and `rejectCandidate` can
+now archive an already-confirmed concept too. This spec's `spec.md`
+(FR-006's own further amendment) and `data-model.md` (`course_concepts`
+section) were amended in place again — check those, not this file, for
+current requirements/schema. Rationale: `brain/decisions/
+architecture-log.md`'s 2026-09-07 entries. Known open gap from that work:
+there is still no UI surface to edit/reject an already-confirmed concept
+once it has left the review popup (the server actions support it; nothing
+calls them from anywhere but this popup yet).
+
 # Tasks: Course Graph Ingestion
 
 **Input**: Design documents from `/specs/004-course-graph-ingestion/`

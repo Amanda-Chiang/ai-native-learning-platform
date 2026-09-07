@@ -17,6 +17,7 @@ import type {
 import { validateFlagReason } from "@/features/course-graph-ingestion/flag-validation.ts";
 import { sortReviewQueueByPriority } from "@/features/course-graph-ingestion/review-queue-priority.ts";
 import { resolveOtherEndpoint, shouldAutoConfirmEdge, selectSweepableEdgeIds } from "./edge-auto-confirm.ts";
+import { shouldAutoConfirmConcept } from "./concept-auto-confirm.ts";
 import { indexDecisionsByCandidateId } from "./reconciliation-decision-match.ts";
 
 /**
@@ -353,6 +354,9 @@ export async function confirmCandidate(
   if (!error && kind === "concept") {
     await autoConfirmEligibleEdges(supabase, id);
   }
+  if (!error && kind === "unit") {
+    await autoConfirmEligibleConcepts(supabase, id);
+  }
 
   return { error: error?.message ?? null };
 }
@@ -481,16 +485,91 @@ export async function sweepEligibleEdges(courseId: string): Promise<{ confirmed:
   return { confirmed: eligibleIds.length, error: null };
 }
 
+/**
+ * Concepts have no manual review step of their own once the unit they
+ * file under is already confirmed (2026-09-07 decision, architecture-
+ * log.md -- units, not concepts, are the review-gated side of
+ * extraction; trigger/extract-course-graph.ts's own insert-time check
+ * covers a concept whose unit was already confirmed at extraction time,
+ * this covers the other half). The moment a reviewer confirms a unit,
+ * every 'proposed' concept under it is re-checked: unless its own
+ * reconciliation decision was "uncertain", it auto-confirms too --
+ * cascading again, via confirmCandidate("concept", ...) below reusing
+ * this same function's concept branch, into autoConfirmEligibleEdges for
+ * every edge that concept completes.
+ *
+ * No two-sided race to backstop the way edges have (a concept depends on
+ * exactly one unit, never two units converging) -- this per-confirm
+ * cascade is the whole mechanism, not half of one paired with a sweep.
+ *
+ * Reuses confirmCandidate("concept", ...) for the actual status flip
+ * rather than duplicating that update here -- this function only decides
+ * WHICH concepts are eligible.
+ */
+async function autoConfirmEligibleConcepts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  confirmedUnitId: string,
+): Promise<void> {
+  const { data: candidateConcepts, error: conceptsError } = await supabase
+    .from("course_concepts")
+    .select("id")
+    .eq("unit_id", confirmedUnitId)
+    .eq("status", "proposed");
+
+  // Never a silent no-op, same reasoning as autoConfirmEligibleEdges: a
+  // concept that misses this cascade has no other path to becoming
+  // visible short of a reviewer clicking its own Confirm button by hand.
+  if (conceptsError || !candidateConcepts) {
+    console.error(
+      `[course-graph-ingestion] failed to load proposed concepts under unit ${confirmedUnitId} for auto-confirm:`,
+      conceptsError?.message ?? "no rows returned",
+    );
+    return;
+  }
+  if (candidateConcepts.length === 0) return;
+
+  const conceptIds = candidateConcepts.map((c) => c.id);
+  const { data: decisions, error: decisionsError } = await supabase
+    .from("reconciliation_decisions")
+    .select("candidate_id, decision")
+    .eq("candidate_kind", "concept")
+    .in("candidate_id", conceptIds);
+
+  if (decisionsError || !decisions) {
+    console.error(
+      `[course-graph-ingestion] failed to load reconciliation decisions for concepts under unit ${confirmedUnitId} for auto-confirm:`,
+      decisionsError?.message ?? "no rows returned",
+    );
+    return;
+  }
+  const decisionByConceptId = new Map(decisions.map((d) => [d.candidate_id, d.decision]));
+
+  for (const conceptId of conceptIds) {
+    if (!shouldAutoConfirmConcept(decisionByConceptId.get(conceptId) ?? undefined)) continue;
+
+    const { error: confirmError } = await confirmCandidate("concept", conceptId);
+    if (confirmError) {
+      console.error(`[course-graph-ingestion] failed to auto-confirm concept ${conceptId}: ${confirmError}`);
+    }
+  }
+}
+
 export async function rejectCandidate(
   kind: "concept" | "edge" | "unit",
   id: string,
 ): Promise<{ error: string | null }> {
   const supabase = await createClient();
 
-  // Same status guard confirmCandidate has -- rejecting something that is
-  // already confirmed/archived was a real asymmetry between the two
-  // actions (an already-'confirmed' row could be silently archived out
-  // from under everything referencing it).
+  // Same status guard confirmCandidate has for edges/units -- rejecting
+  // something that is already archived was a real asymmetry between the
+  // two actions (an already-'confirmed' row could be silently archived
+  // out from under everything referencing it). Concepts are the one
+  // exception: 2026-09-07 decision (architecture-log.md) made units the
+  // sole review-gated side of extraction, so a concept is very often
+  // already 'confirmed' by the time anyone looks at it -- "editable/
+  // rejectable after confirmation" has to mean a confirmed concept can
+  // still be archived, not only a proposed one.
+  const rejectableStatuses: readonly string[] = kind === "concept" ? ["proposed", "confirmed"] : ["proposed"];
   const { data: existing, error: fetchError } = await supabase
     .from(TABLE_BY_KIND[kind])
     .select("status")
@@ -500,8 +579,10 @@ export async function rejectCandidate(
   if (fetchError || !existing) {
     return { error: `No ${kind} found with id "${id}".` };
   }
-  if (existing.status !== "proposed") {
-    return { error: `This ${kind} is already "${existing.status}", not "proposed" -- nothing to reject.` };
+  if (!rejectableStatuses.includes(existing.status)) {
+    return {
+      error: `This ${kind} is already "${existing.status}" -- nothing to reject.`,
+    };
   }
 
   // The reject-side half of confirmCandidate's concept->unit invariant:
@@ -526,6 +607,34 @@ export async function rejectCandidate(
     if ((dependents ?? []).length > 0) {
       return {
         error: "Cannot reject this unit: confirmed concepts still belong to it.",
+      };
+    }
+  }
+
+  // The equivalent guard one level down: archiving a CONFIRMED concept
+  // that a confirmed relationship still points at produces the same
+  // dangling-reference throw from the edge side instead of the unit side
+  // (materializeCourseGraph's own edge-endpoint check). A 'proposed'
+  // concept can never have a 'confirmed' edge pointing at it (edges only
+  // auto-confirm once BOTH endpoints are confirmed), so this is a no-op
+  // in that case and only ever fires for the newly-possible confirmed-
+  // concept path above.
+  if (kind === "concept") {
+    const { data: dependentEdges, error: dependentsError } = await supabase
+      .from("concept_edges")
+      .select("id")
+      .eq("status", "confirmed")
+      .or(`source_concept_id.eq.${id},target_concept_id.eq.${id}`)
+      .limit(1);
+
+    if (dependentsError) {
+      return {
+        error: `Could not check whether confirmed relationships still reference this concept: ${dependentsError.message}`,
+      };
+    }
+    if ((dependentEdges ?? []).length > 0) {
+      return {
+        error: "Cannot reject this concept: confirmed relationships still reference it.",
       };
     }
   }

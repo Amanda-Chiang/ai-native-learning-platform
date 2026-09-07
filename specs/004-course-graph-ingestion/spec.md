@@ -219,6 +219,34 @@ immediately after.
     by this amendment — the underlying `concept_edges.status` state machine
     (`proposed` → `confirmed`/`archived`) is unchanged, only how a
     relationship reaches `"confirmed"` changed.
+  - **Amendment (2026-09-07)**: Manual review now applies only to units,
+    not concepts. A freshly-extracted concept inserts straight to
+    `"confirmed"` when the unit it files under is already `"confirmed"`
+    AND its own reconciliation decision isn't `"uncertain"`
+    (`trigger/extract-course-graph.ts`'s `shouldAutoConfirmConcept`); a
+    concept under a still-`"proposed"` unit, or one that IS an uncertain
+    match regardless of its unit's status, still inserts `"proposed"` and
+    surfaces in the review queue. A concept that inserted `"proposed"`
+    because its unit wasn't confirmed yet catches up automatically the
+    moment a reviewer confirms that unit
+    (`actions.ts`'s `autoConfirmEligibleConcepts`, the same cascade
+    pattern the 2026-09-05 edge amendment established, applied one level
+    up) — cascading again into the existing edge auto-confirm for every
+    edge that concept completes. Reasoning: units get far thinner
+    reconciliation signal than concepts (a bare title vs. a full
+    description/aliases/source-anchors), so units remain the side genuinely
+    prone to a "confidently-wrong distinct" duplicate call (design doc:
+    `docs/superpowers/specs/2026-09-05-unit-extraction-reconciliation-design.md`);
+    concepts get materially more reliable classification and were this
+    feature's original, more mature review target, so gating both sides in
+    the same reviewer popup was redundant friction, not redundant safety.
+    An uncertain-match concept is never swept in by this or any bulk
+    action, regardless of its unit's status. FR-007's archive-not-delete
+    path now explicitly covers rejecting an already-`"confirmed"` concept
+    too (previously only a `"proposed"` row could be rejected) — gated by
+    the same "no confirmed relationship may still reference it" guard
+    `rejectCandidate` already enforced for units. Full rationale:
+    `brain/decisions/architecture-log.md`, 2026-09-07 entry.
 - **FR-007**: Rejecting a proposed concept or relationship MUST archive it
   (preserving the record of what was extracted and why) rather than
   deleting it outright.

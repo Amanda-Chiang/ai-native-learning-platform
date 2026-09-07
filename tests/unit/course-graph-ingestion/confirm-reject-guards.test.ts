@@ -80,14 +80,42 @@ test("rejectCandidate refuses to archive a unit that confirmed concepts still re
   assert.ok(dependentsCheck < archiveIndex, "the dependency check must precede the archive update");
 });
 
-test("rejectCandidate has the same 'proposed'-only guard confirmCandidate has (no asymmetry)", async () => {
+test("rejectCandidate's 'proposed'-only guard has one deliberate exception: a confirmed concept", async () => {
   const source = await readActionsSource();
   const body = bodyBetween(source, "export async function rejectCandidate", "export type ConceptEdit");
 
+  // 2026-09-07 decision (architecture-log.md): units are the sole
+  // review-gated side of extraction, so a concept is often already
+  // 'confirmed' by the time anyone looks at it -- rejectCandidate must
+  // still be able to archive one, unlike edges/units which stay
+  // 'proposed'-only.
   assert.ok(
-    body.includes('existing.status !== "proposed"'),
-    "rejectCandidate must refuse anything that isn't currently 'proposed'",
+    /rejectableStatuses[\s\S]{0,80}"concept"[\s\S]{0,40}\["proposed",\s*"confirmed"\]/.test(body) ||
+      /kind === "concept"[\s\S]{0,40}\["proposed",\s*"confirmed"\]/.test(body),
+    "rejectCandidate must allow archiving a concept from 'confirmed', not only 'proposed'",
   );
+  assert.ok(
+    body.includes('!rejectableStatuses.includes(existing.status)'),
+    "the actual guard check must be status-set-based, not a single hardcoded 'proposed' comparison",
+  );
+});
+
+test("rejectCandidate refuses to archive a confirmed concept that confirmed relationships still reference (same throw, from the edge side)", async () => {
+  const source = await readActionsSource();
+  const body = bodyBetween(source, "export async function rejectCandidate", "export type ConceptEdit");
+
+  const dependentsCheck = body.indexOf('.from("concept_edges")');
+  assert.ok(dependentsCheck !== -1, "rejectCandidate must check for dependent edges before archiving a concept");
+  const checkSlice = body.slice(dependentsCheck, dependentsCheck + 400);
+  assert.ok(
+    checkSlice.includes('source_concept_id.eq.${id},target_concept_id.eq.${id}'),
+    "the dependency check must cover this concept as either endpoint",
+  );
+  assert.ok(checkSlice.includes('.eq("status", "confirmed")'), "only CONFIRMED dependent edges block a rejection");
+
+  const archiveIndex = body.indexOf('kind === "concept" ? "course_concepts" : "concept_edges"');
+  assert.ok(archiveIndex !== -1, "rejectCandidate must contain the concept/edge archive branch");
+  assert.ok(dependentsCheck < archiveIndex, "the dependency check must precede the archive update");
 });
 
 test("getCourseGraph filters units, concepts and edges by the SAME status value -- the rows it selects can never make materializeCourseGraph throw", async () => {
