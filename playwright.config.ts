@@ -2,6 +2,13 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
+  // Playwright's default testMatch also matches "*.test.ts" -- this
+  // project's own convention already separates node:test unit specs
+  // (tests/unit/**/*.test.ts) from Playwright specs (tests/e2e|visual/
+  // **/*.spec.ts), but without this, Playwright still tried to load
+  // every unit test file too, failing on node:test's own syntax
+  // (import.meta, etc.) it doesn't support.
+  testMatch: "**/*.spec.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

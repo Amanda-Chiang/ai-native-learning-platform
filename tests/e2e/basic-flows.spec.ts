@@ -54,7 +54,7 @@ test("sign in, create a course via the real form, and reach every linked feature
   await page.getByRole("button", { name: "Sign in" }).click();
 
   await expect(page).toHaveURL(/\/courses$/);
-  await expect(page.getByRole("heading", { name: "Your courses" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Courses" })).toBeVisible();
 
   const courseName = `E2E Basic Flow Course ${Date.now()}`;
   await page.getByLabel("Course name").fill(courseName);
