@@ -16,20 +16,13 @@ function itemId(item: ReviewQueueItem): string {
   return item.unit.id;
 }
 
-const KIND_LABEL: Record<ReviewQueueItem["kind"], string> = {
-  concept: "Concept",
-  unit: "Unit",
-};
+// A candidate the auto-matcher itself flagged as a likely duplicate --
+// this is exactly the case bulk-confirm must never silently sweep in
+// alongside routine candidates (see handleBulkConfirmUnits).
+function isUncertain(item: ReviewQueueItem): boolean {
+  return item.reconciliation?.decision === "uncertain";
+}
 
-/**
- * The rendering/editing logic for a single review-queue candidate,
- * extracted out so the plain always-visible list and the one-time
- * per-run popup render the exact same card -- confirming, editing, or
- * rejecting an item behaves identically no matter which surface it was
- * clicked from, and there is only one JSX implementation to keep in
- * sync (see the popup feature's "don't duplicate the card a second
- * time" requirement).
- */
 function CandidateCard({
   item,
   isPending,
@@ -52,7 +45,8 @@ function CandidateCard({
   onReject: () => void;
 }) {
   const id = itemId(item);
-  const isUncertain = item.reconciliation?.decision === "uncertain";
+  const formId = `edit-form-${id}`;
+  const uncertain = isUncertain(item);
 
   return (
     <li style={s.card}>
@@ -60,15 +54,21 @@ function CandidateCard({
         {isEditing ? (
           item.kind === "concept" ? (
             <>
-              <input name="canonicalName" form={`edit-form-${id}`} defaultValue={item.concept.canonicalName} style={s.input} />
-              <textarea name="description" form={`edit-form-${id}`} defaultValue={item.concept.description} style={s.textarea} />
+              <input name="canonicalName" form={formId} defaultValue={item.concept.canonicalName} style={s.input} />
+              <textarea name="description" form={formId} defaultValue={item.concept.description} style={s.textarea} />
             </>
           ) : (
-            <input name="title" form={`edit-form-${id}`} defaultValue={item.unit.title} style={s.input} />
+            <input name="title" form={formId} defaultValue={item.unit.title} style={s.input} />
           )
         ) : item.kind === "concept" ? (
           <>
             <h3 style={s.cardTitle}>{item.concept.canonicalName}</h3>
+            {/* The extraction pipeline's own per-item confidence (distinct
+                from the reconciliation "uncertain" flag below, which is
+                about duplicate-matching, not extraction quality) -- shown
+                so a reviewer can judge scrutiny needed even on candidates
+                reconciliation didn't flag at all. */}
+            <p style={s.confidence}>{Math.round(item.concept.confidence * 100)}% extraction confidence</p>
             {/* Which unit this concept files under, and whether that unit
                 is itself still awaiting review -- a concept can't be
                 confirmed before its unit is (actions.ts's
@@ -94,15 +94,15 @@ function CandidateCard({
             <h3 style={s.cardTitle}>{item.unit.title}</h3>
             {item.otherExistingUnitTitles.length > 0 && (
               <p style={s.aliases}>
-                This course's other existing units: {item.otherExistingUnitTitles.join(", ")}
+                This course&apos;s other existing units: {item.otherExistingUnitTitles.join(", ")}
               </p>
             )}
           </>
         )}
 
         {item.reconciliation && (
-          <p style={{ ...s.reconciliation, ...(isUncertain ? s.reconciliationUncertain : {}) }}>
-            {isUncertain ? "⚠ Uncertain match: " : "Reconciliation: "}
+          <p style={{ ...s.reconciliation, ...(uncertain ? s.reconciliationUncertain : {}) }}>
+            {uncertain ? "⚠ Uncertain match: " : "Reconciliation: "}
             {item.reconciliation.reasoning}
           </p>
         )}
@@ -125,7 +125,7 @@ function CandidateCard({
 
       {isEditing ? (
         <form
-          id={`edit-form-${id}`}
+          id={formId}
           action={(form) => onSaveEdit(form)}
           style={s.actionColumn}
         >
@@ -154,7 +154,7 @@ function CandidateCard({
 }
 
 /**
- * Reviewer UI for User Story 3: lists proposed concepts/edges, shows
+ * Reviewer UI for User Story 3: shows proposed concepts/units,
  * reconciliation reasoning and flags when present, and lets a reviewer
  * confirm/edit/reject each one (contracts/ingestion-actions.md).
  *
@@ -162,14 +162,16 @@ function CandidateCard({
  * distinguished from one with none at all -- FR-005 requires an
  * uncertain case never look the same as ordinary, unflagged confidence.
  *
- * On top of the always-visible plain list, this also surfaces a
- * one-time popup scoped to whichever single extraction run just
- * completed (or, on page load, whichever run still has unreviewed
- * candidates left over from last time) -- see
- * .superpowers/sdd/2026-09-05-unit-extraction-reconciliation/ for the
- * full spec this satisfies. The popup and the plain list share the
- * same `items` state and the same CandidateCard renderer, so confirming
- * or rejecting an item anywhere removes it from both immediately.
+ * The only surface is a popup scoped to whichever single extraction run
+ * just completed (or, on page load/re-navigation, whichever run still
+ * has unreviewed candidates left over from last time) -- there is no
+ * persistent always-visible list. 'proposed' is a valid, indefinitely
+ * resting status (course_concepts/course_units' own check constraints),
+ * so dismissing the popup is a deferral, not a forced decision: closing
+ * it never mutates status, and nothing auto-reopens it for the same
+ * leftover run afterward. The only way back to a dismissed run's
+ * candidates is a fresh navigation/reload of this page, which
+ * recomputes `activeModalRunId` from the real current data.
  */
 export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQueueItem[]; courseId: string }) {
   const [items, setItems] = useState(initialItems);
@@ -248,7 +250,19 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
       setErrorById((e) => ({ ...e, [id]: error }));
       return error;
     }
-    setItems((current) => current.filter((i) => itemId(i) !== id));
+    if (item.kind === "unit") {
+      // Confirming a unit can cascade-confirm every non-uncertain
+      // concept under it server-side (actions.ts's confirmCandidate,
+      // 2026-09-07: units are the review-gated side of extraction, a
+      // routine concept auto-confirms the moment its unit does). A local
+      // filter here would only remove this one unit and leave those
+      // sibling concept cards showing stale 'proposed' state -- a full
+      // refetch is the only way this component's `items` can reflect a
+      // side effect it didn't itself request.
+      setItems(await getReviewQueue(courseId));
+    } else {
+      setItems((current) => current.filter((i) => itemId(i) !== id));
+    }
     return null;
   }
 
@@ -304,61 +318,69 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
     );
   }
 
-  // Popup scope: only candidates from the one run currently active.
-  // If everything in that run just got confirmed/rejected (including via
-  // a bulk-confirm click below), there's nothing left to show for it --
-  // auto-close rather than leave an empty modal open.
+  // Popup scope: only candidates from the one run currently active. If
+  // everything in that run just got confirmed/rejected (including via a
+  // bulk-confirm click below), modalItems naturally empties out and the
+  // render's own early return below (activeModalRunId === null ||
+  // modalItems.length === 0) already hides the modal -- no effect needed
+  // to additionally null out activeModalRunId, since nothing else reads
+  // it in a way that distinguishes "null" from "a run with zero items
+  // left." (Previously did this via a `useEffect` calling `setState`
+  // unconditionally on every render where it applied -- removed as dead
+  // weight once it became clear the early return already covered it.)
   const modalItems = activeModalRunId === null ? [] : items.filter((i) => i.extractionRunId === activeModalRunId);
-  useEffect(() => {
-    if (activeModalRunId !== null && modalItems.length === 0) {
-      setActiveModalRunId(null);
-    }
-  }, [activeModalRunId, modalItems.length]);
+
+  // Only units get a bulk-confirm button. Concepts no longer need one:
+  // 2026-09-07 decision (architecture-log.md) made units the sole
+  // review-gated side of extraction -- a routine (non-uncertain) concept
+  // under an already-confirmed unit inserts straight to 'confirmed' at
+  // extraction time, and one under a still-proposed unit auto-confirms
+  // the moment this bulk action (or an individual card) confirms that
+  // unit (confirmCandidate's own cascade). The only concepts left sitting
+  // at 'proposed' by the time a reviewer sees this modal are ones an
+  // uncertain reconciliation match is blocking on purpose -- those always
+  // need their own individual Confirm/Edit/Reject, bulk or not.
+  const bulkConfirmableUnits = modalItems.filter((i) => i.kind === "unit" && !isUncertain(i));
+  const uncertainCount = modalItems.filter(isUncertain).length;
 
   /**
-   * Bulk confirm, in the one order the server actually allows: every
-   * pending unit in this run first, then (if concepts were asked for)
-   * the concepts. confirmCandidate refuses a concept whose unit is
-   * still 'proposed', so a "Confirm N Concepts" click on a fresh run --
-   * where the units are proposed too -- would otherwise fail for every
-   * single concept. Units are confirmed regardless of which bulk button
-   * was pressed, because they are a precondition of the concepts, not a
-   * separate opt-in.
+   * Bulk-confirms every non-uncertain unit in this run. Each confirm
+   * cascades server-side (confirmCandidate) to every non-uncertain
+   * concept under that unit, and each of those cascades again to every
+   * edge it completes -- one unit click can legitimately resolve most of
+   * a run without ever touching a concept card.
    *
-   * Sequential, not Promise.all: correctness of the edge auto-confirm
-   * cascade previously depended on Next.js dispatching Server Function
-   * calls one at a time ("an implementation detail [that] may change"),
-   * and concurrent confirms of two edge-joined concepts can each read
-   * the other endpoint as still 'proposed'. sweepEligibleEdges below is
-   * the deterministic backstop; sequencing here also keeps the per-item
-   * error reporting (pendingId is a single id) coherent, and makes the
-   * units-before-concepts ordering above actually hold.
+   * Sequential, not Promise.all: correctness of the confirm cascades
+   * previously depended (edge-auto-confirm's own history) on Next.js
+   * dispatching Server Function calls one at a time ("an implementation
+   * detail [that] may change"), and this keeps that same guarantee for
+   * the new unit-to-concept cascade. sweepEligibleEdges below is the
+   * deterministic backstop for edges specifically; units have no
+   * equivalent two-sided race to backstop (a concept depends on exactly
+   * one unit, never two), so confirmCandidate's own cascade is already
+   * sufficient there.
    *
    * Failures are never swallowed: each one renders on its own card via
    * handleConfirm, and the count is summarised in the modal footer so a
-   * reviewer who clicked a bulk button gets a signal even if the failing
-   * card is scrolled out of view.
+   * reviewer who clicked the bulk button gets a signal even if the
+   * failing card is scrolled out of view.
    */
-  async function handleBulkConfirm(kind: ReviewQueueItem["kind"]) {
+  async function handleBulkConfirmUnits() {
     setBulkError(null);
-    const ordered = [
-      ...modalItems.filter((i) => i.kind === "unit"),
-      ...(kind === "concept" ? modalItems.filter((i) => i.kind === "concept") : []),
-    ];
 
     let failures = 0;
-    let confirmedAnyConcept = false;
-    for (const item of ordered) {
+    let confirmedAnyUnit = false;
+    for (const item of bulkConfirmableUnits) {
       const error = await handleConfirm(item);
       if (error) failures += 1;
-      else if (item.kind === "concept") confirmedAnyConcept = true;
+      else confirmedAnyUnit = true;
     }
 
     // Deterministic backstop for the edge cascade (see actions.ts):
     // re-checks every proposed edge in the course once, after the whole
-    // batch has landed, instead of trusting the per-confirm cascade to
-    // have observed the final statuses.
-    if (confirmedAnyConcept) {
+    // batch (and everything it cascade-confirmed) has landed, instead of
+    // trusting the per-confirm cascade to have observed final statuses.
+    if (confirmedAnyUnit) {
       const { error: sweepError } = await sweepEligibleEdges(courseId);
       if (sweepError) {
         setBulkError(`Confirmed, but relationships could not be re-checked: ${sweepError}`);
@@ -369,6 +391,12 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
     if (failures > 0) {
       setBulkError(
         `${failures} candidate${failures === 1 ? "" : "s"} could not be confirmed -- see the message on each card.`,
+      );
+    } else if (uncertainCount > 0) {
+      setBulkError(
+        `${uncertainCount} uncertain match${uncertainCount === 1 ? "" : "es"} skipped -- review ${
+          uncertainCount === 1 ? "it" : "them"
+        } individually below.`,
       );
     }
   }
@@ -391,92 +419,53 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
     );
   }
 
-  const bulkKinds = (["concept", "unit"] as const).filter(
-    (kind) => modalItems.some((i) => i.kind === kind),
-  );
+  const modalUnitCount = modalItems.filter((i) => i.kind === "unit").length;
+  // No button at all if every unit in this run is an uncertain match --
+  // "Confirm 0 Units" is nothing a reviewer should be able to click.
+  const showBulkConfirmButton = bulkConfirmableUnits.length > 0;
 
-  // Nothing pending and no popup open -- this is the steady-state, most
-  // of the time this component is mounted (it stays mounted always so
-  // its Realtime subscription above keeps listening for the next
-  // extraction run to complete). Render nothing visible at all: no
-  // heading, no description, no empty-state sentence. The "Pending
-  // review" chrome only ever earns its place on the page when there is
-  // something to actually review.
-  if (items.length === 0 && activeModalRunId === null) {
+  // Nothing to show most of the time this component is mounted (it stays
+  // mounted always so its Realtime subscription above keeps listening for
+  // the next extraction run to complete) -- render nothing visible at all
+  // unless there's an active run with candidates still pending review.
+  if (activeModalRunId === null || modalItems.length === 0) {
     return null;
   }
 
   return (
-    <div style={s.section}>
-      <h2 style={s.subsectionTitle}>Pending review</h2>
-      <p style={s.sectionDesc}>
-        Concepts and units extraction proposed from your uploads -- confirm, edit, or reject each one before it
-        becomes part of the real concept graph. Relationships aren't reviewed here: each one confirms itself once
-        both concepts it connects are confirmed.
-      </p>
-
-      {items.length === 0 ? (
-        <p style={s.empty}>No proposed concepts or units waiting for review.</p>
-      ) : (
-        <ul style={s.list}>{items.map((item) => renderCard(item))}</ul>
-      )}
-
-      {activeModalRunId !== null && modalItems.length > 0 && (
-        <div style={s.overlay} role="dialog" aria-modal="true">
-          <div style={s.modal}>
-            <div style={s.modalHeader}>
-              <h2 style={s.modalTitle}>New extraction results</h2>
-              <button type="button" onClick={closeModal} style={s.closeButton} aria-label="Close">
-                ×
-              </button>
-            </div>
-            <ul style={s.modalList}>{modalItems.map((item) => renderCard(item))}</ul>
-            <div style={s.modalFooter}>
-              {bulkError && (
-                <p style={s.error} role="alert">
-                  {bulkError}
-                </p>
-              )}
-              {bulkKinds.map((kind) => {
-                const count = modalItems.filter((i) => i.kind === kind).length;
-                return (
-                  <button
-                    key={kind}
-                    type="button"
-                    onClick={() => handleBulkConfirm(kind)}
-                    style={s.primaryButton}
-                  >
-                    Confirm {count} {KIND_LABEL[kind]}
-                    {count === 1 ? "" : "s"}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+    <div style={s.overlay} role="dialog" aria-modal="true">
+      <div style={s.modal}>
+        <div style={s.modalHeader}>
+          <h2 style={s.modalTitle}>New extraction results</h2>
+          <button type="button" onClick={closeModal} style={s.closeButton} aria-label="Close">
+            ×
+          </button>
         </div>
-      )}
+        <ul style={s.modalList}>{modalItems.map((item) => renderCard(item))}</ul>
+        <div style={s.modalFooter}>
+          {bulkError && (
+            <p style={s.error} role="alert">
+              {bulkError}
+            </p>
+          )}
+          {showBulkConfirmButton && (
+            // The displayed count is every unit in the popup, not just
+            // the bulk-confirmable subset -- every one of them (including
+            // an uncertain match) is already visible on its own card
+            // right above this button, so the reviewer can see exactly
+            // which one(s) the post-click "skipped" notice will refer to.
+            // The actual confirm above is restricted to bulkConfirmableUnits.
+            <button type="button" onClick={handleBulkConfirmUnits} style={s.primaryButton}>
+              Confirm {modalUnitCount} Unit{modalUnitCount === 1 ? "" : "s"}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  section: { display: "flex", flexDirection: "column", gap: 4 },
-  subsectionTitle: {
-    margin: 0,
-    fontSize: 16,
-    fontWeight: 500,
-    letterSpacing: "-0.02em",
-    color: "var(--text-primary)",
-  },
-  sectionDesc: {
-    margin: 0,
-    fontSize: 13.5,
-    color: "var(--text-secondary)",
-    lineHeight: 1.55,
-    letterSpacing: "-0.005em",
-  },
-  empty: { fontSize: 13.5, color: "var(--text-tertiary)" },
-  list: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 },
   card: {
     border: "1px solid var(--border)",
     borderRadius: "var(--radius-md)",
@@ -490,6 +479,7 @@ const s: Record<string, React.CSSProperties> = {
   cardContent: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 },
   cardTitle: { margin: 0, fontSize: 14.5, fontWeight: 500, color: "var(--text-primary)", letterSpacing: "-0.01em" },
   aliases: { margin: 0, fontSize: 12.5, color: "var(--text-tertiary)" },
+  confidence: { margin: 0, fontSize: 12.5, color: "var(--text-tertiary)", fontWeight: 500 },
   description: { margin: 0, fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.55 },
   reconciliation: { margin: 0, fontSize: 12.5, color: "var(--text-tertiary)" },
   reconciliationUncertain: { color: "var(--urgent-amber)", fontWeight: 600 },
