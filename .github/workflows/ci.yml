@@ -36,6 +36,18 @@ jobs:
 
       - name: E2E / visual regression
         run: npm run test:e2e
+        env:
+          # tests/e2e/global-setup.ts provisions a real throwaway user via
+          # the service-role client, and Playwright's webServer (npm run
+          # dev) needs the same values Next.js reads from .env.local
+          # locally -- neither exists in a fresh CI checkout, so these
+          # must come from real repository secrets (Settings > Secrets and
+          # variables > Actions). NEXT_PUBLIC_SUPABASE_URL/ANON_KEY are
+          # Supabase's own publishable values; SUPABASE_SERVICE_ROLE_KEY is
+          # sensitive and must never be logged or echoed.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Upload Playwright report
         if: always()
