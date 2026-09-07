@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ReactFlow, Background, Controls, type Node, type Edge } from "@xyflow/react";
+import { ReactFlow, Background, Controls, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { CourseGraph } from "@/types/graph/course-graph.ts";
 import {
@@ -137,12 +137,18 @@ export function ConceptAtlas({
   );
   const [preferences, setPreferences] = useState<LayoutPreference[]>([]);
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  // Lazy initializer reads the real value on first render instead of a
+  // hardcoded `false` corrected a tick later by the effect below -- avoids
+  // both a real mobile-layout flash and a synchronous setState-in-effect
+  // call. Guarded for SSR: "use client" components still render once on
+  // the server, where `window` doesn't exist.
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches,
+  );
   const [evidenceProvenance, setEvidenceProvenance] = useState<EvidenceProvenance | undefined>(undefined);
 
   useEffect(() => {
     const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
-    setIsMobile(mql.matches);
     const onChange = (event: MediaQueryListEvent) => setIsMobile(event.matches);
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
@@ -194,6 +200,12 @@ export function ConceptAtlas({
   }, [graph, positions, collapsedUnitIds, focusTarget]);
 
   useEffect(() => {
+    // Deliberate reset-on-dependency-change, not a derived-state
+    // duplication this rule usually catches -- suppressed rather than
+    // restructured here since a key-based remount (the rule's preferred
+    // alternative) would need this component's render tree reshaped, out
+    // of scope for the unrelated fix this suppression accompanies.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEvidenceProvenance(undefined);
     if (!focusTarget || !getEvidenceProvenance) {
       return;
