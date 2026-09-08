@@ -1,8 +1,25 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { listArtifacts } from "@/features/artifacts/actions.ts";
-import { getReviewQueue, listUnits } from "@/features/course-graph-ingestion/actions.ts";
+import { getReviewQueue, listUnits, type ReviewQueueItem } from "@/features/course-graph-ingestion/actions.ts";
 import { getExtractionStatuses } from "@/features/course-graph-ingestion/extraction-status.ts";
 import { UnitsSection } from "@/features/course-graph-ingestion/components/UnitsSection.tsx";
 import { ReviewQueue } from "@/features/course-graph-ingestion/components/ReviewQueue.tsx";
+
+/**
+ * Loads the checked-in demo fixture as the review queue -- same
+ * courseId === "demo" special case atlas/page.tsx already established
+ * for concept-atlas-renderer's own visual suite, here for
+ * tests/visual/review-queue.spec.ts. Real courses go through
+ * getReviewQueue (a real, possibly-empty Supabase read); "demo" is a
+ * fixture route for the visual suite, not a stand-in for "no real data
+ * yet" (which getReviewQueue already handles honestly on its own).
+ */
+async function loadDemoReviewQueue(): Promise<ReviewQueueItem[]> {
+  const fixturePath = path.join(process.cwd(), "tests/fixtures/review-queue-demo.json");
+  const raw = await readFile(fixturePath, "utf-8");
+  return JSON.parse(raw) as ReviewQueueItem[];
+}
 
 export default async function CourseDetailPage({
   params,
@@ -12,7 +29,7 @@ export default async function CourseDetailPage({
   const { courseId } = await params;
   const [artifacts, pendingItems, units, extractionStatuses] = await Promise.all([
     listArtifacts(courseId),
-    getReviewQueue(courseId),
+    courseId === "demo" ? loadDemoReviewQueue() : getReviewQueue(courseId),
     listUnits(courseId),
     getExtractionStatuses(courseId),
   ]);

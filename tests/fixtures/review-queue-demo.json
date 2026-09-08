@@ -55,7 +55,7 @@
       "title": "Graphs",
       "status": "confirmed"
     },
-    "extractionRunId": "extraction-run-demo-2",
+    "extractionRunId": "extraction-run-demo-1",
     "reconciliation": {
       "decision": "uncertain",
       "matchedConceptId": null,
