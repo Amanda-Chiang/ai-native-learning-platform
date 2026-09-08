@@ -82,11 +82,42 @@ export async function uploadArtifact(
   // client bundle -- actual triggering only works once a live
   // Trigger.dev project exists (research.md); the task itself
   // (trigger/ingest-artifact.ts) is written and ready.
+  //
+  // Real bug found live (2026-09-07, a real CI run with no
+  // TRIGGER_SECRET_KEY configured): trigger() throwing here was never
+  // guarded, so it crashed the whole Server Action -- and with it the
+  // page -- instead of leaving an honest, visible failure. Same class
+  // of gap the 2026-09-02 hardening pass already fixed four other times
+  // (every unguarded external-service call in this codebase); this one
+  // just had no real browser E2E to catch it until now. The artifact
+  // and processing-run rows already exist at this point (the upload
+  // itself genuinely succeeded), so this marks them 'failed' with the
+  // real reason rather than leaving them stuck at 'queued' forever with
+  // no completion signal -- and still returns success for the upload,
+  // since getDisplayStatus already renders an artifact-level 'failed'
+  // status distinctly ("Upload failed") using this exact run's
+  // failure_reason (display-status.ts, listArtifacts).
   const { ingestArtifactTask } = await import("../../../trigger/ingest-artifact.ts");
-  await ingestArtifactTask.trigger({
-    artifactId: artifact.id,
-    processingRunId: run.id,
-  });
+  try {
+    await ingestArtifactTask.trigger({
+      artifactId: artifact.id,
+      processingRunId: run.id,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await supabase
+      .from("artifacts")
+      .update({ status: "failed" })
+      .eq("id", artifact.id);
+    await supabase
+      .from("artifact_processing_runs")
+      .update({
+        status: "failed",
+        failure_reason: `Could not start background processing: ${message}`,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", run.id);
+  }
 
   return { artifact: { id: artifact.id, status: "queued" } };
 }
