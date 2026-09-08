@@ -73,8 +73,8 @@ test("sign in, create a course via the real form, and reach every linked feature
   // Regression guard: the course detail page must link to every other
   // feature (previously had none at all).
   const featurePages: [name: string, path: string, heading: string][] = [
-    ["Concept atlas", "atlas", "Concept Atlas"],
-    ["Review queue", "review", "Review Queue"],
+    ["Atlas", "atlas", "Concept Atlas"],
+    ["Review", "review", "Review queue"],
     ["Tutor", "tutor", "Tutor"],
     ["Study", "study", "Study"],
     ["Exam plan", "exam-plan", "Exam Plan"],

@@ -60,8 +60,10 @@ test("uploading a real course syllabus succeeds, with no RLS error, and appears 
   await expect(page).toHaveURL(/\/courses\/[0-9a-f-]{36}$/);
   createdCourseIds.push(page.url().split("/").filter(Boolean).pop()!);
 
+  // The dropzone auto-submits the moment a file is chosen (its onChange
+  // calls formRef.current.requestSubmit()) -- there is no separate
+  // "Upload" button to click.
   await page.setInputFiles('input[type="file"]', path.join(process.cwd(), "tests/fixtures/dummy-syllabus.pdf"));
-  await page.getByRole("button", { name: "Upload", exact: true }).click();
 
   // The real regression guard: this must never show the RLS error
   // found live ("new row violates row-level security policy for
