@@ -95,6 +95,7 @@ export function ExamPlanner({
   return (
     <div style={s.page}>
       <div style={s.inner}>
+        <h1 style={s.pageTitle}>Exam Plan</h1>
         <section style={s.section}>
           <span style={s.sectionLabel}>Exam configuration</span>
           {config ? (
@@ -266,6 +267,7 @@ const s: Record<string, React.CSSProperties> = {
   page: { height: "100%", overflowY: "auto", background: "var(--bg)", padding: "36px 40px", display: "flex", justifyContent: "center" },
   inner: { width: "100%", maxWidth: 640, display: "flex", flexDirection: "column", gap: 24 },
   section: { display: "flex", flexDirection: "column", gap: 12 },
+  pageTitle: { margin: 0, fontSize: 20, fontWeight: 500, letterSpacing: "-0.025em", color: "var(--text-primary)" },
   sectionLabel: { fontSize: 10.5, fontWeight: 500, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)" },
   configuredNote: { margin: 0, fontSize: 13.5, color: "var(--text-secondary)" },
   configForm: { display: "flex", flexDirection: "column", gap: 12, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)" },

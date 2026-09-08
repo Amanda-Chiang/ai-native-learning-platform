@@ -39,6 +39,7 @@ export function DueQueue({ courseId, items }: { courseId: string; items: DueQueu
     return (
       <div style={s.page}>
         <div style={s.inner}>
+          <h1 style={s.title}>Review queue</h1>
           <p style={s.empty}>No concepts to review yet -- once your course material is extracted, they&apos;ll show up here.</p>
         </div>
       </div>

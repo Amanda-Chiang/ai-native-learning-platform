@@ -95,6 +95,7 @@ export function StudySession({
   return (
     <div style={s.page}>
       <div style={s.inner}>
+        <h1 style={s.pageTitle}>Study</h1>
         <section style={s.section}>
           {total > 0 && (
             <div style={s.progressBlock}>
@@ -238,6 +239,7 @@ const s: Record<string, React.CSSProperties> = {
   page: { height: "100%", overflowY: "auto", background: "var(--bg)", padding: "36px 40px", display: "flex", justifyContent: "center" },
   inner: { width: "100%", maxWidth: 640, display: "flex", flexDirection: "column", gap: 40 },
   section: { display: "flex", flexDirection: "column", gap: 16 },
+  pageTitle: { margin: 0, fontSize: 20, fontWeight: 500, letterSpacing: "-0.025em", color: "var(--text-primary)" },
   sectionTitle: { margin: 0, fontSize: 18, fontWeight: 500, letterSpacing: "-0.02em", color: "var(--text-primary)" },
   progressBlock: { display: "flex", flexDirection: "column", gap: 8 },
   progressBar: { display: "flex", gap: 4 },
