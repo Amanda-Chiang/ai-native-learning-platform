@@ -4,6 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { IconToday, IconCourses } from "@/components/icons.tsx";
+import { useMobileBreakpoint } from "@/lib/use-mobile-breakpoint.ts";
+
+// Same breakpoint concept-atlas's own mobile switch uses
+// (ConceptAtlas.tsx/ConceptDetailPanel.tsx) -- one viewport threshold
+// for the app, not independently-tuned ones per component.
+const MOBILE_BREAKPOINT_QUERY = "(max-width: 768px)";
 
 /**
  * Course-agnostic top-level nav only (Today, Courses). The mockup this
@@ -24,22 +30,32 @@ const NAV_MAIN = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isMobile = useMobileBreakpoint(MOBILE_BREAKPOINT_QUERY);
 
   return (
-    <div style={s.shell}>
+    <div style={{ ...s.shell, gridTemplateColumns: isMobile ? "var(--sidebar-w-collapsed) 1fr" : "var(--sidebar-w) 1fr" }}>
       <nav style={s.nav}>
         <div style={s.logo}>
           <span style={s.logoMark}>◆</span>
-          <span style={s.logoWord}>Luminary</span>
+          {!isMobile && <span style={s.logoWord}>Luminary</span>}
         </div>
 
         <div style={s.navGroup}>
           {NAV_MAIN.map((item) => {
             const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
             return (
-              <Link key={item.href} href={item.href} style={{ ...s.navItem, ...(isActive ? s.navItemActive : {}) }}>
+              <Link
+                key={item.href}
+                href={item.href}
+                title={isMobile ? item.label : undefined}
+                style={{
+                  ...s.navItem,
+                  ...(isMobile ? s.navItemCollapsed : {}),
+                  ...(isActive ? s.navItemActive : {}),
+                }}
+              >
                 <span style={s.navIcon}>{item.icon}</span>
-                {item.label}
+                {!isMobile && item.label}
               </Link>
             );
           })}
@@ -54,7 +70,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 const s: Record<string, React.CSSProperties> = {
   shell: {
     display: "grid",
-    gridTemplateColumns: "var(--sidebar-w) 1fr",
     height: "100%",
     overflow: "hidden",
   },
@@ -67,6 +82,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRight: "1px solid var(--border)",
     background: "var(--surface)",
     overflowY: "auto",
+    overflowX: "hidden",
   },
   logo: {
     display: "flex",
@@ -103,6 +119,10 @@ const s: Record<string, React.CSSProperties> = {
     textDecoration: "none",
     letterSpacing: "-0.01em",
     transition: "background 0.1s, color 0.1s",
+  },
+  navItemCollapsed: {
+    justifyContent: "center",
+    padding: "9px 0",
   },
   navItemActive: {
     background: "var(--clay-muted)",

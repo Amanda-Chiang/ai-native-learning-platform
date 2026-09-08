@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMobileBreakpoint } from "@/lib/use-mobile-breakpoint.ts";
 import { ReactFlow, Background, Controls, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { CourseGraph } from "@/types/graph/course-graph.ts";
@@ -137,22 +138,8 @@ export function ConceptAtlas({
   );
   const [preferences, setPreferences] = useState<LayoutPreference[]>([]);
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
-  // Lazy initializer reads the real value on first render instead of a
-  // hardcoded `false` corrected a tick later by the effect below -- avoids
-  // both a real mobile-layout flash and a synchronous setState-in-effect
-  // call. Guarded for SSR: "use client" components still render once on
-  // the server, where `window` doesn't exist.
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window === "undefined" ? false : window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches,
-  );
+  const isMobile = useMobileBreakpoint(MOBILE_BREAKPOINT_QUERY);
   const [evidenceProvenance, setEvidenceProvenance] = useState<EvidenceProvenance | undefined>(undefined);
-
-  useEffect(() => {
-    const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
-    const onChange = (event: MediaQueryListEvent) => setIsMobile(event.matches);
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;

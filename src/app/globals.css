@@ -75,6 +75,10 @@
 
   /* Layout */
   --sidebar-w: 220px;
+  /* AppShell's own collapsed (icon-only) rail below its mobile breakpoint
+     -- the sidebar never collapsed at all before this, leaving almost no
+     width for page content on a phone-sized viewport. */
+  --sidebar-w-collapsed: 56px;
   --right-w: 280px;
 
   /* Typography — aliases onto the real next/font/google variables */
