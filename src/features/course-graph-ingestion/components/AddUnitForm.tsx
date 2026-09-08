@@ -45,6 +45,7 @@ export function AddUnitForm({
           type="text"
           name="title"
           required
+          aria-label="Unit title"
           placeholder="Unit title, e.g. Dynamic Programming"
           style={s.input}
           disabled={pending}

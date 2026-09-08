@@ -44,6 +44,7 @@ export function CreateCourseForm({
           type="text"
           name="name"
           required
+          aria-label="Course name"
           placeholder="Course name, e.g. Data Structures & Algorithms"
           style={s.input}
           disabled={pending}
