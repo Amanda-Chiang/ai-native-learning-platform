@@ -105,6 +105,7 @@ export function TutorChat({
         />
         <button
           type="button"
+          aria-label="Send"
           style={{ ...s.sendBtn, opacity: input.trim() ? 1 : 0.4 }}
           onClick={handleSend}
           disabled={!input.trim() || pending}

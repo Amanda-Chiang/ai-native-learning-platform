@@ -54,7 +54,7 @@ test("a question covered by confirmed course material produces a grounded, sourc
   // "Topological Sort" specifically because "Breadth-First Search" has a
   // real seeded "solid" state (the separate calibration test below) that
   // would otherwise short-circuit this response.
-  await page.getByPlaceholder("Ask the tutor something...").fill("just explain topological sort");
+  await page.getByPlaceholder("Ask a question…").fill("just explain topological sort");
   await page.getByRole("button", { name: "Send" }).click();
 
   await expect(page.getByText(/Topological Sort: Orders a directed/)).toBeVisible({ timeout: 10000 });
@@ -64,7 +64,7 @@ test("a question the course material doesn't cover produces an honest 'not cover
   const fixture = await loadFixture();
   await page.goto(`/courses/${fixture.courseId}/tutor`);
 
-  await page.getByPlaceholder("Ask the tutor something...").fill("explain quantum entanglement");
+  await page.getByPlaceholder("Ask a question…").fill("explain quantum entanglement");
   await page.getByRole("button", { name: "Send" }).click();
 
   await expect(page.getByText("The course material doesn't cover that yet.")).toBeVisible({ timeout: 10000 });
@@ -74,7 +74,7 @@ test("asking about a concept opens with a diagnostic prompt, not a full explanat
   const fixture = await loadFixture();
   await page.goto(`/courses/${fixture.courseId}/tutor`);
 
-  await page.getByPlaceholder("Ask the tutor something...").fill("explain topological sort");
+  await page.getByPlaceholder("Ask a question…").fill("explain topological sort");
   await page.getByRole("button", { name: "Send" }).click();
 
   await expect(page.getByText(/try recalling or predicting the answer yourself first/)).toBeVisible({
@@ -89,7 +89,7 @@ test("explicitly asking for the direct answer produces one immediately, regardle
   const fixture = await loadFixture();
   await page.goto(`/courses/${fixture.courseId}/tutor`);
 
-  await page.getByPlaceholder("Ask the tutor something...").fill("just give me the answer about topological sort");
+  await page.getByPlaceholder("Ask a question…").fill("just give me the answer about topological sort");
   await page.getByRole("button", { name: "Send" }).click();
 
   await expect(page.getByText(/Topological Sort: Orders a directed/)).toBeVisible({ timeout: 10000 });
@@ -102,7 +102,7 @@ test("a concept with real recorded 'solid' state is acknowledged, not re-taught 
   // "Breadth-First Search" has a real learner_concept_state row seeded
   // at "solid" by global-setup.ts -- this exercises get_concept_state
   // returning that real state, not a mocked one.
-  await page.getByPlaceholder("Ask the tutor something...").fill("explain breadth-first search");
+  await page.getByPlaceholder("Ask a question…").fill("explain breadth-first search");
   await page.getByRole("button", { name: "Send" }).click();
 
   await expect(page.getByText(/already shown solid understanding/)).toBeVisible({ timeout: 10000 });
@@ -118,16 +118,16 @@ test("independent correct retrieval and repeated confident wrong answers become 
   // "solid" state on Breadth-First Search, which would short-circuit
   // before any evidence-recording tool call happens.
   await page
-    .getByPlaceholder("Ask the tutor something...")
+    .getByPlaceholder("Ask a question…")
     .fill("just explain topological sort -- i got it right");
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByText(/Topological Sort: Orders a directed/)).toBeVisible({ timeout: 10000 });
 
-  await page.getByPlaceholder("Ask the tutor something...").fill("explain topological sort -- wrong answer");
+  await page.getByPlaceholder("Ask a question…").fill("explain topological sort -- wrong answer");
   await page.getByRole("button", { name: "Send" }).click();
   await page.waitForTimeout(500);
 
-  await page.getByPlaceholder("Ask the tutor something...").fill("explain topological sort -- wrong answer");
+  await page.getByPlaceholder("Ask a question…").fill("explain topological sort -- wrong answer");
   await page.getByRole("button", { name: "Send" }).click();
   await page.waitForTimeout(500);
 
@@ -155,7 +155,7 @@ test("a question unrelated to the course is declined as off-topic", async ({ pag
   const fixture = await loadFixture();
   await page.goto(`/courses/${fixture.courseId}/tutor`);
 
-  await page.getByPlaceholder("Ask the tutor something...").fill("what's the weather like today");
+  await page.getByPlaceholder("Ask a question…").fill("what's the weather like today");
   await page.getByRole("button", { name: "Send" }).click();
 
   await expect(page.getByText(/outside this course/)).toBeVisible({ timeout: 10000 });
