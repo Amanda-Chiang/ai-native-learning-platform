@@ -29,7 +29,17 @@ test("whole-course atlas renders every unit as a bounded region with no overlapp
 
 test("collapsing units shows progressive disclosure: collapsed units shrink, siblings stay expanded", async ({
   page,
-}) => {
+}, testInfo) => {
+  // Real, found live: FR-013 deliberately disables fitView on mobile
+  // (ConceptAtlas.tsx's isMobile branch, spec task T029) so the whole
+  // graph never shrinks to unreadable size -- the initial view centers
+  // on only the leftmost unit, so "Sorting & Searching"/"Trees" (neither
+  // of them leftmost) are genuinely off-screen there, not a bug. The
+  // interaction itself has nothing mobile-specific about it and is
+  // already verified here on chromium; the actual mobile claim (a
+  // concept is reachable without panning) is its own dedicated test
+  // below, which deliberately only clicks the leftmost concept.
+  test.skip(testInfo.project.name === "mobile", "off-screen on mobile by design (FR-013) -- interaction covered on chromium");
   await page.goto("/courses/demo/atlas");
   await page.waitForSelector(".react-flow__node", { state: "visible" });
   await page.waitForTimeout(300);
@@ -84,7 +94,11 @@ test("a concept's detail panel surfaces its real evidence provenance (learner-gr
   await expect(page).toHaveScreenshot("focused-concept-with-evidence-provenance.png");
 });
 
-test("clicking a weak relationship shows why it's rated weak", async ({ page }) => {
+test("clicking a weak relationship shows why it's rated weak", async ({ page }, testInfo) => {
+  // See the "collapsing units" test's own comment: r-bfs-shortest-path
+  // isn't in the leftmost unit, so it's genuinely off-screen on mobile
+  // by FR-013's own design, not a bug.
+  test.skip(testInfo.project.name === "mobile", "off-screen on mobile by design (FR-013) -- interaction covered on chromium");
   await page.goto("/courses/demo/atlas");
   await page.waitForSelector(".react-flow__node", { state: "visible" });
   await page.waitForTimeout(300);
@@ -103,7 +117,11 @@ test("clicking a weak relationship shows why it's rated weak", async ({ page }) 
 
 test("a concept with an unresolved misconception shows its badge (learner-graph-evidence US5)", async ({
   page,
-}) => {
+}, testInfo) => {
+  // See the "collapsing units" test's own comment: "Depth-First Search"
+  // isn't in the leftmost unit, so it's genuinely off-screen on mobile
+  // by FR-013's own design, not a bug.
+  test.skip(testInfo.project.name === "mobile", "off-screen on mobile by design (FR-013) -- interaction covered on chromium");
   await page.goto("/courses/demo/atlas");
   await page.waitForSelector(".react-flow__node", { state: "visible" });
   await page.waitForTimeout(300);
