@@ -36,6 +36,18 @@ there is still no UI surface to edit/reject an already-confirmed concept
 once it has left the review popup (the server actions support it; nothing
 calls them from anywhere but this popup yet).
 
+**Further addendum (2026-09-08):** `tests/visual/review-queue.spec.ts`
+(referenced in T030's own checklist entry below) had never actually
+exercised this feature's `ReviewQueue` component at all — it navigated
+to `/courses/demo/review` (`review-scheduler`'s unrelated `DueQueue`),
+and the correct route (`/courses/demo`, the Material page) had no
+demo-fixture branch to load `tests/fixtures/review-queue-demo.json`
+either. Both fixed; the spec now passes for real, on both Playwright
+projects, with real Linux CI snapshot baselines to match. No
+requirements changed — this was a test-infrastructure gap, not a
+spec/schema one. Full account: `brain/decisions/architecture-log.md`'s
+2026-09-08 entry.
+
 # Tasks: Course Graph Ingestion
 
 **Input**: Design documents from `/specs/004-course-graph-ingestion/`

@@ -6,8 +6,47 @@
   below the `@AGENTS.md` import instead, so they survive regeneration.
 - Default shell `node` resolves to nvm's v16.20.2, but Next.js 16 /
   Playwright require Node 20+. `nvm use 24` (v24.20.0 is already installed
-  via nvm) before running `npm run dev`/`build`/`test:e2e` locally; CI pins
-  `actions/setup-node@v4` to Node 20 directly so this doesn't affect it.
+  via nvm) before running `npm run dev`/`build`/`test:e2e` locally; CI
+  pins `actions/setup-node@v4` to `"24"` too (as of 2026-09-08 — GitHub
+  force-runs everything on 24 regardless of an older pin, since Node 20
+  is deprecated on Actions runners, so the pin now says what actually
+  runs).
+- `tsc --noEmit` fails on `src/app/layout.tsx`'s `LayoutProps<"/">`
+  (Next 15+'s auto-generated typed-route helper) unless `.next/types/`
+  already exists — it's created by `next build` or `next dev`, never by
+  a bare typecheck. Run `npx next typegen` first if you ever see `Cannot
+  find name 'LayoutProps'` (CI's `.github/workflows/ci.yml` already does
+  this before its own Typecheck step).
+- `npm run test:e2e` needs real credentials as real env vars, not just
+  `.env.local` (which only Next.js's own dev/build process reads) —
+  `tests/e2e/global-setup.ts` and the `tutor-agent-e2e` Playwright
+  project both read `process.env` directly. Locally this is already
+  satisfied by `.env.local`; in CI it comes from GitHub repository
+  secrets (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`) wired into
+  `ci.yml`'s E2E step `env:` block. `TRIGGER_SECRET_KEY` is
+  deliberately **not** one of them — no live Trigger.dev project exists
+  yet (a real, known, pre-existing gap), and `uploadArtifact`
+  (`src/features/artifacts/actions.ts`) is expected to degrade honestly
+  (marks the artifact `'failed'`) rather than crash when it's absent, so
+  don't add it just to make a symptom go away.
+- Playwright visual snapshots (`tests/visual/**/*-snapshots/`) are
+  platform-suffixed (`-darwin.png` for local macOS dev, `-linux.png` for
+  CI's `ubuntu-latest`) — Playwright's own design, since font rendering
+  differs enough between OSes to fail a byte-for-byte compare. Both must
+  exist and be committed; generating one locally on macOS does **not**
+  produce or update the other. To (re)generate real `-linux.png`
+  baselines without a local Linux machine, use a one-off
+  `workflow_dispatch` GitHub Actions run (`npx playwright test
+  tests/visual --update-snapshots`), download the resulting artifact,
+  and commit the files directly — don't approximate via local Docker
+  unless you've confirmed the Playwright/browser versions match exactly.
+- `playwright.config.ts` scopes `testMatch` to `**/*.spec.ts` on
+  purpose — without it, Playwright's default pattern also matches
+  `tests/unit/**/*.test.ts` (this project's `node:test` files) and tries
+  to load them too, failing on syntax (`import.meta`, etc.) it doesn't
+  support. If you add a new Playwright spec, it must end in `.spec.ts`,
+  not `.test.ts`.
 - `bun` is not installed in this environment. gstack's setup script requires
   it and would install a new global runtime plus ~200MB of Chromium via
   `bunx playwright install chromium`, and writes skill directories into six

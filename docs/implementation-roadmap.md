@@ -165,7 +165,7 @@ restating per-feature:
   confirmation instead of silently grading. This closes out every item
   on this roadmap.
 
-**Post-MVP work (2026-09-04 through 2026-09-07), outside this roadmap's
+**Post-MVP work (2026-09-04 through 2026-09-09), outside this roadmap's
 phase numbering:**
 
 - A full design-system + reskin pass: every real route now renders through
@@ -212,12 +212,38 @@ phase numbering:**
   architecture-log.md`'s 2026-09-07 entries. Known gap: no UI yet exists
   to edit/reject a concept once it has left the review popup (the server
   actions support it; nothing calls them from elsewhere yet).
+- **`quality-gates` CI actually goes green for the first time** (no
+  feature scope — every run of this workflow, since it was introduced,
+  had failed, always at a different point because each failure was
+  masking the next one). Found and fixed, in order: Typecheck ran before
+  `next typegen` ever generated `.next/types/`, so `layout.tsx`'s
+  `LayoutProps` could never resolve; the E2E job had no Supabase/OpenAI
+  secrets wired in at all; Playwright had no `testMatch` and was also
+  trying to load `tests/unit/**/*.test.ts` as specs; `uploadArtifact`
+  crashed the whole page when `TRIGGER_SECRET_KEY` isn't set (a 5th
+  instance of the 2026-09-02 hardening pass's unguarded-external-call
+  bug class); `AppShell`'s sidebar was a fixed 220px with no mobile
+  collapse at all (and the first fix attempt introduced a real SSR
+  hydration bug, fixed with a shared `useMobileBreakpoint`
+  `useSyncExternalStore` hook, `src/lib/use-mobile-breakpoint.ts`);
+  `review-queue.spec.ts`'s wrong-route bug (`specs/004-course-graph-
+  ingestion/tasks.md`'s own 2026-09-08 addendum) turned out to have a
+  second, compounding cause; every checked-in visual snapshot was
+  `-darwin`-only with no Linux baseline, so the suite could never have
+  passed on CI's own `ubuntu-latest` runner regardless of app
+  correctness. Separately (a genuine test-design question, not a CI-
+  wiring one): 3 `concept-atlas` visual tests clicked nodes off-screen
+  on mobile by FR-013's own deliberate design (confirmed against
+  `specs/003-concept-atlas-renderer/tasks.md` — the feature is fully
+  implemented, this was never a completeness gap), now skipped on
+  mobile with that reason; `tutor-agent-e2e`'s entire suite was stale
+  relative to the reskin (wrong placeholder text, an icon-only Send
+  button with no accessible name) plus one genuine data-timing race
+  fixed by waiting on a real completion signal instead of a fixed
+  sleep. Full account, in the order each was found: `brain/decisions/
+  architecture-log.md`'s 2026-09-08 and 2026-09-09 entries.
 
-Known open items, not yet resolved as of 2026-09-07:
-- `tests/visual/review-queue.spec.ts` navigates to the wrong route
-  (renders `review-scheduler`'s `DueQueue`, not `course-graph-ingestion`'s
-  `ReviewQueue`) — pre-existing, found during the unit-extraction review,
-  not yet fixed.
+Known open items, not yet resolved as of 2026-09-09:
 - No integration-shaped test composes the full extract → reconcile →
   confirm → materialize pipeline end-to-end (individual stages are unit
   tested; the composition is currently verified by source-level

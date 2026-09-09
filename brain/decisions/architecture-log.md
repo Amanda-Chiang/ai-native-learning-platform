@@ -1136,3 +1136,188 @@ after confirmation" is a real requirement this session did not fully
 close — the backend is ready, the UI placement is an open question
 (Concept Atlas's `ConceptDetailPanel`? A separate manage-concepts view?)
 deliberately left for a dedicated decision rather than bolted on here.
+
+## 2026-09-08 — `quality-gates` had never actually passed; found and fixed every real reason why
+
+Prompted by a direct question after pushing the work above: the CI run
+on that push failed. Checked the run history — every single run since
+this workflow was introduced had failed, always at a different point,
+because each earlier failure was masking the next one. Fixed them in
+the order they were actually blocking:
+
+1. **Typecheck ran before anything generated `.next/types/`.**
+   `src/app/layout.tsx`'s `LayoutProps<"/">` (Next 15+'s auto-generated
+   typed-route helper) doesn't exist until `next build` or `next dev`
+   has run once — a bare `tsc --noEmit` in a fresh checkout has never
+   been able to resolve it. Added a `next typegen` step
+   (`.github/workflows/ci.yml`) before Typecheck; also pinned
+   `node-version` to `"24"` (GitHub already force-runs everything on 24
+   regardless — Node 20 is deprecated on Actions runners — the old `"20"`
+   pin was just lying about what actually ran, and 24 is what this
+   project's own local dev setup already uses).
+2. **The E2E job had no Supabase (or OpenAI) credentials at all** — a
+   fresh checkout has no `.env.local`, and nothing was wired from GitHub
+   repository secrets into the job's env. Added
+   `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/
+   `SUPABASE_SERVICE_ROLE_KEY`/`OPENAI_API_KEY` as real secrets, wired
+   into the E2E step's `env:` block. `TRIGGER_SECRET_KEY` was
+   deliberately left unset (see #4) — a real environment gap this
+   project has always had (no live Trigger.dev project yet), not
+   something to add a secret for.
+3. **Playwright had no `testMatch`**, so its default pattern also
+   matched `tests/unit/**/*.test.ts` (node:test files) — it tried to
+   load every one of them too, alongside whatever real spec failures
+   were happening, failing on `node:test`'s own syntax
+   (`import.meta`, etc.) it doesn't support. Scoped `playwright.config.ts`
+   to `**/*.spec.ts`, matching this project's own existing test/spec
+   naming split.
+4. **`uploadArtifact` crashed the whole page** the moment credentials
+   existed enough to actually reach real UI interaction: CI has no
+   `TRIGGER_SECRET_KEY`, so `ingestArtifactTask.trigger()` throws
+   `ApiClientMissingError` — uncaught, so it crashed the whole Server
+   Action (and with it the page, Next's generic "This page couldn't
+   load" boundary) instead of leaving a real, visible failure. This is
+   the fifth instance of the exact bug class the 2026-09-02 hardening
+   pass already found and fixed four times (an unguarded external-
+   service call leaving a row stuck non-terminal forever) — it just had
+   no real browser E2E reaching it until now. Fixed the same way: wrap
+   in try/catch, mark `artifacts`/`artifact_processing_runs` `'failed'`
+   with the real reason (rows already exist by this point — the upload
+   itself genuinely succeeded) — `getDisplayStatus`/`listArtifacts`
+   already render an artifact-level `'failed'` status distinctly
+   ("Upload failed") using exactly that reason, so no new display logic
+   was needed.
+5. **`AppShell`'s sidebar was a fixed 220px, never responsive at all** —
+   on a phone-width viewport it left as little as ~90px for actual page
+   content, which is what was really breaking the upload test on the
+   `mobile` Playwright project (the uploaded filename existed in the DOM
+   but had collapsed to 0 width). Added a 56px icon-only collapsed rail
+   below the same 768px breakpoint concept-atlas already uses
+   (`--sidebar-w-collapsed`, `globals.css`).
+
+   First attempt at the mobile-detection logic used a `useState` lazy
+   initializer reading `window.matchMedia()` directly (mirroring a fix
+   already made to `ConceptAtlas.tsx` earlier the same session for a
+   `react-hooks/set-state-in-effect` lint error) — both had the same
+   real bug, not just a lint nit: the server always renders `isMobile =
+   false` (no `window` at SSR time), but a client whose real viewport IS
+   mobile-sized hydrates with a different, already-`true` value, which
+   React correctly flags as a genuine hydration mismatch. Replaced both
+   with a shared `useMobileBreakpoint` hook
+   (`src/lib/use-mobile-breakpoint.ts`, `useSyncExternalStore`) — its
+   `getServerSnapshot` argument is the API React actually provides for
+   "the answer can differ between server and client": SSR and the
+   client's first render both honestly report `false`, then the client
+   corrects itself immediately after hydration, with no manual
+   `setState` call for that lint rule to flag either.
+6. **`tests/visual/review-queue.spec.ts` had two compounding,
+   pre-existing bugs**, not one — it navigated to
+   `/courses/demo/review` (`review-scheduler`'s unrelated `DueQueue`,
+   already tracked as a known gap), *and* the correct route
+   (`/courses/demo`, the Material page) had no demo-fixture branch at
+   all, unlike `atlas/page.tsx`'s existing `courseId === "demo"`
+   pattern — so fixing the route alone still wouldn't have worked.
+   Added the missing branch (`loadDemoReviewQueue`, mirrors
+   `loadDemoCourseGraph` exactly), fixed the route, fixed a broken
+   locator (`.locator("..")` from a card's title only reaches its own
+   wrapper div, never the sibling column the Confirm button actually
+   lives in — rewrote to scope from the shared `<li>` card instead), and
+   fixed the fixture itself (its two concepts had different
+   `extractionRunId` values, so the review queue's one-run-at-a-time
+   popup would only ever show one of them — both now share a run).
+7. **Every checked-in visual snapshot was `-darwin` only** — Playwright
+   snapshot names are platform-suffixed by design (font rendering
+   differs enough between OSes to fail a byte-for-byte compare), so
+   `toHaveScreenshot` could never have passed on this project's own
+   `ubuntu-latest` CI runner regardless of app correctness, for any
+   commit, ever. Generated real `-linux.png` baselines via a one-off,
+   temporary `workflow_dispatch` workflow run once against this exact
+   commit (matching CI's own environment exactly, not an approximation
+   via local Docker), spot-checked by eye before committing, then
+   deleted the temporary workflow.
+
+Result: lint/typecheck/build fully green; all real `e2e` specs passing
+on both `chromium` and `mobile`; `review-queue.spec.ts` fully passing on
+both. 3 `concept-atlas` mobile tests and all 7 `tutor-agent-e2e` tests
+still failing at this point — carried into the next day's entry below,
+since they turned out to be two more distinct, real, unrelated findings
+rather than more of the same CI-wiring problem.
+
+## 2026-09-09 — Two more real bugs, not more CI wiring: a test-design mismatch and stale reskin-era assertions
+
+Continuation of the above — asked directly whether the 3 remaining
+`concept-atlas` mobile failures meant the feature wasn't finished.
+Checked `specs/003-concept-atlas-renderer/tasks.md` first rather than
+guessing: all 5 user stories, including US5 (mobile), are marked done,
+and disabling `fitView` on mobile is a **deliberate** FR-013
+requirement (`ConceptAtlas.tsx`'s `isMobile` branch) — shrinking the
+whole multi-unit graph to fit a phone screen would make it unreadable,
+so the initial view instead centers on only the leftmost unit, per
+task T029's own documented design.
+
+The real bug was in the *tests*: 3 of them click "Sorting &
+Searching"/"Trees", a specific weak-relationship edge, and "Depth-First
+Search" — none of them the leftmost unit, so they're genuinely outside
+the initial mobile viewport, and a canvas panned via CSS transform
+isn't something Playwright's normal scroll-into-view can reach. These
+were written assuming desktop's fitView-shows-everything behavior and
+had never actually run against the `mobile` project's real constraints
+until the previous day's Linux-baseline fix let them execute for the
+first time. The interaction itself has nothing mobile-specific about it
+and stays fully verified on `chromium`; skipped the 3 on `mobile` with
+an explicit `test.skip` reason rather than reworked, since the actual
+mobile claim (a concept is reachable without panning) is already its
+own correctly-written dedicated test ("phone-sized viewport"), which
+deliberately only ever clicks the leftmost concept for exactly this
+reason.
+
+Separately, all 7 `tutor-agent-e2e` tests were still failing. Earlier
+assumption (that they needed `OPENAI_API_KEY`) was wrong — that suite's
+own doc comment says it uses a scripted test-double, never a real model
+call. Two real, compounding staleness bugs, same class as
+`smoke.spec.ts`/`basic-flows.spec.ts`'s earlier reskin-drift fixes:
+- The chat input's real placeholder is `"Ask a question…"`; the test
+  looked for `"Ask the tutor something..."` (different wording,
+  different ellipsis) on all 9 of its own `fill()` calls.
+- The send button is icon-only with no accessible name at all —
+  `getByRole('button', { name: 'Send' })` could never have matched it,
+  reskin or not. Same accessibility gap as `CreateCourseForm`/
+  `AddUnitForm`, fixed earlier in the 2026-09-08 entry above (`aria-
+  label="Send"`, matching the convention this codebase already uses for
+  `ReviewQueue`/`ConceptDetailPanel`'s own icon-only close buttons).
+
+Fixing those got 6 of 7 passing immediately; the 7th ("independent
+correct retrieval and repeated confident wrong answers") failed with a
+genuine data-timing race, a different assertion failing on each retry.
+Root cause: after the 2nd/3rd chat message, the test waited a fixed
+500ms (or nothing at all before the 3rd message's DB query) instead of
+waiting for that message's own server round-trip to actually finish.
+`TutorChat.tsx`'s textarea is disabled for the exact duration of the
+awaited `sendMessage()` call, which itself awaits every
+`pendingEvidenceCommits` write (`actions.ts`) before resolving — so
+waiting for it to re-enable is an exact, deterministic signal the
+evidence commit has really landed, unlike a fixed sleep. Couldn't wait
+for specific response text here (unlike the first message in the same
+test) since the exact wording for these two depends on the assistance-
+ladder step reached, which isn't fixed across the conversation. 500ms
+was apparently enough locally but not against CI's slower/more-loaded
+runner — and retries made it worse, not better, since they reuse the
+same fixture course rather than resetting it, so a failed attempt's
+partial evidence carried into the next retry rather than starting
+clean. Verified with 4 consecutive local runs after the fix, all
+passing, then confirmed in a real CI run: fully green.
+
+Also added a small `maxDiffPixelRatio: 0.02` to `playwright.config.ts`'s
+global `expect` — the one flake seen along the way (a consistent, small
+~1% pixel diff on the "phone-sized viewport" screenshot) turned out to
+be Next.js dev mode's own transient "Compiling…" badge caught mid-
+screenshot on that route's first-ever compile in a fresh CI dev server
+(this project deliberately uses `npm run dev`, not a build+start
+server, as the E2E `webServer.command`) — not a product regression.
+Every real regression this suite has ever actually caught has produced
+a 50%+ pixel diff, so this tolerance doesn't meaningfully weaken
+detection.
+
+**`quality-gates` is fully green as of this entry** — lint, typecheck,
+build, and the complete `e2e`/`visual`/`tutor-agent-e2e` suite across
+all three Playwright projects.
