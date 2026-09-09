@@ -123,13 +123,34 @@ test("independent correct retrieval and repeated confident wrong answers become 
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByText(/Topological Sort: Orders a directed/)).toBeVisible({ timeout: 10000 });
 
-  await page.getByPlaceholder("Ask a question…").fill("explain topological sort -- wrong answer");
+  // A real, found-in-CI race: TutorChat.tsx's textarea is disabled for
+  // the exact duration of the awaited sendMessage() call, which itself
+  // awaits every pendingEvidenceCommits write (actions.ts) before
+  // resolving -- so waiting for it to re-enable is an exact, deterministic
+  // signal the evidence commit (not just a visible response) has really
+  // landed, unlike a fixed sleep. A fixed 500ms here previously raced
+  // CI's slower/more-loaded runner: the query below could run before
+  // evidence for the 2nd or 3rd send had actually committed, undercounting
+  // real rows and non-deterministically failing whichever assertion ran
+  // next. Not waiting for specific response text (unlike the first send
+  // above) because these two exact wordings depend on the assistance-
+  // ladder step reached, which isn't fixed across the conversation.
+  const questionInput = page.getByPlaceholder("Ask a question…");
+  await questionInput.fill("explain topological sort -- wrong answer");
   await page.getByRole("button", { name: "Send" }).click();
-  await page.waitForTimeout(500);
+  // Wait for disabled first -- otherwise toBeEnabled() below could pass
+  // trivially in the instant before the click handler's setPending(true)
+  // has actually applied, defeating the whole point of this wait.
+  await expect(questionInput).toBeDisabled();
+  await expect(questionInput).toBeEnabled();
 
-  await page.getByPlaceholder("Ask a question…").fill("explain topological sort -- wrong answer");
+  await questionInput.fill("explain topological sort -- wrong answer");
   await page.getByRole("button", { name: "Send" }).click();
-  await page.waitForTimeout(500);
+  // Wait for disabled first -- otherwise toBeEnabled() below could pass
+  // trivially in the instant before the click handler's setPending(true)
+  // has actually applied, defeating the whole point of this wait.
+  await expect(questionInput).toBeDisabled();
+  await expect(questionInput).toBeEnabled();
 
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const { data: rows } = await admin
