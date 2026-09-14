@@ -1572,3 +1572,46 @@ one-time personal-access-token login was also needed, a separate,
 unrelated gap in that local CLI session). Not a code fix -- flagged here
 so a future agent hitting the same silent hang doesn't re-diagnose it
 from scratch.
+
+## 2026-09-14 -- Real bug found live: MCQ radio's selected-state border used the same shorthand/longhand mixing pattern already fixed once this week
+
+`MultipleChoiceForm.tsx` (this session's own new component, from the
+lightweight-quiz work above) hit the exact same bug class as the
+2026-09-11 tab-underline entry above, in a component built the same
+week that entry was written -- a real "the standing rule didn't
+propagate" case, not a new discovery. Base `option` style set the
+`border` shorthand; `optionSelected` overrode only `borderColor`. React
+logged it directly this time (`Removing a style property during
+rerender (borderColor) when a conflicting property is set (border) can
+lead to styling bugs`) rather than requiring live DOM inspection to
+find, on the very first wrong-answer click. Fixed the same way:
+`optionSelected` now overrides the same `border` shorthand.
+
+Swept the rest of `src/features` for the same shorthand-base +
+longhand-override pattern rather than trusting this was the last
+instance -- found one more real, live case: `artifact-board.tsx`'s
+drag-and-drop dropzone (`dropzoneActive`'s `borderColor` against
+`dropzone`'s `border` shorthand), which toggles active/inactive
+repeatedly on the same mounted element via real dragenter/dragleave
+events, the exact same update-in-place pattern that exposes this gap.
+Fixed identically. `StudySession.tsx`'s own `verdict` block used the
+same mismatched pair but was never actually buggy in practice --
+it only ever mounts fresh (conditionally rendered once `outcome`
+becomes truthy), never toggles between the two variants on an
+already-mounted node, so React's diffing gap never had an update to
+miss. Left as a mount, not a toggle, but tightened to the same
+consistent single-shorthand pattern anyway while touching the file for
+the answer-explanation addition below, rather than leaving a
+technically-safe-today but easy-to-copy-wrong example in the codebase.
+
+Also, per direct request: a wrong MCQ answer only ever said "Result:
+incorrect" with no indication of what the right answer actually was --
+a dead end, not a learning moment. `submitMultipleChoiceReviewAnswer`
+already returns `correctOptionIndex` in its result; `StudySession.tsx`
+now looks that up against the question's own `rubric.options` and shows
+"Correct answer: <text>" alongside an incorrect verdict.
+
+Verified live: reproduced the original console error (select a wrong
+option, submit) against a real fixture, confirmed it's gone post-fix,
+and confirmed "Correct answer: Queue" rendered correctly for a real
+wrong answer. Full 347-test unit suite and `tsc --noEmit` clean.
