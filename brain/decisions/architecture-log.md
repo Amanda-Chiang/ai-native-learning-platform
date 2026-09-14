@@ -1321,3 +1321,57 @@ detection.
 **`quality-gates` is fully green as of this entry** — lint, typecheck,
 build, and the complete `e2e`/`visual`/`tutor-agent-e2e` suite across
 all three Playwright projects.
+
+## 2026-09-11 — Real bug: sidebar (and every "height: 100%" page) fell short of the viewport, root-caused to `body { min-height: 100% }`
+
+Reported directly ("visually it looks weird"): on any short-content page
+(Today, sign-in, an empty course's Material tab), `AppShell`'s sidebar
+and the page's own centered content stopped partway down the viewport
+instead of reaching the bottom — most visible as the sidebar's white
+background/border ending mid-page with the page's grey background
+showing through beneath it.
+
+Root cause, not a CSS-module or component bug: `globals.css`'s `body`
+rule used `min-height: 100%`, not `height: 100%`. Every page in this
+app already assumes a flex chain (`body` → a `flex: 1` wrapper →
+`AppShell`'s `height: "100%"` grid → each page's own `height: "100%",
+overflowY: "auto"`) that relies on `body` having a **definite** height
+for flex-grow distribution to work — `min-height` alone leaves `body`'s
+used height as `auto` (content-sized) whenever real content is shorter
+than the viewport, so the `flex: 1` wrapper had nothing to grow into
+and every descendant shrank to its own content height instead of filling
+the screen. Confirmed by switching `min-height: 100%` → `height: 100%`
+in isolation with no other change: fixed immediately, on every route
+(signed-in `(app)` pages with the sidebar, and `(auth)` sign-in/sign-up
+which has no sidebar at all — same underlying cause both places, so it
+predates the 2026-09-09/10 header/route-group work and was never
+specific to either). `AppShell`'s grid also lacked an explicit
+`gridTemplateRows`, which independently could have caused the same
+symptom in isolation (added `gridTemplateRows: "100%"` defensively —
+harmless once `body` has a real height, but correct regardless of what
+the container above it does).
+
+This is safe precisely because every page already self-scrolls
+(`height: "100%", overflowY: "auto"`) rather than relying on `body`
+growing taller than the viewport — `body { height: 100% }` never clips
+a page that's taller than the screen, since no page was ever supposed
+to make `body` itself overflow in the first place.
+
+**Verification, not just a visual eyeball check**: this changed real
+rendered pixel positions, so the Concept Atlas visual regression suite's
+own `-darwin` baselines needed regenerating (`mobile-breakpoint`,
+`whole-course-atlas`, `focused-concept`, and their evidence-provenance/
+detail-panel variants, across both `chromium` and `mobile` projects) —
+diffed by eye first to confirm every change was the same expected
+whole-page vertical shift, not a new regression, before accepting. Full
+visual suite (both projects), full `e2e` suite (both projects), and
+`tutor-agent-e2e` all pass after the fix. **Known gap, same class CI
+hardening already documented on 2026-09-08**: the checked-in
+`-linux.png` baselines for these same 7 screenshots are now stale
+relative to this fix and can only be regenerated for real on CI's own
+`ubuntu-latest` runner (a local Docker approximation isn't the same
+font rendering) — next `quality-gates` run on this branch will need
+that regenerated the same way the 2026-09-08 entry already did, or it
+will fail on an intended, already-verified change, not a real
+regression.
+
