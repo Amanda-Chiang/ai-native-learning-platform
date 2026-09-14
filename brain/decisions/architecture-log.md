@@ -1437,3 +1437,138 @@ suite (324 tests) and visual regression suite (both `chromium` and
 `mobile` projects) pass unchanged -- this component isn't covered by
 either, confirming no snapshot needed updating.
 
+## 2026-09-12/14 -- Lightweight daily MCQ quiz: a new, separate generation path closing the "question_bank is always empty" gap
+
+Prompted directly: material upload/extraction/exam-config all worked,
+but the Study tab always said "No review content is available yet" --
+traced to `question_bank` having zero rows in every real course, because
+`assessment-generation-pipeline`'s `requestQuestionGeneration` is real
+but genuinely unwired to any UI (no page/button anywhere calls it --
+confirmed by grepping the whole `src/app` tree). Brainstormed
+interactively into a design doc
+(`docs/superpowers/specs/2026-09-12-lightweight-daily-quiz-design.md`)
+before writing any code, per this repo's own process rule -- treated as
+an enhancement to already-shipped features (`course-graph-ingestion`,
+`assessment-generation-pipeline`, `review-scheduler`), same rationale
+the 2026-09-05 unit-extraction-reconciliation work already used, not a
+new numbered Spec Kit feature.
+
+**What it is**: right after an extraction run's review popup is
+dismissed, OR every concept/unit from that run has left `proposed`
+(whichever happens first), a *separate, additive* generation path fires
+automatically -- one model call per concept with `importance_score >=
+0.6` ("high-level"), the model itself judging 1-3 non-overlapping
+questions per concept, capped at 15 questions/run. Deliberately not
+reusing `assessment-generation-pipeline`'s heavy machinery: its own
+`Assessment`/`CandidateQuestion` types and 6-layer validation pipeline
+(candidate generation, independent-solve, answer-agreement, ambiguity,
+similarity, source-alignment) are built for open-ended/checker-domain
+correctness verification that doesn't apply to picking from 4 options.
+Only the **ambiguity check** is kept, reimplemented locally against the
+new MCQ candidate shape (`lightweight-quiz/mcq-ambiguity-check.ts`)
+rather than cross-imported -- a bad MCQ distractor that's also
+defensibly correct is the dominant real failure mode for multiple
+choice specifically, more so than for open-ended questions.
+
+**Schema** (`0015_lightweight_daily_quiz.sql`), additive to
+`question_bank`: a new `multiple_choice` `response_modality`; the
+existing `rubric` jsonb column (never a new `options` column) holds
+`{options, correctOptionIndex}` for these rows, since `rubric`'s whole
+purpose is already "whatever this modality's answer key looks like";
+`checker_domain`/`checker_input` stay null, same as a plain `text` row
+-- there's no 6th deterministic-checker domain for "which index," so
+stuffing it into `checker_input` would mean inventing a fake domain
+nothing actually checks. New `target_concept_ids uuid[] not null`
+(DB-enforced non-empty) replaces the old indirect "parse a concept id
+out of `source_anchors`" trick `review-scheduler`'s own `getDailyReviewSession`
+used to build its concept->questions map -- migrated the heavy
+pipeline's own insert (`trigger/generate-assessment.ts`) to populate
+this new required column too (derived from its candidate's own already-
+validated `sourceAnchors`), since the new non-empty constraint applies
+to every row, not just this feature's. `generation_run_id` became
+nullable -- a lightweight-quiz row has no `assessment_generation_runs`
+row (that table's shape doesn't apply); `generation_run_id IS NULL` is
+exactly the rows this path produced, no separate `source` column
+needed. New `extraction_runs.quiz_generated_at` is the idempotency
+claim both trigger call sites race against (an atomic conditional
+`UPDATE ... WHERE quiz_generated_at IS NULL`, inside
+`executeMcqGeneration` itself) -- whichever signal fires first wins,
+the other is a safe no-op. `question_bank` also gained its first-ever
+authenticated-user DELETE policy (`owner_id = auth.uid()`) -- it never
+needed one before (0007's own comment: only the service-role task wrote
+this table), but the reject-cascade below is a real, new case of a
+course owner needing to delete their own course's rows through normal
+app flow.
+
+**Tagging & reject-cascade**: a question can tag a still-`proposed`
+concept (no review-status gate to be quiz-eligible, a deliberate
+divergence from the "review-gated content isn't real yet" rule this
+project enforces everywhere else -- accepted because a lightweight
+practice question is a much lower-stakes claim than an Atlas edge or a
+tutor-grounded fact). But if every concept a question is tagged to gets
+archived, the question is deleted outright (not archived) in
+`rejectCandidate`'s concept branch -- it never had independent standing,
+only ever being a claim about concepts that turned out wrong.
+
+**Where it runs**: calls straight into
+`trigger/generate-lightweight-quiz.ts`'s `executeMcqGeneration`, not
+`.trigger()` -- a deliberate, flagged exception to how
+`requestQuestionGeneration` still (correctly) goes through the
+currently-inert Trigger.dev queue. Going through that same queue here
+would silently reproduce the exact gap this feature exists to close,
+since there's still no live Trigger.dev project. The service-role
+client itself still only gets constructed inside that one `trigger/`
+file, never in `course-graph-ingestion`/`review-scheduler`'s own
+actions files, which only call its exported function -- same shape
+`confirmCandidate` already uses to call into shared cascade logic, not
+a new exception to "service-role confined to trigger/ files." Calls are
+fire-and-forget (`void`, not awaited) so a multi-second-to-tens-of-
+seconds OpenAI sequence never blocks the triggering request; this
+relies on the long-lived `next dev` process actually finishing the
+detached promise, which is fine for this project's current dev-only
+stage but would need re-examining before any serverless/edge production
+deployment.
+
+**Real bug found live** (not just typechecked): `submitMultipleChoiceReviewAnswer`'s
+first version committed evidence with no `sourceArtifactId`/
+`assessmentAttemptId`/`conversationTurnId` at all, immediately hitting
+`evidence_events`' own "must have a real origin" check constraint on
+the very first real answer submitted through the UI. Reasoned (correctly)
+that no `assessment_attempts` row should be created for MCQ -- that
+table is deterministic-grading's own checker/rubric attempt-snapshot
+shape, not applicable here -- but missed that this left zero origins
+satisfied. Fixed by looking up the concept's own real
+`source_anchors[0].artifactId` (the actual uploaded material) as the
+honest origin, rather than fabricating an attempt record just to
+satisfy the constraint.
+
+**Verified live end-to-end**, not just unit-tested: a real course with
+2 high-importance and 1 low-importance concept correctly produced
+questions grounded in the real material for only the 2 eligible
+concepts (confirmed the importance-threshold filter and per-concept
+question-count judgment both worked against real model behavior, with
+every candidate's ambiguity check genuinely reasoning about the
+specific options rather than rubber-stamping); idempotency confirmed
+(a second `executeMcqGeneration` call for the same run returned
+`already_generated`, zero new rows); signal 2 (all-reviewed) fired
+correctly through the real Review Queue UI's Confirm button on a fresh
+fixture, populating real questions with no direct script call; a real
+correct and a real incorrect answer through the actual Study tab UI
+both graded correctly and rendered the right verdict; the reject-cascade
+fired through the real UI's Reject button and deleted the question
+tagged only to the rejected concept. 33 new unit tests (extraction/
+grading/selection/completion logic) pass, full 347-test unit suite and
+`tsc --noEmit` clean, `basic-flows`/`review-queue` E2E/visual specs
+unaffected.
+
+**Known gap accepted, not closed here**: the Supabase CLI's `db push`
+(and `db dump`) hung indefinitely in this session's own sandboxed shell
+-- root-caused to the project's direct DB host
+(`db.<ref>.supabase.co`) being IPv6-only (confirmed via `dig`/`nc`: the
+pooler and HTTPS API resolve/connect fine over IPv4, only the direct
+Postgres host doesn't), with no outbound IPv6 route from that sandbox.
+The user ran the push themselves in their own terminal instead (a
+one-time personal-access-token login was also needed, a separate,
+unrelated gap in that local CLI session). Not a code fix -- flagged here
+so a future agent hitting the same silent hang doesn't re-diagnose it
+from scratch.
