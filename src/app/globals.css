@@ -55,6 +55,13 @@
   --clay-fg: #ffffff;
   --clay-muted: #fceaea;
   --clay-border: rgba(201, 79, 83, 0.22);
+  /* Same rgb channels as --clay, alpha 0 -- for a border-color that
+     transitions to/from --clay. Transitioning to the literal keyword
+     `transparent` interpolates RGB independently of alpha (transparent
+     is rgba(0,0,0,0)), so a red border fading to "transparent" visibly
+     flashes black/gray mid-transition. Fading to this instead keeps the
+     same hue the whole way, so only opacity animates. */
+  --clay-transparent: rgba(201, 79, 83, 0);
 
   /* ── Cloudy Sky (AI voice / informational) */
   --denim: #5890d5;

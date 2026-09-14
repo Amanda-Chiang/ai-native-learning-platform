@@ -100,14 +100,30 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "var(--font-sans)",
     fontWeight: 450,
     color: "var(--text-secondary)",
-    borderBottom: "2px solid transparent",
+    borderBottom: "2px solid var(--clay-transparent)",
     letterSpacing: "-0.005em",
     transition: "color 0.1s, border-color 0.1s",
     marginBottom: -1,
   },
   subNavItemActive: {
     color: "var(--clay)",
-    borderBottomColor: "var(--clay)",
+    // Shorthand, matching subNavItem's own `borderBottom` -- not the
+    // longhand `borderBottomColor`. Mixing a shorthand base value with a
+    // longhand override here was the real bug (found live, not just
+    // suspected): React's inline-style diffing sets/clears style keys
+    // individually, and skips re-setting a key whose value is unchanged
+    // between renders. Going active -> inactive drops the `borderBottomColor`
+    // key entirely (it's absent from the inactive style object) while
+    // `borderBottom`'s string value is literally unchanged (same base
+    // shorthand both times), so React never re-applies it -- the browser
+    // is left with border-bottom-width/style still 2px/solid from the
+    // active render, but border-bottom-color reset to its CSS initial
+    // value (`currentColor`, i.e. the tab's own text color) instead of
+    // back to the shorthand's transparent value. That's the literal
+    // stray "underline" on a tab that isn't active. Using the shorthand
+    // here too means every render always re-sets the one `borderBottom`
+    // key atomically, so there's nothing for that diff gap to hit.
+    borderBottom: "2px solid var(--clay)",
     fontWeight: 500,
   },
   subNavIcon: {
