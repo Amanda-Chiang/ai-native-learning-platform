@@ -1,4 +1,4 @@
-import { getDailyReviewSession, getConnectSession, submitTextReviewAnswer, submitStructuredReviewAnswer } from "@/features/review-scheduler/actions.ts";
+import { getDailyReviewSession, getConnectSession, submitTextReviewAnswer, submitStructuredReviewAnswer, submitMultipleChoiceReviewAnswer } from "@/features/review-scheduler/actions.ts";
 import { StudySession } from "@/features/review-scheduler/components/StudySession.tsx";
 
 export default async function CourseStudyPage({
@@ -30,6 +30,7 @@ export default async function CourseStudyPage({
       }}
       submitTextAnswer={submitTextReviewAnswer}
       submitStructuredAnswer={submitStructuredReviewAnswer}
+      submitMultipleChoiceAnswer={submitMultipleChoiceReviewAnswer}
     />
   );
 }

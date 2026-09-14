@@ -10,6 +10,8 @@ import { gradeTextResponse, gradeStructuredResponse, type GradeStructuredRespons
 import type { GradingRubric } from "@/features/deterministic-grading/grading-evidence.ts";
 import { extractProblemSetup } from "@/features/visual-assessment/problem-setup.ts";
 import { mergeStructure } from "@/features/visual-assessment/merge-structure.ts";
+import { commitEvidence } from "@/features/learner-graph-evidence/actions.ts";
+import { gradeMultipleChoiceAnswer } from "@/features/lightweight-quiz/grade-mcq-answer.ts";
 
 /**
  * Server action contracts: specs/009-review-scheduler/contracts/scheduler-actions.md
@@ -17,13 +19,6 @@ import { mergeStructure } from "@/features/visual-assessment/merge-structure.ts"
 
 /** Sensible default when the caller hasn't set one (spec.md Assumptions). */
 const DEFAULT_TIME_BUDGET_MINUTES = 7;
-
-function sourceAnchorConceptIds(sourceAnchors: unknown): string[] {
-  if (!Array.isArray(sourceAnchors)) return [];
-  return sourceAnchors
-    .map((a) => (a as { conceptOrEdgeId?: unknown }).conceptOrEdgeId)
-    .filter((id): id is string => typeof id === "string");
-}
 
 export async function getDailyReviewSession(
   courseId: string,
@@ -33,9 +28,17 @@ export async function getDailyReviewSession(
   const now = new Date();
 
   const [conceptsRes, edgesRes, bankRes] = await Promise.all([
-    supabase.from("course_concepts").select("id, importance_score").eq("course_id", courseId).eq("status", "confirmed"),
+    // 'proposed' included (not just 'confirmed'): a lightweight-quiz
+    // question can tag a still-proposed concept (design doc "Concept
+    // selection & question count" -- no review-status gate to be
+    // quiz-eligible). rankConceptsByPriority/isDue are pure functions
+    // over learner state/importance/prerequisite-out-degree; nothing in
+    // them assumes 'confirmed'. A still-proposed concept's
+    // prerequisite-out-degree simply defaults to 0 below (no confirmed
+    // edges reference it yet) -- a benign, not-wrong default.
+    supabase.from("course_concepts").select("id, importance_score").eq("course_id", courseId).in("status", ["confirmed", "proposed"]),
     supabase.from("concept_edges").select("source_concept_id, relation_type").eq("course_id", courseId).eq("status", "confirmed"),
-    supabase.from("question_bank").select("id, question_text, response_modality, rubric, checker_domain, checker_input, source_anchors").eq("course_id", courseId),
+    supabase.from("question_bank").select("id, question_text, response_modality, rubric, checker_domain, checker_input, target_concept_ids").eq("course_id", courseId),
   ]);
 
   const concepts = conceptsRes.data ?? [];
@@ -53,7 +56,7 @@ export async function getDailyReviewSession(
 
   const questionsByConcept = new Map<string, QuestionBankEntrySummary[]>();
   for (const entry of bankEntries) {
-    for (const conceptId of sourceAnchorConceptIds(entry.source_anchors)) {
+    for (const conceptId of entry.target_concept_ids) {
       const list = questionsByConcept.get(conceptId) ?? [];
       list.push({
         id: entry.id,
@@ -234,4 +237,91 @@ export async function submitStructuredReviewAnswer(
     difficulty: 0.5,
     transferDistance: 0,
   });
+}
+
+export type SubmitMultipleChoiceReviewAnswerInput = {
+  courseId: string;
+  // Singular, matching submitTextReviewAnswer/submitStructuredReviewAnswer's
+  // existing convention exactly: evidence commits to whichever one
+  // concept a session item was surfaced/ranked under, even when the
+  // underlying question_bank row's target_concept_ids tags more than
+  // one (that full list is what review-queue eligibility and the
+  // reject-cascade use it for, not per-answer evidence attribution).
+  conceptId: string;
+  /** question_bank.rubric for a 'multiple_choice' row:
+   * { options: string[], correctOptionIndex: number }. */
+  rubric: Record<string, unknown>;
+  selectedIndex: number;
+};
+
+export type SubmitMultipleChoiceReviewAnswerResult = {
+  outcome: "correct" | "incorrect";
+  selectedIndex: number;
+  correctOptionIndex: number;
+};
+
+/**
+ * The multiple_choice-modality counterpart to submitTextReviewAnswer/
+ * submitStructuredReviewAnswer -- deliberately does NOT route through
+ * deterministic-grading's gradeTextResponse/gradeStructuredResponse
+ * (design doc "Grading"): there's no LLM call and no checker dispatch
+ * for "which index did they pick," so this commits evidence directly.
+ * No assessment_attempts row either -- that table exists for
+ * deterministic-grading's own checker/rubric attempt snapshots
+ * (response_modality in ('structured','code','text')), not applicable
+ * here; evidence_events (via commitEvidence) is already the durable,
+ * evidence-grade record Constitution Principle II requires.
+ *
+ * Real bug found live: evidence_events requires a real "origin"
+ * (source_artifact_id, assessment_attempt_id, or conversation_turn_id
+ * -- 0004_learner_evidence.sql's own check). With no assessment_attempts
+ * row and no conversation turn, this concept's own real source_anchors
+ * (the actual uploaded material it was extracted from) is the honest
+ * origin -- looked up here rather than skipped, which would have kept
+ * failing this constraint on every real answer.
+ */
+export async function submitMultipleChoiceReviewAnswer(
+  input: SubmitMultipleChoiceReviewAnswerInput,
+): Promise<{ result: SubmitMultipleChoiceReviewAnswerResult; error: string | null }> {
+  const graded = gradeMultipleChoiceAnswer(input.rubric, input.selectedIndex);
+  if ("error" in graded) {
+    return { result: graded, error: graded.error };
+  }
+
+  const supabase = await createClient();
+  const { data: concept } = await supabase
+    .from("course_concepts")
+    .select("source_anchors")
+    .eq("id", input.conceptId)
+    .single();
+  const sourceArtifactId = Array.isArray(concept?.source_anchors)
+    ? (concept.source_anchors[0] as { artifactId?: unknown } | undefined)?.artifactId
+    : undefined;
+  if (typeof sourceArtifactId !== "string") {
+    return {
+      result: graded,
+      error: `Concept ${input.conceptId} has no real source artifact to attribute this evidence to.`,
+    };
+  }
+
+  const { error } = await commitEvidence({
+    courseId: input.courseId,
+    conceptIds: [input.conceptId],
+    edgeIds: [],
+    // Same reasoning as submitTextReviewAnswer/submitStructuredReviewAnswer's
+    // own evidenceType choice: an independent, unassisted attempt at a
+    // previously-seen concept.
+    evidenceType: "retrieval",
+    correctness: graded.outcome === "correct",
+    // Deterministic index-compare, not a model judgment call -- full
+    // confidence, unlike gradeTextResponse's real-but-variable
+    // grader_confidence.
+    graderConfidence: 1,
+    assistanceLevel: 0,
+    difficulty: 0.5,
+    transferDistance: 0,
+    sourceArtifactId,
+  });
+
+  return { result: graded, error };
 }

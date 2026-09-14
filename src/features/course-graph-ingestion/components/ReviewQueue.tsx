@@ -9,6 +9,7 @@ import {
   sweepEligibleEdges,
   type ReviewQueueItem,
 } from "@/features/course-graph-ingestion/actions.ts";
+import { dismissReviewRun } from "@/features/lightweight-quiz/actions.ts";
 import { createClient } from "@/lib/supabase/client.ts";
 
 function itemId(item: ReviewQueueItem): string {
@@ -235,6 +236,15 @@ export function ReviewQueue({ items: initialItems, courseId }: { items: ReviewQu
   }, [courseId]);
 
   function closeModal() {
+    // Lightweight-quiz trigger signal 1 of 2 (design doc): dismissing
+    // the popup for a run. Fire-and-forget -- the popup itself closes
+    // immediately regardless of this call's outcome; idempotent via
+    // executeMcqGeneration's own atomic claim, so it's always safe to
+    // call even if every concept/unit in this run was already reviewed
+    // (signal 2 firing separately, or having already fired).
+    if (activeModalRunId !== null) {
+      void dismissReviewRun(courseId, activeModalRunId);
+    }
     setActiveModalRunId(null);
   }
 

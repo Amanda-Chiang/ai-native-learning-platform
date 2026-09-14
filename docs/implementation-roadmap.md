@@ -165,8 +165,25 @@ restating per-feature:
   confirmation instead of silently grading. This closes out every item
   on this roadmap.
 
-**Post-MVP work (2026-09-04 through 2026-09-09), outside this roadmap's
+**Post-MVP work (2026-09-04 through 2026-09-14), outside this roadmap's
 phase numbering:**
+
+- **Lightweight daily MCQ quiz** (new, additive generation path closing
+  a real gap: `question_bank` had zero rows in every real course because
+  `assessment-generation-pipeline`'s `requestQuestionGeneration` was
+  real but never wired to any UI). Fires automatically once an
+  extraction run's review popup is dismissed or every concept/unit from
+  it leaves `proposed`, generating grounded 4-option multiple-choice
+  questions (one model call per concept scoring `importance_score >=
+  0.6`) for the existing Study tab/spaced-repetition flow — deliberately
+  a separate, cheaper pipeline from the heavy one, keeping only its
+  ambiguity check. Full design, schema changes, and a real bug found
+  live (a missing `evidence_events` origin on first real answer): see
+  `docs/superpowers/specs/2026-09-12-lightweight-daily-quiz-design.md`
+  and `brain/decisions/architecture-log.md`'s 2026-09-12/14 entry.
+  `assessment-generation-pipeline`'s own heavy pipeline is still
+  unwired to any UI — a real, separate, still-open gap this work
+  deliberately did not close.
 
 - A full design-system + reskin pass: every real route now renders through
   shared tokens/shell components instead of bare HTML, plus two genuinely

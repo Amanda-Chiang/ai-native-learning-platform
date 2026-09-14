@@ -135,6 +135,11 @@ export type ExtractionRunRow = {
   edges_dropped_self_referential: number;
   started_at: string | null;
   completed_at: string | null;
+  /** Set the first time either lightweight-quiz trigger fires for this
+   * run (review popup dismissed, or every concept/unit left 'proposed')
+   * -- idempotency so whichever fires first wins and the other is a
+   * no-op. Null until then. */
+  quiz_generated_at: string | null;
   created_at: string;
 };
 
@@ -317,7 +322,7 @@ export type AssessmentGenerationRunRow = {
 /** Assessment domain's own ResponseModality (text/code/graph/tree/diagram) --
  * distinct from this file's ResponseModality above (deterministic-grading's
  * structured/code/text), which describes a different table. */
-export type QuestionResponseModality = "text" | "code" | "graph" | "tree" | "diagram";
+export type QuestionResponseModality = "text" | "code" | "graph" | "tree" | "diagram" | "multiple_choice";
 
 export type QuestionBankCheckerDomain =
   | "bfs-dfs"
@@ -331,8 +336,12 @@ export type QuestionBankRow = {
   id: string;
   course_id: string;
   owner_id: string;
-  generation_run_id: string;
+  /** Null for a lightweight-quiz row (no assessment_generation_runs row
+   * exists for it -- that table's shape doesn't apply to this separate,
+   * cheaper generation path). Set for every heavy-pipeline row. */
+  generation_run_id: string | null;
   question_text: string;
+  /** For a `multiple_choice` row: { options: string[], correctOptionIndex: number }. */
   rubric: Record<string, unknown>;
   hints: string[];
   common_mistakes: string[];
@@ -341,6 +350,11 @@ export type QuestionBankRow = {
   checker_domain: QuestionBankCheckerDomain | null;
   checker_input: Record<string, unknown> | null;
   validation_report: Record<string, unknown>;
+  /** Every question is tagged to at least one real concept (DB-enforced,
+   * non-empty). Lightweight-quiz rows may tag a still-`proposed` concept;
+   * a concept whose every tagged question-concept becomes archived gets
+   * its question deleted (see course-graph-ingestion's rejectCandidate). */
+  target_concept_ids: string[];
   created_at: string;
 };
 

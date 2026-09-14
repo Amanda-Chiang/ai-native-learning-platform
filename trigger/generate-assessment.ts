@@ -273,6 +273,18 @@ export async function executeGeneration(payload: GenerateAssessmentPayload) {
     }
 
     if (outcome === "passed") {
+      // question_bank.target_concept_ids must be non-empty (0015's
+      // migration, added for lightweight-quiz's reject-cascade) --
+      // derived here from the candidate's own sourceAnchors, the same
+      // real ids source-alignment already validated this candidate
+      // against, not a separate/new claim. sourceAnchors.conceptOrEdgeId
+      // is polymorphic (concept OR edge); an edge id landing in here is
+      // harmless for this column's only real consumer today (the
+      // concept-reject cascade, which only ever matches against real
+      // course_concepts ids) -- untangling that polymorphism precisely
+      // is out of scope here (this pipeline's own UI wiring is a
+      // separate, already-known gap this feature doesn't touch).
+      const targetConceptIds = [...new Set(candidate.sourceAnchors.map((a) => a.conceptOrEdgeId))];
       const { error: bankInsertError } = await supabase.from("question_bank").insert({
         course_id: payload.courseId,
         owner_id: course.owner_id,
@@ -286,6 +298,7 @@ export async function executeGeneration(payload: GenerateAssessmentPayload) {
         checker_domain: candidate.checkerDomain,
         checker_input: candidate.checkerInput as Record<string, unknown> | null,
         validation_report: validationReport as unknown as Record<string, unknown>,
+        target_concept_ids: targetConceptIds,
       });
       if (bankInsertError) {
         throw new Error(`Failed to insert question_bank entry for run ${runRow.id}: ${bankInsertError.message}`);

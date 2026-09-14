@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { DailySessionResult, SessionItem } from "@/features/review-scheduler/daily-session.ts";
 import type { ConnectSessionResult } from "@/features/review-scheduler/connect-session.ts";
 import { StructuredAnswerForm } from "@/features/review-scheduler/components/StructuredAnswerForm.tsx";
+import { MultipleChoiceForm } from "@/features/review-scheduler/components/MultipleChoiceForm.tsx";
 import { IconCheck, IconArrow } from "@/components/icons.tsx";
 
 type SubmitResult = { result: { outcome: string; [key: string]: unknown }; error: string | null };
@@ -36,6 +37,7 @@ export function StudySession({
   loadMore,
   submitTextAnswer,
   submitStructuredAnswer,
+  submitMultipleChoiceAnswer,
 }: {
   courseId: string;
   initialDaily: DailySessionResult;
@@ -43,6 +45,7 @@ export function StudySession({
   loadMore: (courseId: string, excludeConceptIds: string[]) => Promise<DailySessionResult>;
   submitTextAnswer: (input: { courseId: string; conceptId: string; rubric: Record<string, unknown>; response: string }) => Promise<SubmitResult>;
   submitStructuredAnswer: (input: { courseId: string; conceptId: string; checkerDomain: NonNullable<SessionItem["checkerDomain"]>; checkerInput: Record<string, unknown>; claimFields: Record<string, unknown> }) => Promise<SubmitResult>;
+  submitMultipleChoiceAnswer: (input: { courseId: string; conceptId: string; rubric: Record<string, unknown>; selectedIndex: number }) => Promise<SubmitResult>;
 }) {
   const [daily, setDaily] = useState(initialDaily);
   const [shownConceptIds, setShownConceptIds] = useState<string[]>(
@@ -73,6 +76,18 @@ export function StudySession({
       checkerDomain: item.checkerDomain,
       checkerInput: item.checkerInput,
       claimFields,
+    });
+    setPendingConceptId(null);
+    setResults((current) => ({ ...current, [item.conceptId]: outcome }));
+  }
+
+  async function handleMultipleChoiceAnswer(item: SessionItem, selectedIndex: number) {
+    setPendingConceptId(item.conceptId);
+    const outcome = await submitMultipleChoiceAnswer({
+      courseId,
+      conceptId: item.conceptId,
+      rubric: item.rubric,
+      selectedIndex,
     });
     setPendingConceptId(null);
     setResults((current) => ({ ...current, [item.conceptId]: outcome }));
@@ -139,6 +154,12 @@ export function StudySession({
                             onSubmit={(claimFields) => handleStructuredAnswer(item, claimFields)}
                             pending={isPending}
                           />
+                        ) : item.responseModality === "multiple_choice" ? (
+                          <MultipleChoiceForm
+                            options={(item.rubric.options as string[] | undefined) ?? []}
+                            onSubmit={(selectedIndex) => handleMultipleChoiceAnswer(item, selectedIndex)}
+                            pending={isPending}
+                          />
                         ) : item.responseModality === "text" ? (
                           <form
                             onSubmit={async (e) => {
@@ -170,16 +191,34 @@ export function StudySession({
                           <div
                             style={{
                               ...s.verdict,
+                              flexDirection: "column",
+                              alignItems: "flex-start",
                               background: passed ? "var(--teal-muted)" : "var(--clay-muted)",
-                              borderColor: passed ? "var(--teal-border)" : "var(--clay-border)",
+                              border: `1px solid ${passed ? "var(--teal-border)" : "var(--clay-border)"}`,
                             }}
                           >
-                            <span style={{ ...s.verdictIcon, color: passed ? "var(--teal)" : "var(--clay)" }}>
-                              {passed ? <IconCheck /> : "✕"}
-                            </span>
-                            <span style={{ ...s.verdictText, color: passed ? "var(--teal)" : "var(--clay)" }}>
-                              Result: {String(outcome.result.outcome)}
-                            </span>
+                            <div style={s.verdictRow}>
+                              <span style={{ ...s.verdictIcon, color: passed ? "var(--teal)" : "var(--clay)" }}>
+                                {passed ? <IconCheck /> : "✕"}
+                              </span>
+                              <span style={{ ...s.verdictText, color: passed ? "var(--teal)" : "var(--clay)" }}>
+                                Result: {String(outcome.result.outcome)}
+                              </span>
+                            </div>
+                            {/* MCQ-specific: don't just say "incorrect" --
+                                show what the right answer actually was, so a
+                                wrong guess is still a learning moment, not a
+                                dead end. */}
+                            {item.responseModality === "multiple_choice" &&
+                              !passed &&
+                              typeof outcome.result.correctOptionIndex === "number" && (
+                                <span style={s.correctAnswerText}>
+                                  Correct answer:{" "}
+                                  {((item.rubric.options as string[] | undefined) ?? [])[
+                                    outcome.result.correctOptionIndex as number
+                                  ] ?? "(unavailable)"}
+                                </span>
+                              )}
                           </div>
                         ))}
                     </div>
@@ -291,8 +330,10 @@ const s: Record<string, React.CSSProperties> = {
   },
   errorText: { margin: 0, fontSize: 12.5, color: "var(--clay)" },
   verdict: { display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderRadius: "var(--radius-sm)", border: "1px solid" },
+  verdictRow: { display: "flex", alignItems: "center", gap: 9 },
   verdictIcon: { display: "flex", flexShrink: 0 },
   verdictText: { fontSize: 13.5, fontWeight: 500, letterSpacing: "-0.01em" },
+  correctAnswerText: { fontSize: 13, color: "var(--text-secondary)", marginTop: 2 },
   moreBtn: {
     alignSelf: "flex-start",
     padding: "9px 16px",

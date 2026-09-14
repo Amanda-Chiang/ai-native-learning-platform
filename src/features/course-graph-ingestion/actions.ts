@@ -19,6 +19,7 @@ import { sortReviewQueueByPriority } from "@/features/course-graph-ingestion/rev
 import { resolveOtherEndpoint, shouldAutoConfirmEdge, selectSweepableEdgeIds } from "./edge-auto-confirm.ts";
 import { shouldAutoConfirmConcept } from "./concept-auto-confirm.ts";
 import { indexDecisionsByCandidateId } from "./reconciliation-decision-match.ts";
+import { maybeGenerateLightweightQuizAfterReviewChange } from "@/features/lightweight-quiz/actions.ts";
 
 /**
  * Server action contracts: specs/004-course-graph-ingestion/contracts/ingestion-actions.md
@@ -358,6 +359,15 @@ export async function confirmCandidate(
     await autoConfirmEligibleConcepts(supabase, id);
   }
 
+  // Lightweight-quiz trigger signal 2 of 2 (design doc): every
+  // concept/unit from this run may have just left 'proposed'. A no-op
+  // check for "edge" (edges don't gate this) and cheap otherwise;
+  // maybeGenerateLightweightQuizAfterReviewChange itself no-ops unless
+  // the run is now genuinely fully reviewed.
+  if (!error && kind !== "edge") {
+    await maybeGenerateLightweightQuizAfterReviewChange(supabase, kind, id);
+  }
+
   return { error: error?.message ?? null };
 }
 
@@ -649,7 +659,64 @@ export async function rejectCandidate(
           .update({ status: "archived", updated_at: new Date().toISOString() })
           .eq("id", id);
 
+  // The one exception to "archive, never delete": a lightweight-quiz
+  // question has no independent standing of its own -- it only ever
+  // existed as a claim about the concept(s) it's tagged to
+  // (target_concept_ids). Once a rejected concept leaves every question
+  // referencing it with zero surviving (non-archived) tagged concepts,
+  // that question is deleted outright, not archived (design doc
+  // "Tagging & cascade delete").
+  if (!error && kind === "concept") {
+    await deleteQuestionsOrphanedByRejectedConcept(supabase, id);
+  }
+
+  if (!error && kind !== "edge") {
+    await maybeGenerateLightweightQuizAfterReviewChange(supabase, kind, id);
+  }
+
   return { error: error?.message ?? null };
+}
+
+async function deleteQuestionsOrphanedByRejectedConcept(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rejectedConceptId: string,
+): Promise<void> {
+  const { data: rows, error } = await supabase
+    .from("question_bank")
+    .select("id, target_concept_ids")
+    .contains("target_concept_ids", [rejectedConceptId]);
+
+  if (error || !rows) {
+    console.error(
+      `[course-graph-ingestion] failed to load questions referencing rejected concept ${rejectedConceptId}:`,
+      error?.message ?? "no rows returned",
+    );
+    return;
+  }
+
+  for (const row of rows) {
+    const { data: survivingConcepts, error: survivorsError } = await supabase
+      .from("course_concepts")
+      .select("id")
+      .in("id", row.target_concept_ids)
+      .neq("status", "archived");
+
+    if (survivorsError) {
+      console.error(
+        `[course-graph-ingestion] failed to check surviving tagged concepts for question ${row.id}:`,
+        survivorsError.message,
+      );
+      continue;
+    }
+    if ((survivingConcepts ?? []).length > 0) continue;
+
+    const { error: deleteError } = await supabase.from("question_bank").delete().eq("id", row.id);
+    if (deleteError) {
+      console.error(
+        `[course-graph-ingestion] failed to delete question ${row.id} orphaned by concept ${rejectedConceptId}: ${deleteError.message}`,
+      );
+    }
+  }
 }
 
 export type ConceptEdit = Partial<

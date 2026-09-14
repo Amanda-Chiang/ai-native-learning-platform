@@ -121,6 +121,7 @@ export const extractCourseGraphTask = task({
         edges_dropped_self_referential: 0,
         started_at: null,
         completed_at: null,
+        quiz_generated_at: null,
       })
       .select("id")
       .single();
