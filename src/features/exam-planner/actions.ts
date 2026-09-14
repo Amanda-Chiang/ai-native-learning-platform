@@ -66,6 +66,29 @@ function rowToView(row: ExamConfigRow): ExamConfigView {
   };
 }
 
+export type ScopeableConcept = { id: string; name: string };
+
+/**
+ * Concepts a student can pick for exam scope (T012's config form). Only
+ * 'confirmed' rows -- configureExam's own resolveScopeExists already
+ * rejects a non-confirmed id server-side (a proposed concept is still
+ * review-gated, not yet trustworthy course content per this project's
+ * "exposure/review status isn't ontology truth" boundary), so a picker
+ * offering 'proposed' concepts would just be a UI that lets a student
+ * pick options guaranteed to fail on submit.
+ */
+export async function listScopeableConcepts(courseId: string): Promise<ScopeableConcept[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("course_concepts")
+    .select("id, canonical_name")
+    .eq("course_id", courseId)
+    .eq("status", "confirmed")
+    .order("canonical_name");
+
+  return (data ?? []).map((row) => ({ id: row.id, name: row.canonical_name }));
+}
+
 async function resolveScopeExists(
   supabase: Awaited<ReturnType<typeof createClient>>,
   courseId: string,

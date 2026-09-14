@@ -1,4 +1,4 @@
-import { getExamConfig, getExamPlan, getExamReadiness, configureExam } from "@/features/exam-planner/actions.ts";
+import { getExamConfig, getExamPlan, getExamReadiness, configureExam, listScopeableConcepts } from "@/features/exam-planner/actions.ts";
 import { submitTextReviewAnswer, submitStructuredReviewAnswer } from "@/features/review-scheduler/actions.ts";
 import { ExamPlanner } from "@/features/exam-planner/components/ExamPlanner.tsx";
 
@@ -10,9 +10,10 @@ export default async function CourseExamPlanPage({
   const { courseId } = await params;
 
   const { config } = await getExamConfig(courseId);
-  const [plan, readiness] = await Promise.all([
+  const [plan, readiness, scopeableConcepts] = await Promise.all([
     config ? getExamPlan(courseId) : Promise.resolve(null),
     config ? getExamReadiness(courseId) : Promise.resolve(null),
+    config ? Promise.resolve([]) : listScopeableConcepts(courseId),
   ]);
 
   return (
@@ -21,6 +22,7 @@ export default async function CourseExamPlanPage({
       initialConfig={config}
       initialPlan={plan}
       initialReadiness={readiness}
+      scopeableConcepts={scopeableConcepts}
       configureExam={configureExam}
       submitTextAnswer={submitTextReviewAnswer}
       submitStructuredAnswer={submitStructuredReviewAnswer}

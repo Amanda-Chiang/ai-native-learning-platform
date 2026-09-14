@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { ExamConfigView, GetExamPlanResult, GetExamReadinessResult } from "@/features/exam-planner/actions.ts";
+import type { ExamConfigView, GetExamPlanResult, GetExamReadinessResult, ScopeableConcept } from "@/features/exam-planner/actions.ts";
 import type { SessionItem } from "@/features/review-scheduler/daily-session.ts";
 import { StructuredAnswerForm } from "@/features/review-scheduler/components/StructuredAnswerForm.tsx";
+import { ConceptScopeSelect } from "@/features/exam-planner/components/ConceptScopeSelect.tsx";
 import { IconCheck } from "@/components/icons.tsx";
 
 type SubmitResult = { result: { outcome: string; [key: string]: unknown }; error: string | null };
@@ -30,6 +31,7 @@ export function ExamPlanner({
   initialConfig,
   initialPlan,
   initialReadiness,
+  scopeableConcepts,
   configureExam,
   submitTextAnswer,
   submitStructuredAnswer,
@@ -38,6 +40,7 @@ export function ExamPlanner({
   initialConfig: ExamConfigView | null;
   initialPlan: GetExamPlanResult | null;
   initialReadiness: GetExamReadinessResult | null;
+  scopeableConcepts: ScopeableConcept[];
   configureExam: (courseId: string, examDate: string, scopeConceptIds: string[], scopeUnitIds: string[]) => Promise<{ examConfigId: string | null; error: string | null }>;
   submitTextAnswer: (input: { courseId: string; conceptId: string; rubric: Record<string, unknown>; response: string }) => Promise<SubmitResult>;
   submitStructuredAnswer: (input: { courseId: string; conceptId: string; checkerDomain: NonNullable<SessionItem["checkerDomain"]>; checkerInput: Record<string, unknown>; claimFields: Record<string, unknown> }) => Promise<SubmitResult>;
@@ -50,10 +53,11 @@ export function ExamPlanner({
 
   async function handleConfigure(formData: FormData) {
     const examDate = (formData.get("examDate") as string | null) ?? "";
-    const scopeConceptIds = ((formData.get("scopeConceptIds") as string | null) ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const scopeConceptIds = formData.getAll("scopeConceptIds") as string[];
+    if (scopeConceptIds.length === 0) {
+      setConfigError("Select at least one concept to scope the exam to.");
+      return;
+    }
     const outcome = await configureExam(courseId, examDate, scopeConceptIds, []);
     if (outcome.error) {
       setConfigError(outcome.error);
@@ -112,8 +116,8 @@ export function ExamPlanner({
                 <input type="date" name="examDate" required style={s.input} />
               </label>
               <label style={s.field}>
-                <span style={s.fieldLabel}>Scope concept ids (comma-separated)</span>
-                <input type="text" name="scopeConceptIds" required style={s.input} />
+                <span style={s.fieldLabel}>Scope concepts</span>
+                <ConceptScopeSelect name="scopeConceptIds" concepts={scopeableConcepts} />
               </label>
               <button type="submit" style={s.primaryButton}>
                 Configure exam
