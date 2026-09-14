@@ -362,8 +362,17 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     transition: "border-color 0.15s, background 0.15s",
   },
+  // Shorthand, matching `dropzone`'s own `border` -- not the longhand
+  // `borderColor`. Same bug class as course-shell.tsx's tab underline
+  // and MultipleChoiceForm's selected-option border (architecture-log.md
+  // 2026-09-11): this dropzone toggles active/inactive repeatedly on
+  // the same mounted element via drag events, which is exactly the
+  // update-in-place pattern that exposes React's inline-style diffing
+  // gap (a shorthand base + a longhand override lets a stale
+  // border-color survive after the longhand key disappears on the next
+  // render, since the unchanged shorthand string is never re-applied).
   dropzoneActive: {
-    borderColor: "var(--clay)",
+    border: "1.5px dashed var(--clay)",
     background: "var(--clay-muted)",
   },
   uploadIcon: { display: "flex", alignItems: "center", color: "var(--text-tertiary)" },
