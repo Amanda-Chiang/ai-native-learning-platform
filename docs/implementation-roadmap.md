@@ -185,6 +185,34 @@ phase numbering:**
   unwired to any UI — a real, separate, still-open gap this work
   deliberately did not close.
 
+- **UI polish/bug-fix batch (2026-09-11 through 2026-09-14)**, several
+  independent real bugs found via direct use, not a single feature:
+  the header still showed a leftover "AI-Native Learning Platform"
+  link and unstyled sign-in/out markup (removed/restyled, and moved
+  into the `(app)` route group's own layout so sign-in/sign-up don't
+  show it); `body` used `min-height:100%` instead of `height:100%`, so
+  the sidebar and centered page content fell short of the viewport on
+  any page shorter than the screen (Today, sign-in, an empty course);
+  a course's tab bar could keep a stray underline on an inactive tab
+  after navigating away, and later the same root cause (mixing a CSS
+  shorthand base style with a longhand override — React's inline-style
+  diffing doesn't safely handle that pairing across renders) recurred
+  twice more in one component (`MultipleChoiceForm`, below) and one
+  unrelated one (`artifact-board.tsx`'s upload dropzone) — all fixed
+  the same way, with a standing rule logged so it isn't repeated again;
+  a course-detail page fell back to displaying the raw course UUID as
+  its name when the lookup failed (now "Demo course"/"Unknown course",
+  never the id); the exam-plan config form required typing raw concept
+  UUIDs into a text field (replaced with a real multi-select dropdown
+  of confirmed concept names, plus a related bug where its checkboxes
+  unmounted on panel-close and silently dropped the selection); and a
+  real extraction run had produced a concept with an empty name/
+  description that Structured Outputs' `type: "string"` doesn't forbid
+  (added non-empty-string validation across every model-produced string
+  field in `course-graph-ingestion`'s extraction parser). Full account
+  of each: `brain/decisions/architecture-log.md`'s 2026-09-11 and
+  2026-09-14 entries.
+
 - A full design-system + reskin pass: every real route now renders through
   shared tokens/shell components instead of bare HTML, plus two genuinely
   new real pages (`/` Today dashboard aggregating exam dates across
@@ -260,7 +288,12 @@ phase numbering:**
   sleep. Full account, in the order each was found: `brain/decisions/
   architecture-log.md`'s 2026-09-08 and 2026-09-09 entries.
 
-Known open items, not yet resolved as of 2026-09-09:
+Known open items, not yet resolved as of 2026-09-14:
+- `assessment-generation-pipeline`'s heavy (checker-domain/free-text)
+  generation path is real and tested but still unwired to any UI —
+  `requestQuestionGeneration` exists, but no page/button anywhere calls
+  it. The lightweight-quiz work above deliberately built a separate,
+  cheaper path rather than closing this gap.
 - No integration-shaped test composes the full extract → reconcile →
   confirm → materialize pipeline end-to-end (individual stages are unit
   tested; the composition is currently verified by source-level

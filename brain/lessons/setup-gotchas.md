@@ -53,3 +53,18 @@
   different tools' home-dir configs (`~/.codex`, `~/.cursor`, `~/.factory`,
   `~/.opencode`, `~/.kiro`, plus `~/.claude`). Deferred — see
   `brain/setup/development-environment.md`.
+- `npx supabase db push`/`db dump` can hang **indefinitely with zero
+  output**, not error, in a sandboxed/restricted-network agent shell.
+  Root cause (confirmed via `dig`/`nc`): this project's direct Postgres
+  host (`db.<project-ref>.supabase.co`) is IPv6-only, and such shells
+  often have no outbound IPv6 route — the pooler host and the HTTPS
+  Management API both resolve/connect fine over IPv4, only the direct
+  DB connection doesn't. If a migration push hangs with no output for
+  more than ~30s, don't keep retrying flags (`--yes`, `--dry-run`,
+  `--project-ref`, `--debug` all hang identically) — it's this, not a
+  fixable CLI flag issue from inside that shell. Ask the user to run
+  the push in their own terminal instead. Separately, that local CLI
+  session may need one one-time `supabase login` (a personal access
+  token from the Supabase dashboard's Account → Access Tokens, pasted
+  at the prompt — not the project's DB password, a different secret)
+  before `db push` will authenticate at all.

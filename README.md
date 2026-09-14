@@ -3,31 +3,26 @@
 An AI-native learning platform built as a responsive web application, per
 `docs/technical-prd.md`, sequenced via `docs/implementation-roadmap.md`.
 
-**Status (2026-09-09)**: All six roadmap phases fully implemented and
-verified live, plus several post-completion passes: (1) a hardening pass
-that found and fixed real bugs only real browser/Playwright use surfaced
-(RLS gaps, Server/Client Component boundary violations, an unsanitized
-Storage filename, missing input bounds); (2) a design-system/reskin pass
-(every real route now styled, plus two new real pages — a Today
-dashboard and a spaced-repetition review queue) and a unit-extraction &
-reconciliation feature for `course-graph-ingestion` (fixed a real bug
-where extraction had no path to create a course unit; `course_units`
-gained a full review lifecycle; edges left manual review and now
-auto-confirm from their endpoints); (3) a review-queue popup fix (a
-duplicate-DOM-id bug silently discarded edits) that led to units alone
-becoming the review-gated side of extraction, concepts auto-confirming
-under an already-trusted unit; (4) a CI hardening pass — `quality-gates`
-had never actually passed a single run before this, for a chain of real,
-independent reasons (missing `next typegen` before typecheck, no secrets
-wired into the E2E job, an unguarded `Trigger.dev` call crashing the
-upload page, a sidebar with no mobile responsiveness at all plus a real
-SSR hydration bug found fixing that, visual snapshots checked in for
-macOS only with no Linux baseline, and two stale/broken E2E suites left
-over from the reskin) — all found and fixed, CI is genuinely green now.
-See `brain/decisions/architecture-log.md`'s entries from 2026-09-02
-onward, and `docs/implementation-roadmap.md`'s "Post-MVP work" section,
-for the full current list; this paragraph is a snapshot, not the source
-of truth.
+**Status (2026-09-14)**: All six roadmap phases fully implemented and
+verified live, plus a long tail of post-completion hardening and
+enhancement passes — a browser/Playwright hardening pass (RLS gaps,
+Server/Client boundary violations, an unsanitized Storage filename,
+missing input bounds), a full design-system reskin, a unit-extraction &
+reconciliation rework for `course-graph-ingestion`, a review-queue
+popup fix, a CI hardening pass that took `quality-gates` from
+never-once-green to genuinely green, and — most recently — a real,
+user-reported bug/polish batch (header, page-fill layout, a stale-style
+React bug found and fixed three separate times, a raw-UUID display bug,
+an exam-scope UUID text field replaced with a real picker, an
+extraction-validation gap) plus a new feature: an automatic lightweight
+daily multiple-choice quiz, closing a real gap where `question_bank`
+had sat empty in every real course because the existing heavy
+assessment-generation pipeline was built but never wired to any UI.
+That heavy pipeline is still unwired — a known, separate, still-open
+gap. See `brain/decisions/architecture-log.md`'s entries from
+2026-09-02 onward, and `docs/implementation-roadmap.md`'s "Post-MVP
+work" + "Known open items" sections, for the full current list; this
+paragraph is a snapshot, not the source of truth.
 Phase summary (schemas + benchmark corpus,
 Supabase Auth/Postgres/RLS/Storage/Trigger.dev foundation, course-graph
 ingestion with a real OpenAI extraction pipeline, React Flow + ELK
