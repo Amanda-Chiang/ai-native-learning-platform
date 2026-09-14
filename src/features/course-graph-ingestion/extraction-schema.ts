@@ -177,16 +177,28 @@ export const EXTRACTION_RESPONSE_SCHEMA = {
   },
 } as const;
 
+// A field the model is required to fill with real content (a concept's
+// name, its description, a unit's title, an edge's explanation, a source
+// anchor's locator/excerpt) must actually have content -- `typeof x ===
+// "string"` alone accepts "", which a real extraction run has produced
+// for canonicalName/description before (an artifact-vs-content mismatch
+// the model didn't refuse loudly). An empty string is exactly the kind
+// of plausible-looking-but-empty value the no-silent-placeholders rule
+// forbids: indistinguishable from real data until a human opens it.
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function isCandidateSourceAnchor(value: unknown): value is CandidateSourceAnchor {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
-  return typeof v.locator === "string" && typeof v.excerpt === "string";
+  return isNonEmptyString(v.locator) && isNonEmptyString(v.excerpt);
 }
 
 function isCandidateUnit(value: unknown): value is CandidateUnit {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
-  return typeof v.localId === "string" && typeof v.title === "string";
+  return typeof v.localId === "string" && isNonEmptyString(v.title);
 }
 
 function isUnitRef(value: unknown): value is UnitRef {
@@ -201,9 +213,9 @@ function isCandidateConcept(value: unknown): value is CandidateConcept {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
   if (typeof v.localId !== "string") return false;
-  if (typeof v.canonicalName !== "string") return false;
+  if (!isNonEmptyString(v.canonicalName)) return false;
   if (!Array.isArray(v.aliases) || !v.aliases.every((a) => typeof a === "string")) return false;
-  if (typeof v.description !== "string") return false;
+  if (!isNonEmptyString(v.description)) return false;
   if (typeof v.importanceScore !== "number") return false;
   if (typeof v.confidence !== "number") return false;
   if (!Array.isArray(v.sourceAnchors) || v.sourceAnchors.length < 1) return false;
@@ -221,7 +233,7 @@ function isCandidateEdge(value: unknown): value is CandidateEdge {
   if (v.relationTypeNote !== null && typeof v.relationTypeNote !== "string") return false;
   if (v.relationType === "other" && !v.relationTypeNote) return false;
   if (v.relationType !== "other" && v.relationTypeNote !== null) return false;
-  if (typeof v.explanation !== "string") return false;
+  if (!isNonEmptyString(v.explanation)) return false;
   if (typeof v.confidence !== "number") return false;
   if (!Array.isArray(v.sourceAnchors) || v.sourceAnchors.length < 1) return false;
   if (!v.sourceAnchors.every(isCandidateSourceAnchor)) return false;

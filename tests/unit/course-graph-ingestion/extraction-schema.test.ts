@@ -133,3 +133,61 @@ test("a malformed unitRef (missing kind) throws", () => {
   };
   assert.throws(() => parseExtractionResult(bad));
 });
+
+// Regression: a real extraction run produced a concept with
+// canonicalName: "" and description: "" -- both are typeof "string", so
+// the shape check alone let it through and it landed in course_concepts
+// as an unreviewable, empty-looking candidate. Structured Outputs'
+// `type: "string"` doesn't forbid an empty string, so this can only be
+// caught by application-level validation, not the schema alone.
+test("a concept with an empty canonicalName is rejected, not silently accepted", () => {
+  const invalid = {
+    units: [],
+    concepts: [{ ...validResponse.concepts[0], canonicalName: "" }],
+    edges: [],
+  };
+  assert.throws(() => parseExtractionResult(invalid), /concepts/);
+});
+
+test("a concept with an empty description is rejected, not silently accepted", () => {
+  const invalid = {
+    units: [],
+    concepts: [{ ...validResponse.concepts[0], description: "" }],
+    edges: [],
+  };
+  assert.throws(() => parseExtractionResult(invalid), /concepts/);
+});
+
+test("a concept with a whitespace-only canonicalName is rejected", () => {
+  const invalid = {
+    units: [],
+    concepts: [{ ...validResponse.concepts[0], canonicalName: "   " }],
+    edges: [],
+  };
+  assert.throws(() => parseExtractionResult(invalid), /concepts/);
+});
+
+test("a unit with an empty title is rejected", () => {
+  const invalid = { units: [{ localId: "u1", title: "" }], concepts: [], edges: [] };
+  assert.throws(() => parseExtractionResult(invalid), /units/);
+});
+
+test("an edge with an empty explanation is rejected", () => {
+  const invalid = {
+    units: [],
+    concepts: validResponse.concepts,
+    edges: [{ ...validResponse.edges[0], explanation: "" }],
+  };
+  assert.throws(() => parseExtractionResult(invalid), /edges/);
+});
+
+test("a source anchor with an empty excerpt is rejected", () => {
+  const invalid = {
+    units: [],
+    concepts: [
+      { ...validResponse.concepts[0], sourceAnchors: [{ locator: "slide 4", excerpt: "" }] },
+    ],
+    edges: [],
+  };
+  assert.throws(() => parseExtractionResult(invalid), /concepts/);
+});
