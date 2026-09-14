@@ -70,6 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 const s: Record<string, React.CSSProperties> = {
   shell: {
     display: "grid",
+    gridTemplateRows: "100%",
     height: "100%",
     overflow: "hidden",
   },
