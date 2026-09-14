@@ -1375,3 +1375,65 @@ that regenerated the same way the 2026-09-08 entry already did, or it
 will fail on an intended, already-verified change, not a real
 regression.
 
+## 2026-09-11 — Real bug: a course's inactive tab keeps a stray underline, root-caused to mixing a style shorthand with a longhand override
+
+Reported directly, with a screenshot: `CourseShell`'s tab bar (Material/
+Atlas/Review/Tutor/Study/Exam plan) sometimes showed a dark underline on
+a tab that wasn't the active one -- not a hover effect, not transient,
+reproduced deterministically live.
+
+First hypothesis (wrong, tried first): CSS transitions to the literal
+keyword `transparent` interpolate RGB channels independently of alpha
+(`transparent` is `rgba(0,0,0,0)`), so a border fading from `--clay` to
+`transparent` visibly passes through black/gray mid-transition. Added
+`--clay-transparent: rgba(201, 79, 83, 0)` (same channels, zero alpha)
+and swapped `subNavItem`'s base `borderBottom: "2px solid transparent"`
+to use it. Real, defensible fix for a real CSS gotcha -- kept -- but
+verifying live afterward (inspecting the actual rendered DOM via
+`browser_get_html`, not just eyeballing a screenshot) showed the bug
+was still fully reproducible in *steady state*, no transition involved.
+Wrong theory; kept looking rather than declaring it fixed on a plausible
+guess.
+
+Real root cause, confirmed by reading the actual applied inline
+`style` attribute on a stale tab: `border-bottom-width: 2px;
+border-bottom-style: solid;` with **no color** at all -- so the browser
+fell back to `border-bottom-color`'s CSS initial value, `currentColor`
+(the tab's own text color), not transparent. Traced to
+`subNavItem`/`subNavItemActive`: the base style set the shorthand
+`borderBottom`, but the active-state override set only the longhand
+`borderBottomColor`. React's inline-style diffing sets/clears style
+*keys* individually between renders, and skips re-touching a key whose
+value is unchanged from the previous render. Going active -> inactive:
+`borderBottomColor` (present only in the active variant) disappears
+from the merged style object, so React clears it -- but `borderBottom`'s
+string value is literally identical to the prior render's (same base
+shorthand both times), so React never re-sets it. Net effect: the
+browser keeps whatever width/style the shorthand last established
+(2px/solid, from when the tab *was* active) forever, while color alone
+reverts to `currentColor` -- a real, visible border on every tab that
+had ever been active, not just the current one.
+
+Fix: `subNavItemActive` now overrides the same shorthand key
+(`borderBottom: "2px solid var(--clay)"`), never a longhand alongside a
+shorthand base, so every render sets/diffs exactly one `borderBottom`
+key atomically. **Standing rule going forward**: never mix a CSS
+shorthand property in a base inline-style object with a longhand
+override of the same property in a conditional/variant style object
+meant to be spread over it (`{...base, ...variant}`) -- React's
+per-key inline-style diffing does not guarantee the shorthand
+re-applies just because the longhand changed, and the failure mode is
+exactly this: a value stuck at an old render's setting until something
+else happens to touch that same key again.
+
+Verified live, not just by re-reading the source: reproduced the stale
+underline pre-fix by navigating Atlas -> Material and inspecting the
+real DOM (`border-bottom-width`/`-style` present, no color); after the
+fix, cycled through Atlas -> Material, Study -> Tutor -> Material and
+confirmed via the same raw-HTML inspection that every non-active tab
+consistently renders the clean, single `border-bottom: 2px solid
+var(--clay-transparent)` shorthand with no leftover longhand. Full unit
+suite (324 tests) and visual regression suite (both `chromium` and
+`mobile` projects) pass unchanged -- this component isn't covered by
+either, confirming no snapshot needed updating.
+
