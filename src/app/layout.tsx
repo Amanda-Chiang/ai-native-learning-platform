@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { SiteHeader } from "@/features/auth/site-header.tsx";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -21,20 +20,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>
-        <div
-          style={{
-            flexShrink: 0,
-            padding: "8px 20px",
-            borderBottom: "1px solid var(--border)",
-            background: "var(--surface)",
-            fontSize: 13,
-          }}
-        >
-          <SiteHeader />
-        </div>
-        <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
