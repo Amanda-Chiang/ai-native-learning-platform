@@ -74,14 +74,17 @@ async function markFailed(
   return { status: "failed" as const, failureReason: reason };
 }
 
-export const extractCourseGraphTask = task({
-  id: "extract-course-graph",
-  // OpenAI file-reading calls run well past ingest-artifact's 60s
-  // deterministic-only budget -- overridden per-task rather than raising
-  // the shared trigger.config.ts default, which is intentionally tight
-  // for that other, unrelated task.
-  maxDuration: 300,
-  run: async (payload: ExtractCourseGraphPayload) => {
+/**
+ * The task's real work, factored out of `run` so it can be invoked
+ * directly (no live Trigger.dev project exists yet --
+ * trigger.config.ts's own documented placeholder-project caveat, same
+ * gap generate-assessment.ts's executeGeneration already names this
+ * file as sharing) for live/integration verification against real
+ * Supabase/OpenAI without needing a real queue to exercise the real
+ * extract-reconcile-write mechanism end to end
+ * (tests/e2e/course-graph-ingestion-pipeline.spec.ts).
+ */
+export async function executeExtraction(payload: ExtractCourseGraphPayload) {
     const supabase = createAdminClient();
 
     // Idempotency guard (research.md): a prior run already reaching a
@@ -284,7 +287,16 @@ export const extractCourseGraphTask = task({
       conceptsExtracted: insertResult.conceptsExtracted,
       edgesExtracted: insertResult.edgesExtracted,
     };
-  },
+}
+
+export const extractCourseGraphTask = task({
+  id: "extract-course-graph",
+  // OpenAI file-reading calls run well past ingest-artifact's 60s
+  // deterministic-only budget -- overridden per-task rather than raising
+  // the shared trigger.config.ts default, which is intentionally tight
+  // for that other, unrelated task.
+  maxDuration: 300,
+  run: executeExtraction,
 });
 
 /**
