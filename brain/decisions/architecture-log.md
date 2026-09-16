@@ -1615,3 +1615,55 @@ Verified live: reproduced the original console error (select a wrong
 option, submit) against a real fixture, confirmed it's gone post-fix,
 and confirmed "Correct answer: Queue" rendered correctly for a real
 wrong answer. Full 347-test unit suite and `tsc --noEmit` clean.
+
+## 2026-09-15 -- Closed the "no composed extract->reconcile->confirm->materialize test" gap named in the roadmap's Known Open Items
+
+Every stage of `course-graph-ingestion`'s pipeline had its own unit
+tests, but nothing exercised the real composition end to end -- the
+roadmap recorded this as verified only "by source-level assertions and
+manual trace." Closed with a new live Playwright spec,
+`tests/e2e/course-graph-ingestion-pipeline.spec.ts`.
+
+**Refactor needed first**: `trigger/extract-course-graph.ts`'s real work
+lived inline inside `task({ run: async (payload) => {...} })`, unlike
+`generate-assessment.ts`'s `executeGeneration` and
+`generate-lightweight-quiz.ts`'s `executeMcqGeneration`, both already
+factored out into a plain exported function specifically so a test can
+invoke the real extract/reconcile/write logic directly without a live
+Trigger.dev queue (there still isn't one). `executeGeneration`'s own
+comment already named this exact gap in this exact file. Factored the
+same way here: `executeExtraction` is now the exported function; `task()`
+just wraps it (`run: executeExtraction`), same shape as the other two
+files. No behavior change -- confirmed by the full unit suite and
+`tsc --noEmit` staying clean before writing the new test.
+
+**Test shape**: creates a real course + a real, pre-confirmed,
+hard-targeted unit via the admin client (skips Phase 1's own
+already-tested ingest-artifact hop entirely, and its own no-live-worker
+gap, by writing the `artifacts` row directly at `status: "ready"`), then
+calls `executeExtraction` directly against a real OpenAI call over a
+real fixture (`tests/fixtures/dummy-syllabus.pdf`, a BFS/DFS excerpt).
+Confirms a real `reconciliation_decisions` row exists (reconciliation
+runs inside the same call), confirms the candidate through the real
+Review Queue UI's Confirm button if it didn't already auto-confirm (a
+real model reconciliation decision, so both branches are handled rather
+than assuming one), then loads the real `/atlas` route and asserts the
+concept renders as a real graph node -- i.e. materializeCourseGraph
+picked it up. `test.setTimeout(120_000)`: a real extraction call plus a
+per-candidate reconciliation call runs well past Playwright's 30s
+default, same reason `executeGeneration`'s own live path needs headroom.
+
+**Real bug found writing this test, not a pre-existing one**: the
+concept name a real model returns can contain regex metacharacters
+(`"Breadth-First Search (BFS)"` was the actual live output) -- passing
+it straight into `new RegExp(...)` for the final Atlas assertion
+silently matched nothing, since the unescaped parentheses were read as
+a capture group instead of literal text. Fixed by escaping
+regex-meaningful characters before constructing the pattern. Worth
+naming here since it's a real footgun for any future test asserting on
+live LLM output text via a dynamically-built RegExp, not something
+specific to this one test.
+
+Verified live end to end (real Supabase project, real OpenAI call, real
+signed-in browser session), test user/course cleaned up in `afterAll`.
+Full 347-test unit suite and `tsc --noEmit` clean.

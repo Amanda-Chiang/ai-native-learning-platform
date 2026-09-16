@@ -294,12 +294,17 @@ Known open items, not yet resolved as of 2026-09-14:
   `requestQuestionGeneration` exists, but no page/button anywhere calls
   it. The lightweight-quiz work above deliberately built a separate,
   cheaper path rather than closing this gap.
-- No integration-shaped test composes the full extract → reconcile →
-  confirm → materialize pipeline end-to-end (individual stages are unit
-  tested; the composition is currently verified by source-level
-  assertions and manual trace, per `final-review-fix1-verify.md` in that
-  plan's now-cleaned-up SDD workspace — re-derive from
-  `brain/decisions/architecture-log.md` if that workspace is gone).
+- ~~No integration-shaped test composes the full extract → reconcile →
+  confirm → materialize pipeline end-to-end~~ — closed 2026-09-15:
+  `tests/e2e/course-graph-ingestion-pipeline.spec.ts` runs the real
+  mechanism (a real OpenAI extraction call, real reconciliation, a real
+  Review Queue confirm, a real `/atlas` render) end-to-end against a
+  real Supabase project. Required factoring `extractCourseGraphTask`'s
+  inline `run` body into an exported `executeExtraction` function
+  (`trigger/extract-course-graph.ts`), matching the pattern
+  `generate-assessment.ts`/`generate-lightweight-quiz.ts` already used
+  for the same no-live-Trigger.dev-queue reason. See
+  `brain/decisions/architecture-log.md`'s 2026-09-15 entry.
 - Task 13 of the unit-extraction plan (a formal 6-scenario live
   walkthrough) has no recorded "all pass" checkpoint — live testing found
   and fixed real bugs organically instead, which is arguably stronger
