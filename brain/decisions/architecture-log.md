@@ -1667,3 +1667,28 @@ specific to this one test.
 Verified live end to end (real Supabase project, real OpenAI call, real
 signed-in browser session), test user/course cleaned up in `afterAll`.
 Full 347-test unit suite and `tsc --noEmit` clean.
+
+## 2026-09-17 -- Real bug found live: Home's "In this session" preview leaked full question text before the student attempted it
+
+`TodayDashboard.tsx`'s session preview rendered each `SessionItem`'s own
+`questionText` verbatim -- a student would see the exact question (and,
+for anything with an inline answer-bearing prompt, effectively the
+answer) on the Home page before ever opening Study. Per direct report.
+
+Fixed at the presentation layer, not by touching `SessionItem` or
+`DailySessionResult` (`review-scheduler`'s own domain types, used
+elsewhere for the real answering flow) -- `today.ts`'s
+`getTodayOverview` now separately resolves a `conceptId -> canonical_name`
+map for exactly the concepts appearing in the day's session and returns
+it alongside `dailySession` as `conceptNames`; `TodayDashboard` renders
+that instead of `item.questionText`, relabeled "Concepts covered" to
+match. A concept id that somehow doesn't resolve renders "Unknown
+concept" (no-silent-placeholders) rather than silently reusing
+`item.questionText` as a fallback, which would have quietly
+reintroduced the same leak.
+
+Verified live: created a real course/concept/question/exam via the
+admin client, signed in through the real UI, and confirmed the
+question's literal text does not appear anywhere on Home while the
+concept's real canonical name does (screenshot-checked). Full
+347-test unit suite and `tsc --noEmit` clean.

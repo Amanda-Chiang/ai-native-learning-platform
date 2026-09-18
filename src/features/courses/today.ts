@@ -1,5 +1,6 @@
 "use server";
 
+import { createClient } from "@/lib/supabase/server.ts";
 import { listCourses } from "@/features/courses/actions.ts";
 import { getExamConfig } from "@/features/exam-planner/actions.ts";
 import { getDailyReviewSession } from "@/features/review-scheduler/actions.ts";
@@ -15,6 +16,15 @@ export type TodayOverview = {
    * sidebar is free (no extra query). */
   upcomingExams: NearestExam[];
   dailySession: DailySessionResult | null;
+  /** conceptId -> canonical name, for every concept in dailySession's
+   * items -- the Home preview shows which concepts are covered, never
+   * a session item's own questionText (that's the actual question, and
+   * showing it on Home would let a student read the answer-bearing
+   * question before attempting it in the real Study flow). Keyed by id
+   * rather than joined onto SessionItem directly so
+   * review-scheduler's own DailySessionResult type stays exactly what
+   * the scheduler itself produces -- this is a Home-page-only lookup. */
+  conceptNames: Record<string, string>;
   hasCourses: boolean;
 };
 
@@ -46,10 +56,20 @@ export async function getTodayOverview(): Promise<TodayOverview> {
 
   const dailySession = nearestExam ? await getDailyReviewSession(nearestExam.courseId) : null;
 
+  const items = dailySession && "items" in dailySession ? dailySession.items : [];
+  const conceptIds = Array.from(new Set(items.map((item) => item.conceptId)));
+  let conceptNames: Record<string, string> = {};
+  if (conceptIds.length > 0) {
+    const supabase = await createClient();
+    const { data } = await supabase.from("course_concepts").select("id, canonical_name").in("id", conceptIds);
+    conceptNames = Object.fromEntries((data ?? []).map((row) => [row.id, row.canonical_name]));
+  }
+
   return {
     nearestExam,
     upcomingExams,
     dailySession,
+    conceptNames,
     hasCourses: courses.length > 0,
   };
 }

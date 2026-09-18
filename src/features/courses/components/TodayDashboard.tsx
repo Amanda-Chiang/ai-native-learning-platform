@@ -12,7 +12,7 @@ function urgencyColor(daysLeft: number) {
 }
 
 export function TodayDashboard({ overview }: { overview: TodayOverview }) {
-  const { nearestExam, upcomingExams, dailySession, hasCourses } = overview;
+  const { nearestExam, upcomingExams, dailySession, conceptNames, hasCourses } = overview;
 
   if (!hasCourses) {
     return (
@@ -71,12 +71,12 @@ export function TodayDashboard({ overview }: { overview: TodayOverview }) {
 
           {questionCount > 0 && (
             <div style={s.conceptsPreview}>
-              <div style={s.conceptsLabel}>In this session</div>
+              <div style={s.conceptsLabel}>Concepts covered</div>
               <ul style={s.conceptsList}>
                 {items.map((item) => (
                   <li key={item.conceptId} style={s.conceptItem}>
                     <span style={s.conceptDot} />
-                    <span style={s.conceptName}>{item.questionText}</span>
+                    <span style={s.conceptName}>{conceptNames[item.conceptId] ?? "Unknown concept"}</span>
                   </li>
                 ))}
               </ul>
