@@ -142,15 +142,6 @@ export function IconTutor() {
   );
 }
 
-export function IconStudy() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <rect x="1.5" y="2" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M5 6.5l2 2 3-3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 export function IconMaterial() {
   return (
     <svg width="15" height="15" viewBox="0 0 15 15" fill="none">

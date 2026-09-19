@@ -3,14 +3,18 @@
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { IconChevronRight, IconMaterial, IconAtlas, IconReview, IconTutor, IconStudy, IconExam } from "@/components/icons.tsx";
+import { IconChevronRight, IconMaterial, IconAtlas, IconReview, IconTutor, IconExam } from "@/components/icons.tsx";
 
+// No "Study" tab here by design -- /courses/[courseId]/study is a real
+// route (StudySession's UI), but it's reached only via the Review
+// page's "Start review" button, never as its own top-level nav entry.
+// Giving it a second, always-visible nav path duplicated the same
+// destination for no reason (found live, direct product request).
 const SUB_NAV = [
   { path: "", label: "Material", icon: <IconMaterial /> },
   { path: "atlas", label: "Atlas", icon: <IconAtlas /> },
   { path: "review", label: "Review", icon: <IconReview /> },
   { path: "tutor", label: "Tutor", icon: <IconTutor /> },
-  { path: "study", label: "Study", icon: <IconStudy /> },
   { path: "exam-plan", label: "Exam plan", icon: <IconExam /> },
 ];
 
