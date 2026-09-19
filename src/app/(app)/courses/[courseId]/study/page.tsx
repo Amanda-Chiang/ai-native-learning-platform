@@ -1,4 +1,4 @@
-import { getDailyReviewSession, getConnectSession, submitTextReviewAnswer, submitStructuredReviewAnswer, submitMultipleChoiceReviewAnswer } from "@/features/review-scheduler/actions.ts";
+import { getDailyReviewSession, submitTextReviewAnswer, submitStructuredReviewAnswer, submitMultipleChoiceReviewAnswer } from "@/features/review-scheduler/actions.ts";
 import { StudySession } from "@/features/review-scheduler/components/StudySession.tsx";
 
 export default async function CourseStudyPage({
@@ -8,16 +8,12 @@ export default async function CourseStudyPage({
 }) {
   const { courseId } = await params;
 
-  const [daily, connect] = await Promise.all([
-    getDailyReviewSession(courseId),
-    getConnectSession(courseId),
-  ]);
+  const daily = await getDailyReviewSession(courseId);
 
   return (
     <StudySession
       courseId={courseId}
       initialDaily={daily}
-      connect={connect}
       // Found live (same class of bug as atlas/page.tsx's
       // getEvidenceProvenance): a plain inline arrow closure has no
       // "use server" reference of its own, so React's RSC boundary

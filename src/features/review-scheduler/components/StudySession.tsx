@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { DailySessionResult, SessionItem } from "@/features/review-scheduler/daily-session.ts";
-import type { ConnectSessionResult } from "@/features/review-scheduler/connect-session.ts";
 import { StructuredAnswerForm } from "@/features/review-scheduler/components/StructuredAnswerForm.tsx";
 import { MultipleChoiceForm } from "@/features/review-scheduler/components/MultipleChoiceForm.tsx";
 import { IconCheck, IconArrow } from "@/components/icons.tsx";
@@ -23,17 +22,17 @@ function isPassedOutcome(result: SubmitResult["result"]): boolean {
 }
 
 /**
- * Daily + weekly Connect session UI (T009/T014). Text-modality items
- * are answerable via submitTextReviewAnswer; structured (graph/tree,
- * checkerDomain set) items are answerable via the generic
- * StructuredAnswerForm + submitStructuredReviewAnswer -- both route
- * through deterministic-grading's existing grading actions unchanged
- * (FR-010), no new grading path.
+ * Daily review session UI (T009). Text-modality items are answerable
+ * via submitTextReviewAnswer; structured (graph/tree, checkerDomain
+ * set) items are answerable via the generic StructuredAnswerForm +
+ * submitStructuredReviewAnswer -- both route through
+ * deterministic-grading's existing grading actions unchanged (FR-010),
+ * no new grading path. The weekly Connect session (T014) moved to the
+ * Review page (DueQueue.tsx) -- see that file's own comment.
  */
 export function StudySession({
   courseId,
   initialDaily,
-  connect,
   loadMore,
   submitTextAnswer,
   submitStructuredAnswer,
@@ -41,7 +40,6 @@ export function StudySession({
 }: {
   courseId: string;
   initialDaily: DailySessionResult;
-  connect: ConnectSessionResult;
   loadMore: (courseId: string, excludeConceptIds: string[]) => Promise<DailySessionResult>;
   submitTextAnswer: (input: { courseId: string; conceptId: string; rubric: Record<string, unknown>; response: string }) => Promise<SubmitResult>;
   submitStructuredAnswer: (input: { courseId: string; conceptId: string; checkerDomain: NonNullable<SessionItem["checkerDomain"]>; checkerInput: Record<string, unknown>; claimFields: Record<string, unknown> }) => Promise<SubmitResult>;
@@ -233,43 +231,7 @@ export function StudySession({
             </>
           )}
         </section>
-
-        <section style={s.section}>
-          <h2 style={s.sectionTitle}>Connect</h2>
-          <ConnectGroup label="New this week" items={connect.newConcepts.map((c) => c.conceptId)} />
-          <ConnectGroup
-            label="Still-weak connections to new material"
-            items={connect.weakConnections.map((c) => `${c.sourceConceptId} → ${c.targetConceptId}`)}
-          />
-          <ConnectGroup
-            label="Concepts worth connecting to the rest of the course"
-            items={connect.lowConnectivityConcepts.map((c) => c.conceptId)}
-          />
-          <ConnectGroup
-            label="Commonly confused pairs"
-            items={connect.confusedPairs.map((c) => `${c.conceptAId} vs ${c.conceptBId}`)}
-          />
-        </section>
       </div>
-    </div>
-  );
-}
-
-function ConnectGroup({ label, items }: { label: string; items: string[] }) {
-  return (
-    <div style={s.connectGroup}>
-      <span style={s.connectLabel}>{label}</span>
-      {items.length === 0 ? (
-        <p style={s.notice}>None this week.</p>
-      ) : (
-        <ul style={s.connectList}>
-          {items.map((item, i) => (
-            <li key={i} style={s.connectItem}>
-              {item}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
@@ -279,7 +241,6 @@ const s: Record<string, React.CSSProperties> = {
   inner: { width: "100%", maxWidth: 640, display: "flex", flexDirection: "column", gap: 40 },
   section: { display: "flex", flexDirection: "column", gap: 16 },
   pageTitle: { margin: 0, fontSize: 20, fontWeight: 500, letterSpacing: "-0.025em", color: "var(--text-primary)" },
-  sectionTitle: { margin: 0, fontSize: 18, fontWeight: 500, letterSpacing: "-0.02em", color: "var(--text-primary)" },
   progressBlock: { display: "flex", flexDirection: "column", gap: 8 },
   progressBar: { display: "flex", gap: 4 },
   progressSeg: { height: 3, flex: 1, borderRadius: 2 },
@@ -345,8 +306,4 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "var(--font-sans)",
     cursor: "pointer",
   },
-  connectGroup: { display: "flex", flexDirection: "column", gap: 6, marginTop: 4 },
-  connectLabel: { fontSize: 10.5, fontWeight: 500, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)" },
-  connectList: { margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 },
-  connectItem: { fontSize: 13.5, color: "var(--text-secondary)" },
 };
