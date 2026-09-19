@@ -1726,3 +1726,59 @@ Supabase project; the full visual regression suite (concept-atlas +
 review-queue, chromium and mobile) stayed green with no baseline
 changes needed -- the nav bar isn't in frame for any of those
 snapshots. Full 347-test unit suite and `tsc --noEmit` clean.
+
+## 2026-09-18 -- Moved the weekly Connect session off the Study page, onto Review, instead of deleting it
+
+Direct product complaint: the "Connect" block under Study's daily
+questions (four categories: new-this-week concepts, still-weak new-to-
+old edges, low-connectivity concepts, commonly-confused pairs) read as
+distracting noise mixed into the actual answering flow. Asked first
+whether to delete it outright, since its only caller anywhere was that
+one section -- `composeConnectSession`/`getConnectSession`
+(`connect-session.ts`) is a real, spec'd Phase 5 feature
+(`specs/009-review-scheduler`), not incidental scaffolding, so deleting
+it would have been a real feature removal, not a cleanup. User chose
+relocation instead: move it to the Review page
+(`DueQueue.tsx`/`/courses/[courseId]/review`), in the blank space beside
+the due-concepts list, with an explicit constraint that the due list and
+"Start review" button must not move.
+
+**Study side**: `StudySession.tsx` lost the `connect` prop, the
+`ConnectSessionResult` import, the whole `<section>`/`ConnectGroup`
+JSX, and every now-orphaned `connect*`/`sectionTitle` style (verified
+each was unused elsewhere in the file before deleting). `study/page.tsx`
+dropped its `getConnectSession` call and import.
+
+**Review side**: `review/page.tsx` now fetches `getConnectSession`
+alongside `getDueQueue` and passes it to `DueQueue`. The panel
+(`ConnectPanel`, moved into `DueQueue.tsx`) is deliberately NOT a flex
+sibling of `inner` -- it's `position: absolute` against `page` (now
+`position: relative`), anchored to `page`'s own top-right corner,
+specifically so adding it can never shift `inner`'s existing centered
+position regardless of the panel's own content length, per the explicit
+"existing UI elements should not move" constraint.
+
+**Real overlap bug found live while verifying, not shipped blind**:
+naive absolute positioning (top:36, right:40, width 280px, matching
+`--right-w`) overlaps `inner`'s own right edge at the *default Playwright
+desktop viewport* (1280px) -- worked back the arithmetic (`inner` centers
+in `page`'s content box, which is viewport width minus the 220px app
+sidebar minus 80px of page padding) to find the real crossover point,
+~1480px viewport width. Below that, the panel would sit on top of
+`inner`'s content and `intercept pointer events`, blocking the very
+"Start review" button it's supposed to sit beside -- caught by
+`basic-flows.spec.ts`'s own click failing with exactly that error before
+this was fixed, not discovered by inspection. Fixed with a real CSS
+media query (`@media (min-width: 1480px)`) via a scoped `<style>` tag
+and class name, not an inline `display` (inline styles always beat a
+stylesheet rule, so that would have silently defeated the query) --
+below the threshold the panel is `display: none` outright rather than
+shrunk/overlapping, since a would-be-visible-but-zero-width list of
+concept names has no readable state to shrink into.
+
+Verified live at both a real 1280px (panel hidden, "Start review"
+clickable, screenshot-checked) and 1800px (panel visible in the blank
+space, zero overlap with the due list or button, "Start review" still
+navigates to a working `/study`, screenshot-checked) viewport. Full
+347-test unit suite, `tsc --noEmit`, `basic-flows.spec.ts`, and the full
+visual regression suite (concept-atlas + review-queue) all clean.
