@@ -1692,3 +1692,37 @@ admin client, signed in through the real UI, and confirmed the
 question's literal text does not appear anywhere on Home while the
 concept's real canonical name does (screenshot-checked). Full
 347-test unit suite and `tsc --noEmit` clean.
+
+## 2026-09-18 -- Removed the redundant "Study" course-shell nav tab
+
+Direct product request: `/courses/[courseId]/study` (StudySession's UI)
+was reachable two ways -- its own always-visible "Study" tab in
+`course-shell.tsx`'s `SUB_NAV`, and the Review page's own "Start review"
+button (`DueQueue.tsx`, already linking to the same route). Two nav
+entries for one destination, with no difference in what either shows.
+
+Kept the actual route/page/component (`src/app/(app)/courses/[courseId]/study/page.tsx`,
+`StudySession.tsx`) untouched -- Review's "Start review" and Home's
+"Start daily review" (`TodayDashboard.tsx`) both still need a real page
+to land on, and neither of those is the duplicate; only the always-
+visible top nav tab was. Removed `SUB_NAV`'s `"study"` entry from
+`course-shell.tsx`, then swept for now-dead code that entry left
+behind: `IconStudy` (`src/components/icons.tsx`) had no other caller
+anywhere in the codebase, so removed outright rather than left as an
+unused export.
+
+`tests/e2e/basic-flows.spec.ts`'s feature-navigation test dropped
+"Study" from its list of course-shell nav links (it's genuinely no
+longer one) and gained a new regression test asserting both halves of
+the actual invariant: no "Study" link renders in the course shell's
+nav, and Review's "Start review" button still lands on a real,
+working `/study` page. That test needed its own seeded confirmed
+concept + question (via the admin client) -- `DueQueue.tsx`'s "Start
+review" button only renders once the queue is non-empty, so a freshly
+created, empty course never shows it.
+
+Verified live: both `basic-flows.spec.ts` tests pass against a real
+Supabase project; the full visual regression suite (concept-atlas +
+review-queue, chromium and mobile) stayed green with no baseline
+changes needed -- the nav bar isn't in frame for any of those
+snapshots. Full 347-test unit suite and `tsc --noEmit` clean.
