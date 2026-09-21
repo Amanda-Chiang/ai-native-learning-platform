@@ -82,25 +82,30 @@ const CONNECT_PANEL_MEDIA_QUERY = `
   }
 `;
 
-function ConnectPanel({ connect }: { connect: ConnectSessionResult }) {
+function ConnectPanel({ connect, conceptNames }: { connect: ConnectSessionResult; conceptNames: Record<string, string> }) {
+  // "Unknown concept" rather than the raw id when a name genuinely
+  // doesn't resolve (no-silent-placeholders) -- same fallback
+  // TodayDashboard's own conceptNames lookup already established.
+  const name = (conceptId: string) => conceptNames[conceptId] ?? "Unknown concept";
+
   return (
     <aside className="due-queue-connect-panel" style={s.connectPanel}>
       <style>{CONNECT_PANEL_MEDIA_QUERY}</style>
       <div style={s.connectPanelHeader}>
         <span style={s.connectPanelTitle}>Connect</span>
       </div>
-      <ConnectGroup label="New this week" items={connect.newConcepts.map((c) => c.conceptId)} />
+      <ConnectGroup label="New this week" items={connect.newConcepts.map((c) => name(c.conceptId))} />
       <ConnectGroup
         label="Still-weak connections to new material"
-        items={connect.weakConnections.map((c) => `${c.sourceConceptId} → ${c.targetConceptId}`)}
+        items={connect.weakConnections.map((c) => `${name(c.sourceConceptId)} → ${name(c.targetConceptId)}`)}
       />
       <ConnectGroup
         label="Concepts worth connecting to the rest of the course"
-        items={connect.lowConnectivityConcepts.map((c) => c.conceptId)}
+        items={connect.lowConnectivityConcepts.map((c) => name(c.conceptId))}
       />
       <ConnectGroup
         label="Commonly confused pairs"
-        items={connect.confusedPairs.map((c) => `${c.conceptAId} vs ${c.conceptBId}`)}
+        items={connect.confusedPairs.map((c) => `${name(c.conceptAId)} vs ${name(c.conceptBId)}`)}
       />
     </aside>
   );
@@ -110,10 +115,12 @@ export function DueQueue({
   courseId,
   items,
   connect,
+  conceptNames,
 }: {
   courseId: string;
   items: DueQueueItem[];
   connect: ConnectSessionResult;
+  conceptNames: Record<string, string>;
 }) {
   const dueNow = items.filter((i) => i.urgencyBucket === "overdue" || i.urgencyBucket === "today");
   const upcoming = items.filter((i) => i.urgencyBucket === "soon" || i.urgencyBucket === "upcoming");
@@ -125,7 +132,7 @@ export function DueQueue({
           <h1 style={s.title}>Review queue</h1>
           <p style={s.empty}>No concepts to review yet -- once your course material is extracted, they&apos;ll show up here.</p>
         </div>
-        <ConnectPanel connect={connect} />
+        <ConnectPanel connect={connect} conceptNames={conceptNames} />
       </div>
     );
   }
@@ -163,7 +170,7 @@ export function DueQueue({
           </div>
         )}
       </div>
-      <ConnectPanel connect={connect} />
+      <ConnectPanel connect={connect} conceptNames={conceptNames} />
     </div>
   );
 }
