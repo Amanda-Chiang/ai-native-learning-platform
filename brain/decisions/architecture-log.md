@@ -1782,3 +1782,36 @@ space, zero overlap with the due list or button, "Start review" still
 navigates to a working `/study`, screenshot-checked) viewport. Full
 347-test unit suite, `tsc --noEmit`, `basic-flows.spec.ts`, and the full
 visual regression suite (concept-atlas + review-queue) all clean.
+
+## 2026-09-20 -- Real bug found live: relocated Connect panel showed raw concept UUIDs, not names
+
+Direct report right after the move above: "Concepts worth connecting to
+the rest of the course" (and, by the same cause, all four Connect
+categories) rendered bare concept ids -- `connect-session.ts`'s
+`composeConnectSession` only ever dealt in ids by design (a pure
+function, unit-tested on ids, with no Supabase access), and nothing
+downstream had ever resolved them to `canonical_name` -- this was
+already true before the panel moved from Study to Review, just not
+reported until the move made it visible in a wider panel.
+
+Fixed the same way as Home's own leaked-question-text fix
+([[2026-09-17 entry]]): resolved names at the presentation edge, not by
+changing `ConnectSessionResult`'s shape (would have broken
+`connect-session.test.ts`'s own id-based assertions and coupled a pure,
+tested function to a live DB call). `review/page.tsx` gained
+`resolveConnectConceptNames`, collecting every concept id referenced
+across all four categories (`newConcepts`, both endpoints of
+`weakConnections`, `lowConnectivityConcepts`, both sides of
+`confusedPairs`) into one set, one batched `course_concepts` query, and
+passes the resulting `conceptId -> canonical_name` map to `DueQueue` as
+a new `conceptNames` prop. `ConnectPanel`/`ConnectGroup` render the
+resolved name (or "Unknown concept" -- no-silent-placeholders, same
+fallback `TodayDashboard` already uses) instead of the raw id.
+
+Verified live: seeded a real course with a well-connected concept, a
+genuinely isolated one (zero edges, average-based threshold correctly
+flagged it), and a third filler concept, confirmed each of "New this
+week" and "Concepts worth connecting to the rest of the course" render
+real names with zero raw UUIDs anywhere in the panel (screenshot-
+checked at 1800px). Full 347-test unit suite, `tsc --noEmit`, and the
+full visual + basic-flows e2e suite all clean.
