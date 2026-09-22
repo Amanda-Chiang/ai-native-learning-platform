@@ -19,11 +19,6 @@ async function resolveConnectConceptNames(courseId: string, connect: Awaited<Ret
     ids.add(c.sourceConceptId);
     ids.add(c.targetConceptId);
   }
-  for (const c of connect.lowConnectivityConcepts) ids.add(c.conceptId);
-  for (const c of connect.confusedPairs) {
-    ids.add(c.conceptAId);
-    ids.add(c.conceptBId);
-  }
 
   if (ids.size === 0) return {};
 

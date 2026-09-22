@@ -6,6 +6,15 @@
 
 **Status**: Draft
 
+**Addendum (2026-09-21):** the weekly Connect session's `lowConnectivityConcepts`
+and `confusedPairs` categories (SC-006, the Independent Test below) were
+removed post-launch, per direct product feedback that the panel showed
+more than a student needed -- `composeConnectSession` now returns only
+`newConcepts`/`weakConnections`. Rationale and what changed:
+`brain/decisions/architecture-log.md`'s 2026-09-21 entry. `data-model.md`
+amended in place to match -- check that file, not this prose, for the
+current `ConnectSessionResult` shape.
+
 **Input**: User description: "review-scheduler: Phase 5's adaptive review half (PRD section 18.1-18.2, roadmap row 5). Deterministic review-priority function combining forgetting_risk * course_importance * evidence_gap * prerequisite_centrality * upcoming_exam_weight * unresolved_confusion_weight; spaced review dates per concept; a daily review session generator bounded by a configurable time budget (default 5-10 min), pulling questions from assessment-generation-pipeline's question_bank; and a weekly \"Connect\" session prioritizing new concepts introduced this week, weak edges linking new to older material, low-connectivity \"knowledge islands\", and contrasts between commonly confused concepts. exam-planner (PRD 18.3, exam date/scope config, staged exam-plan generation, readiness dashboard) is a separate, later feature -- out of scope here, but review-scheduler's priority function and session-generation machinery are what it will build on."
 
 ## User Scenarios & Testing *(mandatory)*

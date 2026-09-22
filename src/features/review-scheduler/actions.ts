@@ -102,7 +102,7 @@ export async function getConnectSession(courseId: string): Promise<ConnectSessio
     supabase.from("course_concepts").select("id, created_at").eq("course_id", courseId).eq("status", "confirmed"),
     supabase
       .from("concept_edges")
-      .select("id, source_concept_id, target_concept_id, relation_type")
+      .select("id, source_concept_id, target_concept_id")
       .eq("course_id", courseId)
       .eq("status", "confirmed"),
   ]);
@@ -110,24 +110,13 @@ export async function getConnectSession(courseId: string): Promise<ConnectSessio
   const concepts = conceptsRes.data ?? [];
   const edges = edgesRes.data ?? [];
 
-  const edgeCountByConceptId = new Map<string, number>();
-  for (const edge of edges) {
-    edgeCountByConceptId.set(edge.source_concept_id, (edgeCountByConceptId.get(edge.source_concept_id) ?? 0) + 1);
-    edgeCountByConceptId.set(edge.target_concept_id, (edgeCountByConceptId.get(edge.target_concept_id) ?? 0) + 1);
-  }
-
-  const conceptInputs = concepts.map((c) => ({
-    conceptId: c.id,
-    createdAt: c.created_at,
-    edgeCount: edgeCountByConceptId.get(c.id) ?? 0,
-  }));
+  const conceptInputs = concepts.map((c) => ({ conceptId: c.id, createdAt: c.created_at }));
 
   const edgeInputs = await Promise.all(
     edges.map(async (edge) => ({
       edgeId: edge.id,
       sourceConceptId: edge.source_concept_id,
       targetConceptId: edge.target_concept_id,
-      relationType: edge.relation_type,
       learnerState: await getEdgeState(courseId, edge.id),
     })),
   );

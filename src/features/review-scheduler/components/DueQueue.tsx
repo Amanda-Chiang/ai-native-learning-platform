@@ -99,14 +99,6 @@ function ConnectPanel({ connect, conceptNames }: { connect: ConnectSessionResult
         label="Still-weak connections to new material"
         items={connect.weakConnections.map((c) => `${name(c.sourceConceptId)} → ${name(c.targetConceptId)}`)}
       />
-      <ConnectGroup
-        label="Concepts worth connecting to the rest of the course"
-        items={connect.lowConnectivityConcepts.map((c) => name(c.conceptId))}
-      />
-      <ConnectGroup
-        label="Commonly confused pairs"
-        items={connect.confusedPairs.map((c) => `${name(c.conceptAId)} vs ${name(c.conceptBId)}`)}
-      />
     </aside>
   );
 }

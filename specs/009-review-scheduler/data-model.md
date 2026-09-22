@@ -150,25 +150,25 @@ counts a skipped concept as reviewed.
 
 ## `connect-session.ts`
 
+**Amended 2026-09-21**: `lowConnectivityConcepts` and `confusedPairs`
+(and the now-unused `edgeCount`/`relationType` input fields they alone
+depended on) were removed -- see spec.md's 2026-09-21 addendum and
+`brain/decisions/architecture-log.md`. The shape below is current.
+
 ```ts
 export type NewConceptItem = { conceptId: string; introducedAt: string };
 export type WeakConnectionItem = { edgeId: string; sourceConceptId: string; targetConceptId: string };
-export type LowConnectivityItem = { conceptId: string; edgeCount: number; courseAverageEdgeCount: number };
-export type ConfusedPairItem = { edgeId: string; conceptAId: string; conceptBId: string };
 
 export type ConnectSessionResult = {
   newConcepts: NewConceptItem[];
   weakConnections: WeakConnectionItem[];
-  lowConnectivityConcepts: LowConnectivityItem[];
-  confusedPairs: ConfusedPairItem[];
 };
 
-export type ConnectSessionConceptInput = { conceptId: string; createdAt: string; edgeCount: number };
+export type ConnectSessionConceptInput = { conceptId: string; createdAt: string };
 export type ConnectSessionEdgeInput = {
   edgeId: string;
   sourceConceptId: string;
   targetConceptId: string;
-  relationType: RelationType; // course-graph-ingestion's existing type
   learnerState: LearnerEdgeState; // from getEdgeState, unchanged
 };
 
