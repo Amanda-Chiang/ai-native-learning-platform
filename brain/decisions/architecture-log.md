@@ -1815,3 +1815,43 @@ week" and "Concepts worth connecting to the rest of the course" render
 real names with zero raw UUIDs anywhere in the panel (screenshot-
 checked at 1800px). Full 347-test unit suite, `tsc --noEmit`, and the
 full visual + basic-flows e2e suite all clean.
+
+## 2026-09-21 -- Cut 2 of the Connect panel's 4 categories (lowConnectivityConcepts, confusedPairs) as real overwhelm, not scope creep
+
+Direct feedback right after the previous entry's name-resolution fix:
+even with real names, the panel still had more in it than a student
+needed. Talked through the trade-off before touching code (asked, not
+assumed) -- "concepts worth connecting" (`lowConnectivityConcepts`) is
+a purely structural signal (edge-count vs. course average) with no
+evidence or mastery behind it, so it can flag a concept as "isolated"
+just because that part of the graph is thin, not because it actually
+needs attention; "commonly confused pairs" is a real signal (driven by
+explicit `contrasts_with` edges) but rare enough in practice to mostly
+render as dead "None this week" weight. User chose to cut both rather
+than keep either.
+
+This is a real reduction in `specs/009-review-scheduler`'s SC-006 (four
+categories -> two), not a UI-only hide -- so removed the underlying
+computation too rather than leave it computed-but-unrendered dead code:
+`connect-session.ts` lost `LowConnectivityItem`/`ConfusedPairItem`,
+those two fields off `ConnectSessionResult`, and the now-unused
+`edgeCount`/`relationType` input fields (and `LOW_CONNECTIVITY_RATIO`)
+that existed only to feed them -- `composeConnectSession`'s remaining
+inputs are exactly what `newConcepts`/`weakConnections` need, nothing
+more. `getConnectSession` (`actions.ts`) dropped its now-pointless
+`edgeCountByConceptId` map and the `relation_type` column from its edge
+query. `DueQueue.tsx`'s `ConnectPanel` dropped both `<ConnectGroup>`
+calls; `review/page.tsx`'s `resolveConnectConceptNames` no longer
+collects ids from either removed category. `connect-session.test.ts`
+lost its two now-nonexistent-behavior test cases rather than leaving
+them asserting on removed fields. `specs/009-review-scheduler/spec.md`
+and `data-model.md` amended in place (addendum + inline note) --
+SC-006 and the `ConnectSessionResult` shape they document were
+genuinely out of date the moment this landed.
+
+Verified live: seeded a real course, confirmed the panel renders only
+"New this week" and "Still-weak connections to new material" with
+neither removed heading present anywhere (screenshot-checked at
+1800px). Full unit suite (345 -- down from 347, the two removed test
+cases, not a coverage loss), `tsc --noEmit`, and the full visual +
+basic-flows e2e suite all clean.
