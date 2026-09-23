@@ -45,9 +45,17 @@ export function ExamPlanner({
   submitTextAnswer: (input: { courseId: string; conceptId: string; rubric: Record<string, unknown>; response: string }) => Promise<SubmitResult>;
   submitStructuredAnswer: (input: { courseId: string; conceptId: string; checkerDomain: NonNullable<SessionItem["checkerDomain"]>; checkerInput: Record<string, unknown>; claimFields: Record<string, unknown> }) => Promise<SubmitResult>;
 }) {
-  const [config, setConfig] = useState(initialConfig);
-  const [plan, setPlan] = useState(initialPlan);
-  const [readiness, setReadiness] = useState(initialReadiness);
+  // Not useState: nothing in this component ever updates config/plan/
+  // readiness in place -- handleConfigure below refetches via a full
+  // window.location.reload() instead (server-rendered props are the
+  // only source of truth for these three), and answering a staged-plan
+  // question only ever updates local `results`. Wrapping unmutated
+  // props in useState implied a live-update path that was never built;
+  // real bug found via a TS6133 unused-setter sweep (2026-09-23,
+  // brain/decisions/architecture-log.md).
+  const config = initialConfig;
+  const plan = initialPlan;
+  const readiness = initialReadiness;
   const [configError, setConfigError] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, SubmitResult>>({});
 

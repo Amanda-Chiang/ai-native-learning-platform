@@ -65,7 +65,7 @@ export function QuestionCanvas({
   layout: GraphLayout | TreeLayout;
   conceptIds: string[];
   edgeIds: string[];
-  submitDrawing: (courseId: string, questionBankEntryId: string, imageDataUrl: string) => Promise<SubmitDrawingResult>;
+  submitDrawing: (questionBankEntryId: string, imageDataUrl: string) => Promise<SubmitDrawingResult>;
   submitConfirmedVisualResponse: (input: SubmitConfirmedVisualResponseInput) => Promise<{ result: unknown; error: string | null }>;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -115,7 +115,7 @@ export function QuestionCanvas({
     setPending(true);
     setError(null);
     const imageDataUrl = canvas.toDataURL("image/png");
-    const outcome = await submitDrawing(courseId, questionBankEntryId, imageDataUrl);
+    const outcome = await submitDrawing(questionBankEntryId, imageDataUrl);
     setPending(false);
     if (outcome.error || !outcome.claimFields || outcome.confidence === null) {
       setError(outcome.error ?? "Could not read this drawing.");

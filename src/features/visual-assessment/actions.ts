@@ -29,7 +29,6 @@ export type SubmitDrawingResult = {
  * alone (research.md "Confirmation is enforced structurally").
  */
 export async function submitDrawing(
-  courseId: string,
   questionBankEntryId: string,
   imageDataUrl: string,
 ): Promise<SubmitDrawingResult> {
