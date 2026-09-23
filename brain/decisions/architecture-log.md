@@ -1855,3 +1855,58 @@ neither removed heading present anywhere (screenshot-checked at
 1800px). Full unit suite (345 -- down from 347, the two removed test
 cases, not a coverage loss), `tsc --noEmit`, and the full visual +
 basic-flows e2e suite all clean.
+
+## 2026-09-23 -- Unused-variable sweep found 2 real bugs, not just dead code
+
+Ran a real `tsc --noEmit --noUnusedLocals --noUnusedParameters` pass
+project-wide (not enabled in `tsconfig.json` day to day) to close out
+the prior session's "trace these features for dead code" request. 4
+hits, none in review-scheduler/courses (already clean from that pass) --
+all 4 in `exam-planner`/`visual-assessment`, unrelated pre-existing
+code. Investigated each rather than deleting on sight, since an unused
+variable is sometimes a symptom of a missing branch, not just leftover
+weight -- 2 of the 4 were exactly that:
+
+- **`TREE_DOMAINS` (visual-assessment's `[questionId]/page.tsx`)**: real
+  bug. The layout choice was a bare `GRAPH_DOMAINS.includes(domain) ?
+  layoutGraph(...) : layoutTree(...)` -- an implicit "not graph = must
+  be tree" assumption. `CheckerDomain` has 6 values; `GRAPH_DOMAINS` (3)
+  + `TREE_DOMAINS` (2) = 5, leaving `"heap"` covered by neither. A
+  heap-domain question reaching this route would have silently fallen
+  into `layoutTree(problemSetup.tree)` with `problemSetup.tree`
+  undefined, instead of the page's own "only supports graph/tree"
+  message. Fixed by checking membership in either list explicitly and
+  showing that message for anything in neither -- `TREE_DOMAINS` is
+  used in earnest now, not just retyped to silence the compiler.
+- **`submitDrawing`'s unused `courseId` param (`visual-assessment/actions.ts`)**:
+  investigated but NOT "fixed" with new scoping logic -- its sibling
+  `submitConfirmedVisualResponse` also never verifies the fetched
+  `question_bank` row's `course_id` matches the caller-supplied one
+  (RLS/ownership is this codebase's actual authorization boundary here,
+  same convention `courses/actions.ts` documents elsewhere). Adding a
+  course-scope check to only one of the two functions would be an
+  inconsistent partial fix to a real but separate, judgment-call
+  question (cross-course integrity vs. RLS-is-sufficient) -- flagged to
+  the user rather than silently deciding it. Removed the genuinely-dead
+  parameter instead (updated `QuestionCanvas.tsx`'s prop type and call
+  site to match); `courseId` remains a real, used prop on `QuestionCanvas`
+  itself for the confirm step, which does need it.
+
+The other 2 hits (`exam-planner`'s `ExamPlanner.tsx`, `setConfig`/
+`setPlan`/`setReadiness`) were genuine dead weight, not bugs: nothing in
+the component ever calls them -- `handleConfigure` refetches via a full
+`window.location.reload()` instead of updating state in place, and
+answering a staged-plan question only ever touches local `results`, never
+`plan`/`readiness`. Wrapping props that are never locally mutated in
+`useState` implied a live-update path that was never built. Replaced
+`useState(initialX)` with plain `const x = initialX` for all three --
+same rendered output, no live-update behavior removed because none
+existed.
+
+Verified live: reproduced the exam-planner render (unconfigured state,
+then a real seeded `exam_configs` row exercising the readiness gauge +
+staged plan, zero `pageerror` events, screenshot-checked) against a real
+Supabase project. `tsc --noEmit --noUnusedLocals --noUnusedParameters`
+now reports zero hits project-wide. Full 345-test unit suite,
+`tsc --noEmit`, and the full visual + basic-flows e2e suite (chromium +
+mobile) all clean.
