@@ -1910,3 +1910,87 @@ Supabase project. `tsc --noEmit --noUnusedLocals --noUnusedParameters`
 now reports zero hits project-wide. Full 345-test unit suite,
 `tsc --noEmit`, and the full visual + basic-flows e2e suite (chromium +
 mobile) all clean.
+
+## 2026-09-26 -- Exam planner now supports multiple exams per course
+
+A student could only ever configure one exam per course --
+`configureExam` looked up an existing `exam_configs` row by
+`(user_id, course_id)` and updated it in place, silently overwriting
+any prior exam's date/scope. The `exam_configs` table itself never had
+a unique constraint forcing this -- it was purely an application-logic
+assumption, repeated across `configureExam`, `getExamConfig`,
+`getExamPlan`, and `getExamReadiness` (all `.maybeSingle()`'d by
+`course_id` alone). No migration was needed to lift it.
+
+Brainstormed interactively before touching code (design:
+`docs/superpowers/specs/2026-09-26-multiple-exams-per-course-design.md`):
+no name/label field (exams are distinguished by date only), a dropdown
+selector on the Exam Plan page rather than a new route, past exams stay
+selectable rather than disappearing, and -- a second real gap found
+while investigating, fixed in the same pass -- the UI never exposed a
+way to edit or delete an already-configured exam at all (the form just
+disappeared once one existed), even though the server action's own
+update path existed unreachably.
+
+`getExamPlan`/`getExamReadiness` now key off `examConfigId` instead of
+`courseId`, deriving `courseId` from the fetched row itself rather than
+trusting a second, separately-passed copy of it -- closes a latent gap
+where the two could disagree, the same "derive the trusted value from
+the row you already fetched" pattern `extract-course-graph.ts`'s
+`target_unit_id` handling already established elsewhere in this
+codebase. A new pure `pickDefaultExamConfig` (nearest upcoming, else
+most recent past, else null) picks which exam the page shows with no
+`?exam=` query param -- Today's "Upcoming" sidebar now links with that
+param so a specific exam card deep-links to itself rather than
+whichever exam the page's own default happens to land on.
+
+Today's dashboard aggregation changed from "one exam per course" to
+"every exam across every course competes for the nearest-exam banner
+and the Upcoming top-3" -- a course with two near-term exams can now
+occupy two Today slots. `NearestExam` gained an `examConfigId` field;
+`TodayDashboard.tsx`'s Upcoming list now keys on it instead of
+`courseId` (a real key-collision bug this change would otherwise have
+introduced, since two exams from the same course used to be impossible
+and are now a real case).
+
+A real, pre-existing accessibility bug surfaced during this task's live
+verification, unrelated to the multi-exam mechanics themselves but
+newly consequential because of them: `ConceptScopeSelect`'s trigger
+`<button>` is wrapped in a `<label>` (`ExamPlanner.tsx`'s "Scope
+concepts" field), and per the ARIA accname computation order (a host-
+language `<label>` outranks an interactive element's own text content
+for elements that don't set `aria-label`/`aria-labelledby`), the
+button's accessible name was permanently the label's static text,
+"Scope concepts" -- never its real, dynamic state ("Select concepts…"
+or "N concepts selected"). This was invisible with only one exam ever
+configurable, but this task's very requirement that two exams show
+distinguishably different scope exposed it: a sighted user sees the
+difference; a screen-reader user, driving by accessible name the way
+this task's own Playwright verification script initially did via
+`getByRole("button", { name: ... })`, could not -- every exam's scope
+control announced identically regardless of what was actually selected.
+Fixed by adding an explicit `aria-label={summary}` to the trigger
+(`aria-label` outranks the wrapping `<label>` in accname precedence),
+restoring a name that reflects real selection state without touching
+the `<label>` wrapping itself (which harmlessly also makes the field
+label text a bigger click target).
+
+Verified live end to end in one real signed-in browser session against
+a real Supabase project (seeded via the admin client, Playwright-driven
+UI, same pattern `tests/e2e/basic-flows.spec.ts` established): with
+exactly one exam configured the dropdown still renders (not just the
+create form); adding a second exam via "+ Add exam" shows both dates in
+the dropdown, sorted by date; switching between them triggers no page
+reload and each shows its own distinct staged plan/readiness with its
+own pre-filled Edit form (real date, real scoped concept, never the
+other exam's); editing one exam's date persists after reload and
+leaves the other exam completely untouched; deleting one exam removes
+only that one, with a real `window.confirm` gate; and two exams across
+two different courses both surface in Today's "Upcoming" sidebar, each
+`?exam=<id>` deep link opening the Exam Plan page on that exact exam
+rather than whichever one the page's own default pick would have
+chosen. Full 350-test unit suite (up from 345 pre-plan, covering
+Task 4's `pickDefaultExamConfig`/`pickNearestExam` additions), `tsc
+--noEmit`, and the full visual + basic-flows e2e suite (chromium +
+mobile, 19 passed / 3 skipped, unchanged from before this plan) all
+clean.
