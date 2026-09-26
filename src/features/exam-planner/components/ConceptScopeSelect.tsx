@@ -13,9 +13,17 @@ import { IconChevronRight } from "@/components/icons.tsx";
  * FormData.getAll still collects it -- no separate client-side wiring
  * needed to get the values to the submit handler.
  */
-export function ConceptScopeSelect({ name, concepts }: { name: string; concepts: ScopeableConcept[] }) {
+export function ConceptScopeSelect({
+  name,
+  concepts,
+  initialSelectedIds = [],
+}: {
+  name: string;
+  concepts: ScopeableConcept[];
+  initialSelectedIds?: string[];
+}) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set(initialSelectedIds));
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
