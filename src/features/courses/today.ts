@@ -30,12 +30,14 @@ export type TodayOverview = {
 
 /**
  * Aggregates across every course the signed-in user has, since no
- * single course-scoped action does this today (getExamConfig/
- * getDailyReviewSession both take one courseId at a time). Picks the
- * course with the nearest *future* exam date via pickNearestExam
- * (today-selection.ts, unit-tested there) -- a course with a past exam
- * date is not "nearest", it's over. Returns null (not a fabricated
- * default) when no course has any exam configured.
+ * single course-scoped action does this today (listExamConfigs/
+ * getDailyReviewSession both take one courseId at a time). Flattens
+ * every configured exam of every course into one pool and picks the
+ * one with the nearest *future* exam date via pickNearestExam
+ * (today-selection.ts, unit-tested there) -- a course can contribute
+ * more than one exam, and an exam whose date has passed is not
+ * "nearest", it's over. Returns null (not a fabricated default) when
+ * no course has any exam configured.
  */
 export async function getTodayOverview(): Promise<TodayOverview> {
   const now = new Date();

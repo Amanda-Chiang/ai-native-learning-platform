@@ -180,6 +180,15 @@ here rather than left as a second inconsistency.
   new pure functions are introduced by this design, so no new unit
   tests are anticipated beyond updating any existing test that directly
   exercises `getExamConfig`'s removed signature.
+  - **Revised during implementation:** one new pure function *was*
+    introduced — `pickDefaultExamConfig` (`default-exam-selection.ts`,
+    4 unit tests). Once the page has to choose which of N exams to show
+    when no `?exam=` is given, that choice is real pick-logic with edge
+    cases (all exams past, an exam dated exactly `now`, empty list)
+    that belong in a
+    deterministic, unit-tested pure function rather than inline in an
+    async server component — the same reasoning that already put
+    `pickNearestExam` in `today-selection.ts` for the same kind of pick.
 - Live verification (per this project's standing rule for a real
   Supabase-backed change): configure two real exams for one course,
   confirm both appear in the dropdown, confirm switching between them

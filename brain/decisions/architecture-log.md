@@ -1994,3 +1994,53 @@ Task 4's `pickDefaultExamConfig`/`pickNearestExam` additions), `tsc
 --noEmit`, and the full visual + basic-flows e2e suite (chromium +
 mobile, 19 passed / 3 skipped, unchanged from before this plan) all
 clean.
+
+## 2026-09-26 -- The URL's `?exam=` is the single source of truth for which exam the Exam Plan page shows
+
+A whole-branch review of the multiple-exams work found the selection
+model was split in two: the page resolved which exam to show from
+`?exam=` (falling back to `pickDefaultExamConfig`), while the dropdown
+switched exams in React state only. Every mutation handler finishes
+with a full page reload, so the two halves disagreed the moment a
+student switched exams -- the reload re-resolved from the *unchanged*
+URL and landed on the default pick, not the exam they were looking at
+or had just created.
+
+Decision: make the URL the one authoritative place that selection
+lives. `handleSelectExam` now `history.replaceState`s `?exam=<id>`
+alongside its state update (replace, not push, so the dropdown doesn't
+fill the Back button), `handleAdd` navigates to the *newly created*
+exam's id, `handleEdit` re-navigates to the edited exam's own id, and
+`handleDelete` strips the param so the default-pick logic runs fresh
+instead of re-resolving a now-deleted row.
+
+`handleEdit` is the non-obvious one: the review suggested a bare reload
+would do, since the URL should already carry the right id. It doesn't
+always -- an exam that was the page's own *default* pick never went
+through `handleSelectExam`, so the URL can have no param at all; and
+because an edit can change the exam's *date*, the default pick after
+reload can legitimately be a different exam than the one just edited.
+Being explicit costs nothing and removes the whole class.
+
+Two related fixes in the same pass. `handleSelectExam`'s await now has
+`try`/`catch`/`finally`, so a failed load always resets `switching`
+(previously the `<select>` latched `disabled` forever) and shows a real
+error instead of leaving the previous exam's plan on screen looking
+current -- a stale plan with no indication it's stale is exactly the
+plausible-looking stand-in this project's no-silent-placeholders rule
+forbids. And `loadExamPlanAndReadiness` (the inline server action the
+dropdown calls) now validates its `examConfigId` against
+`listExamConfigs(courseId)` the same way the page's own `?exam=` path
+already did -- RLS already prevented any cross-*user* leak, but without
+this a student could pull another of their own courses' exam plans
+through this course's page; an unowned id now returns the same honest
+`no_exam_configured` shape a genuinely missing exam does.
+
+Verified live with a throwaway admin-seeded Playwright script (deleted
+after use) against a real Supabase project, run as a proper negative
+control: all three checks -- add-lands-on-the-new-exam,
+switch-then-real-`page.reload()`-still-shows-the-switched-exam, and
+delete-the-selected-exam-reloads-onto-the-other-one -- fail against the
+pre-fix component and pass after. The `switching`-latch fix was
+exercised by aborting the server action's POST for real via
+`page.route`.
