@@ -71,10 +71,27 @@ export function ExamPlanner({
     setMode("view");
     setConfigError(null);
     setSwitching(true);
-    const outcome = await loadExamPlanAndReadiness(examConfigId);
-    setPlan(outcome.plan);
-    setReadiness(outcome.readiness);
-    setSwitching(false);
+    // Keep the URL in sync with the in-memory selection. Every mutation
+    // handler below finishes with a full navigation/reload, and the page
+    // re-resolves its selection from `?exam=` -- without this, switching
+    // the dropdown and then editing/deleting would reload into whatever
+    // the URL still said (often the default pick), not the exam the
+    // student was actually looking at. replaceState (not pushState) so
+    // the dropdown doesn't accumulate Back-button history entries.
+    window.history.replaceState(null, "", `${window.location.pathname}?exam=${examConfigId}`);
+    try {
+      const outcome = await loadExamPlanAndReadiness(examConfigId);
+      setPlan(outcome.plan);
+      setReadiness(outcome.readiness);
+    } catch {
+      // Never leave the previous exam's plan on screen with no
+      // indication it's stale -- an unlabelled stale plan is exactly the
+      // "plausible-looking stand-in for a value that couldn't be
+      // computed" this project forbids.
+      setConfigError("Could not load that exam's plan. Try again.");
+    } finally {
+      setSwitching(false);
+    }
   }
 
   async function handleAdd(formData: FormData) {
@@ -89,8 +106,18 @@ export function ExamPlanner({
       setConfigError(outcome.error);
       return;
     }
+    if (!outcome.examConfigId) {
+      // Saved, but we can't select it -- say so instead of reloading into
+      // some other exam and letting it look like nothing happened.
+      setConfigError("The exam was saved but the server didn't return its id, so it can't be selected automatically. Reload the page to see it.");
+      return;
+    }
     setConfigError(null);
-    window.location.reload();
+    // Land on the exam that was just created, not on whatever the URL
+    // happened to say (a bare reload would re-run the default pick or
+    // re-resolve a stale `?exam=`, so a brand-new exam would silently
+    // not be the one shown).
+    window.location.href = `${window.location.pathname}?exam=${outcome.examConfigId}`;
   }
 
   async function handleEdit(formData: FormData) {
@@ -111,7 +138,14 @@ export function ExamPlanner({
       return;
     }
     setConfigError(null);
-    window.location.reload();
+    // Explicitly re-select the edited exam rather than a bare reload.
+    // The URL usually already carries this id (handleSelectExam syncs
+    // it), but not always: an exam that was the page's own DEFAULT pick
+    // never went through handleSelectExam, so the URL may have no
+    // `?exam=` at all -- and since an edit can change the exam *date*,
+    // the default pick after reload may well be a different exam than
+    // the one just edited.
+    window.location.href = `${window.location.pathname}?exam=${selectedConfig.id}`;
   }
 
   async function handleDelete() {
@@ -125,7 +159,10 @@ export function ExamPlanner({
       setConfigError(outcome.error);
       return;
     }
-    window.location.reload();
+    // Strip `?exam=` -- it now points at a deleted row. Dropping it lets
+    // the page's default-pick logic run fresh instead of re-resolving a
+    // dangling id.
+    window.location.href = window.location.pathname;
   }
 
   async function handleAnswer(item: SessionItem, response: string) {
@@ -400,7 +437,6 @@ const s: Record<string, React.CSSProperties> = {
   section: { display: "flex", flexDirection: "column", gap: 12 },
   pageTitle: { margin: 0, fontSize: 20, fontWeight: 500, letterSpacing: "-0.025em", color: "var(--text-primary)" },
   sectionLabel: { fontSize: 10.5, fontWeight: 500, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)" },
-  configuredNote: { margin: 0, fontSize: 13.5, color: "var(--text-secondary)" },
   configRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
   select: {
     padding: "8px 10px",

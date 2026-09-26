@@ -56,6 +56,17 @@ export default async function CourseExamPlanPage({
       deleteExamConfig={deleteExamConfig}
       loadExamPlanAndReadiness={async (examConfigId: string) => {
         "use server";
+        // Same validation the `?exam=` path above does: this action is
+        // callable with any id, so confirm the requested exam really
+        // belongs to THIS course before serving its plan. RLS already
+        // bounds it to the caller's own rows, but without this a student
+        // could pull another of their own courses' exam plans through
+        // this course's page. Re-fetched (not closed over the render-time
+        // list) so an exam added since this render is still switchable.
+        const ownConfigs = await listExamConfigs(courseId);
+        if (!ownConfigs.some((c) => c.id === examConfigId)) {
+          return { plan: { error: "no_exam_configured" as const }, readiness: { error: "no_exam_configured" as const } };
+        }
         const [plan, readiness] = await Promise.all([getExamPlan(examConfigId), getExamReadiness(examConfigId)]);
         return { plan, readiness };
       }}
