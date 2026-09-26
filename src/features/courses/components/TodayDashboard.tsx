@@ -108,7 +108,11 @@ export function TodayDashboard({ overview }: { overview: TodayOverview }) {
         </div>
         <div style={s.examList}>
           {upcomingExams.map((exam) => (
-            <Link key={exam.courseId} href={`/courses/${exam.courseId}/exam-plan`} style={s.examCardLink}>
+            <Link
+              key={exam.examConfigId}
+              href={`/courses/${exam.courseId}/exam-plan?exam=${exam.examConfigId}`}
+              style={s.examCardLink}
+            >
               <div
                 style={{
                   ...s.examCard,
