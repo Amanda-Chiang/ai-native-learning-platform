@@ -250,14 +250,15 @@ export type GetExamPlanResult = StagedExamPlan | { error: "no_exam_configured" |
  * evidence/course/question_bank state on every call, never a cached or
  * stored plan.
  */
-export async function getExamPlan(courseId: string): Promise<GetExamPlanResult> {
+export async function getExamPlan(examConfigId: string): Promise<GetExamPlanResult> {
   const supabase = await createClient();
   const now = new Date();
 
-  const { data: config } = await supabase.from("exam_configs").select("*").eq("course_id", courseId).maybeSingle();
+  const { data: config } = await supabase.from("exam_configs").select("*").eq("id", examConfigId).maybeSingle();
   if (!config) {
     return { error: "no_exam_configured" };
   }
+  const courseId = config.course_id;
 
   const examDate = new Date(config.exam_date);
   if (examDate.getTime() <= now.getTime()) {
@@ -366,13 +367,14 @@ export async function getExamPlan(courseId: string): Promise<GetExamPlanResult> 
 export type GetExamReadinessResult = ReadinessSnapshot | { error: "no_exam_configured" };
 
 /** Always fresh (FR-009), same as getExamPlan. */
-export async function getExamReadiness(courseId: string): Promise<GetExamReadinessResult> {
+export async function getExamReadiness(examConfigId: string): Promise<GetExamReadinessResult> {
   const supabase = await createClient();
 
-  const { data: config } = await supabase.from("exam_configs").select("*").eq("course_id", courseId).maybeSingle();
+  const { data: config } = await supabase.from("exam_configs").select("*").eq("id", examConfigId).maybeSingle();
   if (!config) {
     return { error: "no_exam_configured" };
   }
+  const courseId = config.course_id;
 
   const scopedConceptIds = await resolveScopedConceptIds(supabase, courseId, config);
   const scopedConcepts = await Promise.all(
