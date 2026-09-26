@@ -51,7 +51,22 @@ export function ConceptScopeSelect({
 
   return (
     <div ref={rootRef} style={s.root}>
-      <button type="button" onClick={() => setOpen((v) => !v)} style={s.trigger} disabled={concepts.length === 0}>
+      {/* aria-label wins over the enclosing <label>'s own text in accname
+          computation (aria-label outranks host-language <label>
+          wrapping) -- without it, this button's accessible name is
+          permanently the static field label ("Scope concepts") instead
+          of its real, dynamic state ("Select concepts…" / "N concepts
+          selected"), found live while verifying that two exams show
+          distinguishably different scope: visually true, but invisible
+          to a screen reader, which would hear the same name for every
+          exam regardless of what's actually selected. */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={s.trigger}
+        disabled={concepts.length === 0}
+        aria-label={summary}
+      >
         <span style={selected.size === 0 ? s.triggerPlaceholder : s.triggerText}>{summary}</span>
         <span style={{ ...s.chevron, transform: open ? "rotate(90deg)" : "rotate(0deg)" }}>
           <IconChevronRight />
