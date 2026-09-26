@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server.ts";
 import { listCourses } from "@/features/courses/actions.ts";
-import { getExamConfig } from "@/features/exam-planner/actions.ts";
+import { listExamConfigs } from "@/features/exam-planner/actions.ts";
 import { getDailyReviewSession } from "@/features/review-scheduler/actions.ts";
 import type { DailySessionResult } from "@/features/review-scheduler/daily-session.ts";
 import { daysUntil, pickNearestExam, type NearestExam } from "@/features/courses/today-selection.ts";
@@ -41,15 +41,23 @@ export async function getTodayOverview(): Promise<TodayOverview> {
   const now = new Date();
   const courses = await listCourses();
 
+  // Every exam competes for the nearest-exam banner and the Upcoming
+  // sidebar now, not just one per course (2026-09-26 design) -- a
+  // course with two near-term exams can occupy two Today slots.
   const configuredExams = (
     await Promise.all(
       courses.map(async (course) => {
-        const { config } = await getExamConfig(course.id);
-        if (!config) return null;
-        return { courseId: course.id, courseName: course.name, examDate: config.examDate, daysLeft: daysUntil(config.examDate, now) };
+        const configs = await listExamConfigs(course.id);
+        return configs.map((config) => ({
+          courseId: course.id,
+          courseName: course.name,
+          examConfigId: config.id,
+          examDate: config.examDate,
+          daysLeft: daysUntil(config.examDate, now),
+        }));
       }),
     )
-  ).filter((exam): exam is NearestExam => exam !== null);
+  ).flat();
 
   const nearestExam = pickNearestExam(configuredExams);
   const upcomingExams = configuredExams.filter((e) => e.daysLeft >= 0).sort((a, b) => a.daysLeft - b.daysLeft).slice(0, 3);

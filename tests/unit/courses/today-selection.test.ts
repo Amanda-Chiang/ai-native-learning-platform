@@ -14,9 +14,9 @@ test("daysUntil is negative for a date already in the past", () => {
 
 test("pickNearestExam picks the smallest non-negative daysLeft, ignoring past exams", () => {
   const result = pickNearestExam([
-    { courseId: "past", courseName: "Past Course", examDate: "2026-08-01", daysLeft: -30 },
-    { courseId: "far", courseName: "Far Course", examDate: "2026-10-01", daysLeft: 26 },
-    { courseId: "near", courseName: "Near Course", examDate: "2026-09-09", daysLeft: 4 },
+    { courseId: "past", courseName: "Past Course", examConfigId: "exam-past", examDate: "2026-08-01", daysLeft: -30 },
+    { courseId: "far", courseName: "Far Course", examConfigId: "exam-far", examDate: "2026-10-01", daysLeft: 26 },
+    { courseId: "near", courseName: "Near Course", examConfigId: "exam-near", examDate: "2026-09-09", daysLeft: 4 },
   ]);
   assert.equal(result?.courseId, "near");
 });
@@ -24,7 +24,17 @@ test("pickNearestExam picks the smallest non-negative daysLeft, ignoring past ex
 test("pickNearestExam returns null when every exam is in the past or none exist", () => {
   assert.equal(pickNearestExam([]), null);
   assert.equal(
-    pickNearestExam([{ courseId: "past", courseName: "Past Course", examDate: "2026-08-01", daysLeft: -1 }]),
+    pickNearestExam([
+      { courseId: "past", courseName: "Past Course", examConfigId: "exam-past", examDate: "2026-08-01", daysLeft: -1 },
+    ]),
     null,
   );
+});
+
+test("pickNearestExam picks the nearer of two exams from the SAME course (multiple exams per course)", () => {
+  const result = pickNearestExam([
+    { courseId: "course-1", courseName: "Course One", examConfigId: "exam-a", examDate: "2026-12-01", daysLeft: 87 },
+    { courseId: "course-1", courseName: "Course One", examConfigId: "exam-b", examDate: "2026-09-09", daysLeft: 4 },
+  ]);
+  assert.equal(result?.examConfigId, "exam-b");
 });

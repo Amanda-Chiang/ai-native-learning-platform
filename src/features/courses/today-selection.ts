@@ -1,6 +1,7 @@
 export type NearestExam = {
   courseId: string;
   courseName: string;
+  examConfigId: string;
   examDate: string;
   daysLeft: number;
 };
