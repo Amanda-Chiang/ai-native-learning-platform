@@ -101,6 +101,78 @@ export async function listExamConfigs(courseId: string): Promise<ExamConfigView[
   return (data ?? []).map(rowToView);
 }
 
+/**
+ * Updates one specific exam by id -- unlike configureExam (always
+ * inserts), this targets an already-existing row. Fetches the row's
+ * own course_id first rather than trusting a separately-passed one
+ * (there isn't one here at all -- the id is the only input, so the
+ * scope-validity check below is always run against the row's real
+ * course). RLS (exam_configs_update_own, user_id = auth.uid()) is the
+ * authorization boundary, same as every other student-owned-row action
+ * in this codebase.
+ */
+export async function updateExamConfig(
+  examConfigId: string,
+  examDate: string,
+  scopeConceptIds: string[],
+  scopeUnitIds: string[],
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("exam_configs")
+    .select("course_id")
+    .eq("id", examConfigId)
+    .maybeSingle();
+  if (fetchError || !existing) {
+    return { error: `No exam found with id "${examConfigId}".` };
+  }
+
+  const { unresolved } = await resolveScopeExists(supabase, existing.course_id, scopeConceptIds, scopeUnitIds);
+  if (unresolved.length > 0) {
+    return {
+      error: `Exam scope references concepts/units that aren't real, confirmed rows in this course: ${unresolved.join(", ")}.`,
+    };
+  }
+
+  const { error } = await supabase
+    .from("exam_configs")
+    .update({
+      exam_date: examDate,
+      scope_concept_ids: scopeConceptIds,
+      scope_unit_ids: scopeUnitIds,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", examConfigId);
+
+  return { error: error?.message ?? null };
+}
+
+/**
+ * Deletes one exam by id. Fetches first and reports an honest "not
+ * found" rather than silently succeeding on a delete that matched zero
+ * rows (a wrong or already-deleted id) -- same "confirm the row is
+ * really there before acting" discipline confirmCandidate/
+ * rejectCandidate use elsewhere in this codebase. RLS
+ * (exam_configs_delete_own) still bounds this to the caller's own rows
+ * regardless.
+ */
+export async function deleteExamConfig(examConfigId: string): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("exam_configs")
+    .select("id")
+    .eq("id", examConfigId)
+    .maybeSingle();
+  if (fetchError || !existing) {
+    return { error: `No exam found with id "${examConfigId}".` };
+  }
+
+  const { error } = await supabase.from("exam_configs").delete().eq("id", examConfigId);
+  return { error: error?.message ?? null };
+}
+
 async function resolveScopeExists(
   supabase: Awaited<ReturnType<typeof createClient>>,
   courseId: string,
