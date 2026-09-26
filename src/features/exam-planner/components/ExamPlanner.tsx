@@ -28,38 +28,56 @@ function isPassedOutcome(result: SubmitResult["result"]): boolean {
  */
 export function ExamPlanner({
   courseId,
-  initialConfig,
+  examConfigs,
+  selectedExamConfigId,
   initialPlan,
   initialReadiness,
   scopeableConcepts,
   configureExam,
+  updateExamConfig,
+  deleteExamConfig,
+  loadExamPlanAndReadiness,
   submitTextAnswer,
   submitStructuredAnswer,
 }: {
   courseId: string;
-  initialConfig: ExamConfigView | null;
+  examConfigs: ExamConfigView[];
+  selectedExamConfigId: string | null;
   initialPlan: GetExamPlanResult | null;
   initialReadiness: GetExamReadinessResult | null;
   scopeableConcepts: ScopeableConcept[];
   configureExam: (courseId: string, examDate: string, scopeConceptIds: string[], scopeUnitIds: string[]) => Promise<{ examConfigId: string | null; error: string | null }>;
+  updateExamConfig: (examConfigId: string, examDate: string, scopeConceptIds: string[], scopeUnitIds: string[]) => Promise<{ error: string | null }>;
+  deleteExamConfig: (examConfigId: string) => Promise<{ error: string | null }>;
+  loadExamPlanAndReadiness: (examConfigId: string) => Promise<{ plan: GetExamPlanResult; readiness: GetExamReadinessResult }>;
   submitTextAnswer: (input: { courseId: string; conceptId: string; rubric: Record<string, unknown>; response: string }) => Promise<SubmitResult>;
   submitStructuredAnswer: (input: { courseId: string; conceptId: string; checkerDomain: NonNullable<SessionItem["checkerDomain"]>; checkerInput: Record<string, unknown>; claimFields: Record<string, unknown> }) => Promise<SubmitResult>;
 }) {
-  // Not useState: nothing in this component ever updates config/plan/
-  // readiness in place -- handleConfigure below refetches via a full
-  // window.location.reload() instead (server-rendered props are the
-  // only source of truth for these three), and answering a staged-plan
-  // question only ever updates local `results`. Wrapping unmutated
-  // props in useState implied a live-update path that was never built;
-  // real bug found via a TS6133 unused-setter sweep (2026-09-23,
-  // brain/decisions/architecture-log.md).
-  const config = initialConfig;
-  const plan = initialPlan;
-  const readiness = initialReadiness;
+  const [selectedId, setSelectedId] = useState<string | null>(selectedExamConfigId);
+  const [plan, setPlan] = useState(initialPlan);
+  const [readiness, setReadiness] = useState(initialReadiness);
+  // "add" is the initial mode only when there's nothing to show in the
+  // dropdown yet -- same "form shown immediately" behavior the old
+  // single-exam page had for a course's very first exam.
+  const [mode, setMode] = useState<"view" | "add" | "edit">(examConfigs.length === 0 ? "add" : "view");
   const [configError, setConfigError] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, SubmitResult>>({});
+  const [switching, setSwitching] = useState(false);
 
-  async function handleConfigure(formData: FormData) {
+  const selectedConfig = examConfigs.find((c) => c.id === selectedId) ?? null;
+
+  async function handleSelectExam(examConfigId: string) {
+    setSelectedId(examConfigId);
+    setMode("view");
+    setConfigError(null);
+    setSwitching(true);
+    const outcome = await loadExamPlanAndReadiness(examConfigId);
+    setPlan(outcome.plan);
+    setReadiness(outcome.readiness);
+    setSwitching(false);
+  }
+
+  async function handleAdd(formData: FormData) {
     const examDate = (formData.get("examDate") as string | null) ?? "";
     const scopeConceptIds = formData.getAll("scopeConceptIds") as string[];
     if (scopeConceptIds.length === 0) {
@@ -72,6 +90,41 @@ export function ExamPlanner({
       return;
     }
     setConfigError(null);
+    window.location.reload();
+  }
+
+  async function handleEdit(formData: FormData) {
+    if (!selectedConfig) return;
+    const examDate = (formData.get("examDate") as string | null) ?? "";
+    const scopeConceptIds = formData.getAll("scopeConceptIds") as string[];
+    if (scopeConceptIds.length === 0) {
+      setConfigError("Select at least one concept to scope the exam to.");
+      return;
+    }
+    // scopeUnitIds is passed through unchanged (the form has no unit-
+    // scope UI, same as create) rather than hardcoded to [] -- editing
+    // must never silently wipe a scope dimension the form doesn't let
+    // the student touch.
+    const outcome = await updateExamConfig(selectedConfig.id, examDate, scopeConceptIds, selectedConfig.scopeUnitIds);
+    if (outcome.error) {
+      setConfigError(outcome.error);
+      return;
+    }
+    setConfigError(null);
+    window.location.reload();
+  }
+
+  async function handleDelete() {
+    if (!selectedConfig) return;
+    const confirmed = window.confirm(
+      `Delete the exam dated ${new Date(selectedConfig.examDate).toLocaleDateString()}? This can't be undone.`,
+    );
+    if (!confirmed) return;
+    const outcome = await deleteExamConfig(selectedConfig.id);
+    if (outcome.error) {
+      setConfigError(outcome.error);
+      return;
+    }
     window.location.reload();
   }
 
@@ -110,28 +163,94 @@ export function ExamPlanner({
         <h1 style={s.pageTitle}>Exam Plan</h1>
         <section style={s.section}>
           <span style={s.sectionLabel}>Exam configuration</span>
-          {config ? (
-            <p style={s.configuredNote}>Exam date: {new Date(config.examDate).toLocaleDateString()}</p>
-          ) : (
+
+          {examConfigs.length > 0 && mode === "view" && (
+            <div style={s.configRow}>
+              <select
+                value={selectedId ?? ""}
+                onChange={(e) => handleSelectExam(e.target.value)}
+                disabled={switching}
+                style={s.select}
+              >
+                {examConfigs.map((c) => {
+                  const isPast = new Date(c.examDate).getTime() <= Date.now();
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {new Date(c.examDate).toLocaleDateString()}
+                      {isPast ? " (past)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+              <button type="button" onClick={() => setMode("add")} style={s.secondaryButton}>
+                + Add exam
+              </button>
+              {selectedConfig && (
+                <>
+                  <button type="button" onClick={() => setMode("edit")} style={s.secondaryButton}>
+                    Edit
+                  </button>
+                  <button type="button" onClick={handleDelete} style={s.dangerButton}>
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {(mode === "add" || mode === "edit") && (
             <form
               action={async (formData) => {
-                await handleConfigure(formData);
+                if (mode === "add") await handleAdd(formData);
+                else await handleEdit(formData);
               }}
               style={s.configForm}
             >
               <label style={s.field}>
                 <span style={s.fieldLabel}>Exam date</span>
-                <input type="date" name="examDate" required style={s.input} />
+                <input
+                  type="date"
+                  name="examDate"
+                  required
+                  defaultValue={mode === "edit" ? selectedConfig?.examDate : undefined}
+                  style={s.input}
+                />
               </label>
               <label style={s.field}>
                 <span style={s.fieldLabel}>Scope concepts</span>
-                <ConceptScopeSelect name="scopeConceptIds" concepts={scopeableConcepts} />
+                {/* Keyed on mode+selected exam so React remounts this
+                    (and re-runs its useState initializer) every time a
+                    genuinely different form target opens -- avoids a
+                    stale-selection bug if this ever gets a direct
+                    add<->edit toggle that skips the "view" state this
+                    version always passes through between them. */}
+                <ConceptScopeSelect
+                  key={`${mode}-${selectedConfig?.id ?? "new"}`}
+                  name="scopeConceptIds"
+                  concepts={scopeableConcepts}
+                  initialSelectedIds={mode === "edit" ? (selectedConfig?.scopeConceptIds ?? []) : []}
+                />
               </label>
-              <button type="submit" style={s.primaryButton}>
-                Configure exam
-              </button>
+              <div style={s.formActions}>
+                <button type="submit" style={s.primaryButton}>
+                  {mode === "add" ? "Configure exam" : "Save changes"}
+                </button>
+                {examConfigs.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("view");
+                      setConfigError(null);
+                    }}
+                    style={s.secondaryButton}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </form>
           )}
+
           {configError && <p style={s.errorText}>{configError}</p>}
         </section>
 
@@ -282,6 +401,37 @@ const s: Record<string, React.CSSProperties> = {
   pageTitle: { margin: 0, fontSize: 20, fontWeight: 500, letterSpacing: "-0.025em", color: "var(--text-primary)" },
   sectionLabel: { fontSize: 10.5, fontWeight: 500, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)" },
   configuredNote: { margin: 0, fontSize: 13.5, color: "var(--text-secondary)" },
+  configRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  select: {
+    padding: "8px 10px",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-sm)",
+    fontSize: 13.5,
+    fontFamily: "var(--font-sans)",
+    color: "var(--text-primary)",
+    background: "var(--surface)",
+  },
+  secondaryButton: {
+    padding: "8px 14px",
+    background: "var(--surface)",
+    color: "var(--text-secondary)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-sm)",
+    fontSize: 13.5,
+    fontFamily: "var(--font-sans)",
+    cursor: "pointer",
+  },
+  dangerButton: {
+    padding: "8px 14px",
+    background: "var(--surface)",
+    color: "var(--clay)",
+    border: "1px solid var(--clay-border)",
+    borderRadius: "var(--radius-sm)",
+    fontSize: 13.5,
+    fontFamily: "var(--font-sans)",
+    cursor: "pointer",
+  },
+  formActions: { display: "flex", gap: 8 },
   configForm: { display: "flex", flexDirection: "column", gap: 12, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)" },
   field: { display: "flex", flexDirection: "column", gap: 4 },
   fieldLabel: { fontSize: 12.5, color: "var(--text-secondary)", fontWeight: 500 },
