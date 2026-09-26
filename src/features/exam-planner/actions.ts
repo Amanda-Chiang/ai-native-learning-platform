@@ -89,6 +89,18 @@ export async function listScopeableConcepts(courseId: string): Promise<Scopeable
   return (data ?? []).map((row) => ({ id: row.id, name: row.canonical_name }));
 }
 
+/**
+ * Every exam configured for a course, oldest date first -- powers the
+ * Exam Plan page's dropdown and Today's per-course aggregation. RLS-
+ * scoped (exam_configs_select_own), same convention as every other
+ * list action in this codebase.
+ */
+export async function listExamConfigs(courseId: string): Promise<ExamConfigView[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("exam_configs").select("*").eq("course_id", courseId).order("exam_date");
+  return (data ?? []).map(rowToView);
+}
+
 async function resolveScopeExists(
   supabase: Awaited<ReturnType<typeof createClient>>,
   courseId: string,
@@ -141,30 +153,9 @@ export async function configureExam(
     };
   }
 
-  // One exam config per student per course -- reconfiguring replaces
-  // the prior config for that course rather than accumulating stale
-  // duplicates; a different course's exam is a separate, independent
-  // row.
-  const { data: existing } = await supabase
-    .from("exam_configs")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("course_id", courseId)
-    .maybeSingle();
-
-  if (existing) {
-    const { error } = await supabase
-      .from("exam_configs")
-      .update({
-        exam_date: examDate,
-        scope_concept_ids: scopeConceptIds,
-        scope_unit_ids: scopeUnitIds,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id);
-    return { examConfigId: existing.id, error: error?.message ?? null };
-  }
-
+  // Always a new row -- a course can have any number of exams
+  // (2026-09-26 design). Editing an already-configured exam goes
+  // through updateExamConfig instead, which targets one specific row.
   const { data: inserted, error } = await supabase
     .from("exam_configs")
     .insert({
@@ -178,16 +169,6 @@ export async function configureExam(
     .single();
 
   return { examConfigId: inserted?.id ?? null, error: error?.message ?? null };
-}
-
-export async function getExamConfig(courseId: string): Promise<{ config: ExamConfigView | null; error: string | null }> {
-  const supabase = await createClient();
-
-  // RLS-scoped, no userId parameter accepted, same convention as every
-  // other server action in this codebase.
-  const { data, error } = await supabase.from("exam_configs").select("*").eq("course_id", courseId).maybeSingle();
-
-  return { config: data ? rowToView(data) : null, error: error?.message ?? null };
 }
 
 export type GetExamPlanResult = StagedExamPlan | { error: "no_exam_configured" | "exam_date_passed" };
