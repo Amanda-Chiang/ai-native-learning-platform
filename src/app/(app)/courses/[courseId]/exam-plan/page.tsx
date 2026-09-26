@@ -54,7 +54,7 @@ export default async function CourseExamPlanPage({
       configureExam={configureExam}
       updateExamConfig={updateExamConfig}
       deleteExamConfig={deleteExamConfig}
-      loadExamPlanAndReadiness={async (examConfigId) => {
+      loadExamPlanAndReadiness={async (examConfigId: string) => {
         "use server";
         const [plan, readiness] = await Promise.all([getExamPlan(examConfigId), getExamReadiness(examConfigId)]);
         return { plan, readiness };
