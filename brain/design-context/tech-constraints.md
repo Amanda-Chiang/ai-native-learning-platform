@@ -38,6 +38,11 @@ nothing here is aspirational.
     Every page reimplements its own markup from scratch. A real design
     system pass has a genuinely blank canvas here — this is a strength,
     not just a gap, for whoever designs next.
+  - `brand-identity.md` (approved 2026-09-27, not yet implemented) now
+    gives this gap a real target: a 6-color palette (black plus five
+    named brand colors) to build CSS custom properties from, once a
+    token system is actually built. It's a color palette only, not a
+    component library or layout primitives — those gaps are unchanged.
 - **Geist Sans / Geist Mono** (`next/font/google`) — already wired into
   the root layout as CSS variables (`--font-geist-sans`,
   `--font-geist-mono`). Free to keep, free to replace (single point of

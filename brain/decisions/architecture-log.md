@@ -2044,3 +2044,30 @@ delete-the-selected-exam-reloads-onto-the-other-one -- fail against the
 pre-fix component and pass after. The `switching`-latch fix was
 exercised by aborting the server action's POST for real via
 `page.route`.
+
+## 2026-09-27 -- New brand identity ("Orca") approved, documented, not implemented
+
+Product owner supplied a new name ("Orca"), a logo screenshot, and a
+5-color palette (`alice-blue`/`prussian-blue`/`periwinkle`/
+`wisteria-blue`/`parchment`, plus black from the logo's own wordmark/
+icon color, added on request as a 6th brand color). Scoped via
+`superpowers:brainstorming` -- the user explicitly narrowed this from an
+initial combined "rebrand + fundamental UX/flow rework" ask down to
+brand identity only, no UX/flow changes, no code changes this pass.
+
+Decision: capture it as a standalone approved-but-unapplied style guide
+(`brain/design-context/brand-identity.md`) rather than renaming
+anything live, and point the docs that currently name the product
+(`README.md`, `page-map.md`, `tech-constraints.md`) at it rather than
+editing their content to assume the rename already happened -- keeps
+"what's actually running" and "what's approved for later" clearly
+separate, per this project's no-silent-placeholder rule (a doc that
+silently said "Orca" while the running app still said "AI-Native
+Learning Platform" would be exactly that kind of mismatch).
+
+Known open gap, recorded in `brand-identity.md`: only a logo screenshot
+exists, not a real SVG/PNG asset file -- implementation can't proceed
+until a real asset lands in the repo. Color-to-role mapping in the doc
+(e.g. wisteria-blue as a candidate primary interactive color) is
+explicitly a first-pass guess for a future design pass to confirm, not
+a locked decision -- the user did not specify roles, only raw tokens.

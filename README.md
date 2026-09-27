@@ -3,6 +3,12 @@
 An AI-native learning platform built as a responsive web application, per
 `docs/technical-prd.md`, sequenced via `docs/implementation-roadmap.md`.
 
+**Rebrand note (2026-09-27)**: a new brand identity is approved —
+product name **Orca**, plus a logo and 6-color palette — but not yet
+applied to any UI. See `brain/design-context/brand-identity.md`. This
+paragraph and the rest of the repo still say "AI-Native Learning
+Platform" until that implementation pass happens.
+
 **Status (2026-09-27)**: All six roadmap phases fully implemented and
 verified live, plus a long tail of post-completion hardening and
 enhancement passes — a browser/Playwright hardening pass, a full

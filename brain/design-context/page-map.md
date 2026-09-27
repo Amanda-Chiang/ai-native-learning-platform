@@ -8,6 +8,8 @@ unstyled MVP state (plain semantic HTML, no CSS framework) — see
 ## `/` — Landing (`src/app/page.tsx`)
 Static. `<h1>AI-Native Learning Platform</h1>` + one line of body text.
 No nav, no CTA button yet. Real placeholder for a real landing page.
+This `<h1>` is the eventual rename target once the approved "Orca"
+rebrand (`brand-identity.md`) is actually implemented — not done yet.
 
 ## `/sign-in`, `/sign-up`
 Plain email/password forms (`<input type=email>`, `<input type=password>`),
