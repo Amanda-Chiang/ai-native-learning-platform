@@ -288,7 +288,65 @@ phase numbering:**
   sleep. Full account, in the order each was found: `brain/decisions/
   architecture-log.md`'s 2026-09-08 and 2026-09-09 entries.
 
-Known open items, not yet resolved as of 2026-09-14:
+**Post-MVP work (2026-09-15 through 2026-09-27), continued:**
+
+- **A real, direct-feedback UI simplification batch (2026-09-17 through
+  2026-09-21)**, `review-scheduler`/`courses`: Home's daily-session
+  preview was leaking each session item's raw `questionText` (effectively
+  the answer) before the student ever opened Study — fixed by resolving
+  concept names separately in `today.ts` instead, leaving
+  `review-scheduler`'s own domain types untouched. The course shell's
+  "Study" nav tab was removed as a genuine duplicate of Review's own
+  "Start review" button (both led to the same page) — the route/page
+  itself stayed, only the redundant top-level entry point went, along
+  with its now-unused `IconStudy`. The weekly Connect session then moved
+  from Study to Review (as its own non-overlapping panel, only shown
+  once the viewport is wide enough to avoid covering the due list) and
+  had two of its four categories (`lowConnectivityConcepts`,
+  `confusedPairs`) cut outright after the panel was reported as
+  showing more than a student needed. Full rationale for each:
+  `brain/decisions/architecture-log.md`'s 2026-09-17, 09-18 (two
+  entries), 09-20, and 09-21 entries. `specs/009-review-scheduler`
+  amended in place (see its own addendum) for the Connect changes.
+- **An unused-variable sweep (2026-09-23)** across the whole project
+  (`tsc --noUnusedLocals --noUnusedParameters`, not on by default) found
+  4 hits outside `review-scheduler`/`courses` (already clean). 2 were
+  real bugs, not dead code: `visual-assessment`'s `[questionId]/page.tsx`
+  had an unused `TREE_DOMAINS` because its layout-choice ternary silently
+  treated "not graph" as "must be tree," so a `"heap"`-domain question
+  (in neither list) would have hit `layoutTree(undefined)` instead of
+  the page's own "not supported" message — fixed by checking membership
+  in either list explicitly. `exam-planner`'s `ExamPlanner.tsx` had three
+  `useState` setters (`setConfig`/`setPlan`/`setReadiness`) nobody ever
+  called — genuine dead weight, replaced with plain const aliases of the
+  props. Full account: `brain/decisions/architecture-log.md`'s
+  2026-09-23 entry.
+- **Multiple exams per course (2026-09-26/27)**, `exam-planner`: a
+  student could previously configure only one exam per course —
+  `configureExam` looked up any existing row for that course and
+  overwrote it. No migration was needed (`exam_configs` never had a
+  uniqueness constraint forcing this; it was pure application logic).
+  Built via `superpowers:brainstorming` → `superpowers:writing-plans` →
+  `superpowers:subagent-driven-development` (a 10-task plan, executed
+  with a fresh subagent per task plus a final whole-branch review that
+  caught 3 real cross-task integration gaps — a dropdown selection lost
+  across mutation reloads, a loading state that could latch forever on a
+  failed fetch, and a stale contract doc — all fixed in one follow-up
+  pass). `configureExam` is insert-only now; `getExamConfig` is gone,
+  replaced by `listExamConfigs`/`updateExamConfig`/`deleteExamConfig`;
+  `getExamPlan`/`getExamReadiness` are keyed by `examConfigId`, deriving
+  `courseId` from the fetched row itself. Today's dashboard now lets
+  every exam (not just one per course) compete for the nearest-exam
+  banner and Upcoming top-3. Live verification also found and fixed one
+  genuinely pre-existing accessibility bug (`ConceptScopeSelect`'s
+  trigger button had a static accessible name instead of its real
+  dynamic selection state). Design: `docs/superpowers/specs/
+  2026-09-26-multiple-exams-per-course-design.md`; plan:
+  `docs/superpowers/plans/2026-09-26-multiple-exams-per-course.md`;
+  full account: `brain/decisions/architecture-log.md`'s 2026-09-26
+  entries. `specs/010-exam-planner/tasks.md` amended with an addendum.
+
+Known open items, not yet resolved as of 2026-09-27:
 - `assessment-generation-pipeline`'s heavy (checker-domain/free-text)
   generation path is real and tested but still unwired to any UI —
   `requestQuestionGeneration` exists, but no page/button anywhere calls
@@ -309,6 +367,18 @@ Known open items, not yet resolved as of 2026-09-14:
   walkthrough) has no recorded "all pass" checkpoint — live testing found
   and fixed real bugs organically instead, which is arguably stronger
   coverage, but nothing was formally signed off scenario-by-scenario.
+- Two narrow, pre-existing gaps in `exam-planner`, deferred rather than
+  fixed during the 2026-09-26/27 multiple-exams-per-course final review
+  (both judged real but out of scope for that change): editing an exam's
+  scope can silently drop a previously-scoped concept if it's since been
+  unconfirmed/deleted (`ConceptScopeSelect` only renders checkboxes for
+  currently-confirmed concepts, but seeds `selected` from every id the
+  exam still references); and `today-selection.ts`'s `daysUntil`
+  (day-granularity, `Math.ceil`) can disagree with `getExamPlan`'s own
+  exact-time "has this exam passed" check for an exam dated today,
+  around midnight — Today may show a same-day exam as due while the
+  Exam Plan page itself reports it already passed. Neither is new;
+  both predate this branch.
 
 **This section will go stale the moment more work lands** — it is a
 snapshot taken on the date above, not a maintained tracker. The

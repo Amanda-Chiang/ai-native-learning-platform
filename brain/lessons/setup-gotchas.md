@@ -68,3 +68,20 @@
   token from the Supabase dashboard's Account → Access Tokens, pasted
   at the prompt — not the project's DB password, a different secret)
   before `db push` will authenticate at all.
+- A fresh `git worktree` (including one made via a harness's `EnterWorktree`
+  tool) does **not** carry `.env.local` — it's gitignored, and a worktree
+  only checks out tracked files. `npm run dev`/`test:e2e`/any live-Supabase
+  script will fail (or silently run with no real credentials) until you
+  `cp .env.local` from the main checkout into the new worktree by hand.
+  Found live setting up a worktree for the 2026-09-26 multiple-exams-per-course
+  plan.
+- Playwright's `webServer.reuseExistingServer` (true outside CI) will
+  silently reuse *any* process already bound to port 3000 — including a
+  stale `npm run dev` left running from a **different** git checkout
+  entirely (e.g. the main repo, while you're testing in a worktree). Tests
+  then exercise whatever code that other checkout currently has, with no
+  error or warning that it's the wrong tree — a fix can appear to have no
+  effect for this exact reason. If a change doesn't seem to take effect in
+  a Playwright run, check `lsof -i :3000` (or equivalent) for an orphaned
+  dev server before doubting the code. Found live during the same
+  2026-09-26 plan's live-verification task.

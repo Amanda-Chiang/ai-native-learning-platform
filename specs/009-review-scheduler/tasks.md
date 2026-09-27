@@ -5,6 +5,22 @@ description: "Task list template for feature implementation"
 
 # Tasks: Review Scheduler
 
+**Addendum (2026-09-21):** every task below is complete and reflects this
+feature's original scope. Two real, direct-feedback changes landed later,
+outside this checklist: (1) T014's weekly Connect section moved from the
+Study page to the Review page (`DueQueue.tsx`), rendered as its own
+absolutely-positioned panel so the due-concepts list never shifts; (2) two
+of its four categories (`lowConnectivityConcepts`, `confusedPairs`) were
+cut outright — not hidden, the underlying `composeConnectSession`
+computation for them was removed too — after user feedback that the panel
+showed more than a student needed. `ConnectSessionResult` is now
+`{ newConcepts, weakConnections }` only. `spec.md`/`data-model.md` were
+amended in place to match (check those, not this file, for the current
+`connect-session.ts` shape). Full rationale, and a real overlap bug found
+live while moving the panel (it could cover the due list at common
+viewport widths): `brain/decisions/architecture-log.md`'s 2026-09-18,
+2026-09-20, and 2026-09-21 entries.
+
 **Input**: Design documents from `/specs/009-review-scheduler/`
 
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md,

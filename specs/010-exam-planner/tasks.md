@@ -5,6 +5,25 @@ description: "Task list template for feature implementation"
 
 # Tasks: Exam Planner
 
+**Addendum (2026-09-27):** every task below is complete and reflects this
+feature's original scope only (one exam per course, per T012's own config
+form). Real follow-on work landed later, outside this checklist: a student
+can now configure **multiple** exams per course (add/switch/edit/delete,
+a dropdown selector, every exam competing for Today's nearest/upcoming
+slots) — built via `superpowers:brainstorming` → `superpowers:writing-plans`
+→ `superpowers:subagent-driven-development`, not a new `/speckit-*` pass
+(an enhancement to an already-shipped feature). `configureExam` no longer
+upserts; `getExamConfig` is gone, replaced by `listExamConfigs`/
+`updateExamConfig`/`deleteExamConfig`; `getExamPlan`/`getExamReadiness`
+are keyed by `examConfigId`, not `courseId`. No migration was needed —
+`exam_configs` never had a uniqueness constraint forcing one-per-course,
+so `spec.md`/`data-model.md` needed no correction (neither ever claimed
+that constraint), only `contracts/exam-planner-actions.md` did. Design:
+`docs/superpowers/specs/2026-09-26-multiple-exams-per-course-design.md`;
+plan: `docs/superpowers/plans/2026-09-26-multiple-exams-per-course.md`;
+rationale and a real accessibility bug found live while verifying it:
+`brain/decisions/architecture-log.md`'s 2026-09-26 entry.
+
 **Input**: Design documents from `/specs/010-exam-planner/`
 
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md,
