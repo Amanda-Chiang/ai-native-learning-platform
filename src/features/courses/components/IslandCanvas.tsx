@@ -31,6 +31,29 @@ export function IslandCanvas({ courses }: { courses: CourseReviewSummary[] }) {
               if (!summary) return null;
               const failed = summary.kind === "failed";
 
+              // shapeForIndex throws when a course's stored
+              // islandShapeIndex has no entry in the shape library --
+              // correct, because rendering shape 0 instead would show
+              // a plausible island for a course whose real shape is
+              // unknown (island-shapes.ts). But this component renders
+              // inside a server component, so letting that throw
+              // propagate would take down the WHOLE Home page over one
+              // corrupt row. Caught here and scoped to just this
+              // island: it renders with a neutral fill and a visible
+              // "couldn't load" label instead of a shape, the same
+              // treatment a `failed` due-queue read already gets --
+              // not a silent fallback, an explicit broken state.
+              let shapePath: string | null = null;
+              let corrupt = false;
+              if (!failed) {
+                try {
+                  shapePath = shapeForIndex(summary.islandShapeIndex).path;
+                } catch {
+                  corrupt = true;
+                }
+              }
+              const broken = failed || corrupt;
+
               return (
                 <Link
                   key={placement.courseId}
@@ -41,21 +64,25 @@ export function IslandCanvas({ courses }: { courses: CourseReviewSummary[] }) {
                     top: `${placement.topPercent}%`,
                   }}
                   aria-label={
-                    failed
+                    broken
                       ? `${summary.courseName} — review status could not be loaded`
                       : summary.courseName
                   }
                 >
                   <svg viewBox={ISLAND_VIEWBOX} width="88" height="88" aria-hidden="true">
-                    <path
-                      d={shapeForIndex(summary.islandShapeIndex).path}
-                      fill={islandColorForCourseId(summary.courseId)}
-                      stroke="var(--border)"
-                      strokeWidth="1.5"
-                    />
+                    {shapePath ? (
+                      <path
+                        d={shapePath}
+                        fill={islandColorForCourseId(summary.courseId)}
+                        stroke="var(--border)"
+                        strokeWidth="1.5"
+                      />
+                    ) : (
+                      <rect x="8" y="8" width="84" height="84" rx="12" fill="var(--border)" stroke="var(--border-strong)" strokeWidth="1.5" />
+                    )}
                   </svg>
                   <span style={s.name}>{summary.courseName}</span>
-                  {failed && <span style={s.failed}>Couldn&apos;t load</span>}
+                  {broken && <span style={s.failed}>Couldn&apos;t load</span>}
                 </Link>
               );
             })}
