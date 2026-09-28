@@ -70,20 +70,24 @@ test("sign in, create a course via the real form, and reach every linked feature
   const courseId = page.url().split("/").filter(Boolean).pop()!;
   createdCourseIds.push(courseId);
 
-  await page.goto(`/courses/${courseId}/material`);
-  await expect(page.getByRole("heading", { name: "Course material" })).toBeVisible();
+  // The course root itself is the Concepts screen (Task 5) -- confirm it
+  // renders before walking the feature nav, so a broken root page fails
+  // here rather than being masked by the loop below navigating away from
+  // it immediately.
+  await expect(page.getByRole("complementary", { name: "Due for review" })).toBeVisible();
 
   // Regression guard: the course detail page must link to every other
   // feature (previously had none at all).
   // "Study" is deliberately absent here -- it's no longer a top-level nav
   // tab (course-shell.tsx), only reachable via the Review page's own
   // "Start review" button (covered by review-navigates-to-study below).
-  // Material is walked last: we're already on /material (from the goto
-  // above), so its own link click is a same-URL no-op that never pushes
-  // a new history entry -- the goBack() after it would otherwise rewind
-  // past our explicit goto and land back on the (now pageless) course
-  // root. Ending the loop on it means that harmless rewind has no later
-  // iteration left to corrupt.
+  // We start the walk from the course root (asserted above), so every
+  // entry below -- Material included -- is a genuine navigation away and
+  // a genuine goBack() back to it, not a same-URL no-op. Previously the
+  // walk began on /material directly (the course root had no page yet),
+  // which made Material's own click-and-goBack a no-op that only ever
+  // exercised its href, not its navigation; now that the root renders
+  // real content, Material behaves like every other entry.
   const featurePages: [name: string, path: string, heading: string][] = [
     ["Atlas", "atlas", "Concept Atlas"],
     ["Review", "review", "Review queue"],
