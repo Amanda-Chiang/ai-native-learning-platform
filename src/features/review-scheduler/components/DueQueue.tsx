@@ -84,8 +84,8 @@ const CONNECT_PANEL_MEDIA_QUERY = `
 
 function ConnectPanel({ connect, conceptNames }: { connect: ConnectSessionResult; conceptNames: Record<string, string> }) {
   // "Unknown concept" rather than the raw id when a name genuinely
-  // doesn't resolve (no-silent-placeholders) -- same fallback
-  // TodayDashboard's own conceptNames lookup already established.
+  // doesn't resolve (no-silent-placeholders) -- the same fallback
+  // convention used everywhere else a conceptNames lookup can miss.
   const name = (conceptId: string) => conceptNames[conceptId] ?? "Unknown concept";
 
   return (
@@ -220,8 +220,8 @@ const s: Record<string, React.CSSProperties> = {
   // `inner`) so it only ever fills the blank space beside the centered
   // due-queue column on a wide viewport -- it can't push or shift
   // `inner` regardless of its own content length. `--right-w` (280px)
-  // reuses the same fixed sidebar width TodayDashboard's own "Upcoming"
-  // sidebar already established, for visual consistency.
+  // is a fixed sidebar width chosen to match the "Upcoming" sidebar
+  // pattern used elsewhere in the app, for visual consistency.
   // No `display` here on purpose -- CONNECT_PANEL_MEDIA_QUERY's class
   // rule controls display (none below 1480px, flex at/above it), and an
   // inline `display` would always win over that media query.
