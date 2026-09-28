@@ -19,7 +19,20 @@ export type DueQueueItem = {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+export type DueQueueResult =
+  | { ok: true; items: DueQueueItem[] }
+  | { ok: false; reason: string };
+
 /**
+ * `getDueQueue`, but able to say that it failed.
+ *
+ * The original collapses a failed query into an empty array, so a
+ * caller cannot tell "this course has nothing due" from "the concepts
+ * query errored". The Home dashboard has to tell those apart -- one is
+ * a calm state, the other needs to be visible -- so this sibling
+ * reports the failure. `getDueQueue` below keeps its old behavior for
+ * its existing callers, which are unchanged by this task.
+ *
  * Ranked "what's due, and what's coming up" for a whole course --
  * unlike getDailyReviewSession (review-scheduler/actions.ts), this
  * isn't filtered to only-due-today or bounded to a time budget; it
@@ -28,7 +41,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  * (review-priority.ts) and computeNextReviewDate (next-review-date.ts)
  * unchanged -- no new ranking or scheduling logic.
  */
-export async function getDueQueue(courseId: string): Promise<DueQueueItem[]> {
+export async function getDueQueueResult(courseId: string): Promise<DueQueueResult> {
   const supabase = await createClient();
   const now = new Date();
 
@@ -44,6 +57,13 @@ export async function getDueQueue(courseId: string): Promise<DueQueueItem[]> {
       .eq("course_id", courseId)
       .eq("status", "confirmed"),
   ]);
+
+  if (conceptsRes.error) {
+    return { ok: false, reason: `Failed to load concepts: ${conceptsRes.error.message}` };
+  }
+  if (edgesRes.error) {
+    return { ok: false, reason: `Failed to load concept edges: ${edgesRes.error.message}` };
+  }
 
   const concepts = conceptsRes.data ?? [];
   const edges = edgesRes.data ?? [];
@@ -74,19 +94,32 @@ export async function getDueQueue(courseId: string): Promise<DueQueueItem[]> {
   const ranked = rankConceptsByPriority(priorityInputs, now, DEFAULT_REVIEW_PRIORITY_WEIGHTS);
   const learnerStateByConceptId = new Map(priorityInputs.map((i) => [i.conceptId, i.learnerState]));
 
-  return ranked.map((priority) => {
-    const learnerState = learnerStateByConceptId.get(priority.conceptId)!;
-    const nextReviewDate = computeNextReviewDate(learnerState, now);
-    const daysUntilDue = Math.ceil((nextReviewDate.getTime() - now.getTime()) / MS_PER_DAY);
-    const { bucket, label } = bucketFor(daysUntilDue);
+  return {
+    ok: true,
+    items: ranked.map((priority) => {
+      const learnerState = learnerStateByConceptId.get(priority.conceptId)!;
+      const nextReviewDate = computeNextReviewDate(learnerState, now);
+      const daysUntilDue = Math.ceil((nextReviewDate.getTime() - now.getTime()) / MS_PER_DAY);
+      const { bucket, label } = bucketFor(daysUntilDue);
 
-    return {
-      conceptId: priority.conceptId,
-      label: labelByConceptId.get(priority.conceptId) ?? priority.conceptId,
-      masteryValue: learnerState.score,
-      daysUntilDue,
-      urgencyBucket: bucket,
-      dueLabel: label,
-    };
-  });
+      return {
+        conceptId: priority.conceptId,
+        label: labelByConceptId.get(priority.conceptId) ?? priority.conceptId,
+        masteryValue: learnerState.score,
+        daysUntilDue,
+        urgencyBucket: bucket,
+        dueLabel: label,
+      };
+    }),
+  };
+}
+
+/**
+ * Unchanged behavior: an empty array on failure. Kept exactly as-is
+ * because its existing callers depend on it; migrating them is a
+ * separate decision (architecture-log, 2026-09-28).
+ */
+export async function getDueQueue(courseId: string): Promise<DueQueueItem[]> {
+  const result = await getDueQueueResult(courseId);
+  return result.ok ? result.items : [];
 }
