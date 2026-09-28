@@ -44,7 +44,7 @@ const UPLOAD_STAGE_LABEL: Record<"queued" | "processing", string> = {
 };
 
 const UPLOAD_STAGE_COLOR: Record<"queued" | "processing", { bg: string; color: string }> = {
-  processing: { bg: "var(--denim-muted)", color: "var(--denim)" },
+  processing: { bg: "var(--accent-secondary-muted)", color: "var(--accent-secondary)" },
   queued: { bg: "var(--border)", color: "var(--text-tertiary)" },
 };
 
@@ -74,8 +74,8 @@ export function getDisplayStatus(
   if (artifact.status === "failed") {
     return {
       label: "Upload failed",
-      bg: "var(--clay-muted)",
-      color: "var(--clay)",
+      bg: "var(--status-danger-muted)",
+      color: "var(--status-danger)",
       failureReason: artifact.failureReason,
       counts: null,
     };
@@ -103,8 +103,8 @@ export function getDisplayStatus(
   if (extraction.status === "queued" || extraction.status === "processing") {
     return {
       label: "Extracting…",
-      bg: "var(--denim-muted)",
-      color: "var(--denim)",
+      bg: "var(--accent-secondary-muted)",
+      color: "var(--accent-secondary)",
       failureReason: null,
       counts: null,
     };
@@ -113,8 +113,8 @@ export function getDisplayStatus(
   if (extraction.status === "completed") {
     return {
       label: "Ready",
-      bg: "var(--teal-muted)",
-      color: "var(--teal)",
+      bg: "var(--status-success-muted)",
+      color: "var(--status-success)",
       failureReason: null,
       counts: {
         conceptsExtracted: extraction.conceptsExtracted,
@@ -125,8 +125,8 @@ export function getDisplayStatus(
 
   return {
     label: "Extraction failed",
-    bg: "var(--clay-muted)",
-    color: "var(--clay)",
+    bg: "var(--status-danger-muted)",
+    color: "var(--status-danger)",
     failureReason: extraction.failureReason,
     counts: null,
   };

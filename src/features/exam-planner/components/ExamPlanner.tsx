@@ -386,14 +386,14 @@ export function ExamPlanner({
                                   <div
                                     style={{
                                       ...s.verdict,
-                                      background: passed ? "var(--teal-muted)" : "var(--clay-muted)",
-                                      borderColor: passed ? "var(--teal-border)" : "var(--clay-border)",
+                                      background: passed ? "var(--status-success-muted)" : "var(--status-danger-muted)",
+                                      borderColor: passed ? "var(--status-success-border)" : "var(--status-danger-border)",
                                     }}
                                   >
-                                    <span style={{ ...s.verdictIcon, color: passed ? "var(--teal)" : "var(--clay)" }}>
+                                    <span style={{ ...s.verdictIcon, color: passed ? "var(--status-success)" : "var(--status-danger)" }}>
                                       {passed ? <IconCheck /> : "✕"}
                                     </span>
-                                    <span style={{ ...s.verdictText, color: passed ? "var(--teal)" : "var(--clay)" }}>
+                                    <span style={{ ...s.verdictText, color: passed ? "var(--status-success)" : "var(--status-danger)" }}>
                                       Result: {String(outcome.result.outcome)}
                                     </span>
                                   </div>
@@ -415,7 +415,7 @@ export function ExamPlanner({
 }
 
 function gaugeColor(value: number) {
-  return value >= 0.7 ? "var(--teal)" : value >= 0.5 ? "var(--denim)" : "var(--clay)";
+  return value >= 0.7 ? "var(--status-success)" : value >= 0.5 ? "var(--accent-secondary)" : "var(--status-danger)";
 }
 function gaugeLabel(value: number) {
   return value >= 0.7 ? "On track" : value >= 0.5 ? "Needs work" : "At risk";
@@ -460,8 +460,8 @@ const s: Record<string, React.CSSProperties> = {
   dangerButton: {
     padding: "8px 14px",
     background: "var(--surface)",
-    color: "var(--clay)",
-    border: "1px solid var(--clay-border)",
+    color: "var(--status-danger)",
+    border: "1px solid var(--status-danger-border)",
     borderRadius: "var(--radius-sm)",
     fontSize: 13.5,
     fontFamily: "var(--font-sans)",
@@ -475,8 +475,8 @@ const s: Record<string, React.CSSProperties> = {
   primaryButton: {
     alignSelf: "flex-start",
     padding: "9px 16px",
-    background: "var(--clay)",
-    color: "var(--clay-fg)",
+    background: "var(--accent)",
+    color: "var(--accent-fg)",
     border: "none",
     borderRadius: "var(--radius-sm)",
     fontSize: 13.5,
@@ -484,11 +484,11 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "var(--font-sans)",
     cursor: "pointer",
   },
-  errorText: { margin: 0, fontSize: 12.5, color: "var(--clay)" },
+  errorText: { margin: 0, fontSize: 12.5, color: "var(--status-danger)" },
   notice: { margin: 0, fontSize: 13.5, color: "var(--text-tertiary)" },
   sessionList: { display: "flex", flexDirection: "column", gap: 10 },
   stageCard: { padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", display: "flex", flexDirection: "column", gap: 10 },
-  stageCardActive: { border: "1px solid var(--clay)" },
+  stageCardActive: { border: "1px solid var(--accent)" },
   stageHeader: { display: "flex", alignItems: "center", gap: 10 },
   stageType: {
     fontSize: 10.5,
@@ -501,7 +501,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 20,
     border: "1px solid var(--border)",
   },
-  stageTypeActive: { color: "var(--clay)", background: "var(--clay-muted)", border: "1px solid var(--clay-border)" },
+  stageTypeActive: { color: "var(--accent)", background: "var(--accent-muted)", border: "1px solid var(--accent-border)" },
   stageDates: { fontSize: 11.5, color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" },
   stageItems: { display: "flex", flexDirection: "column", gap: 10 },
   connectionItem: { margin: 0, fontSize: 13, color: "var(--text-secondary)" },

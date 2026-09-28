@@ -6,9 +6,9 @@ import { DEFAULT_MINUTES_PER_QUESTION } from "@/features/review-scheduler/daily-
 import { IconArrow } from "@/components/icons.tsx";
 
 function urgencyColor(daysLeft: number) {
-  if (daysLeft <= 6) return "var(--clay)";
-  if (daysLeft <= 20) return "var(--urgent-amber)";
-  return "var(--teal)";
+  if (daysLeft <= 6) return "var(--status-danger)";
+  if (daysLeft <= 20) return "var(--status-warning)";
+  return "var(--status-success)";
 }
 
 export function TodayDashboard({ overview }: { overview: TodayOverview }) {
@@ -226,7 +226,7 @@ const s: Record<string, React.CSSProperties> = {
     width: 5,
     height: 5,
     borderRadius: "50%",
-    background: "var(--clay)",
+    background: "var(--accent)",
     opacity: 0.45,
     flexShrink: 0,
     marginTop: 6,
@@ -249,8 +249,8 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 8,
     padding: "13px 22px",
-    background: "var(--clay)",
-    color: "var(--clay-fg)",
+    background: "var(--accent)",
+    color: "var(--accent-fg)",
     border: "none",
     borderRadius: "var(--radius-sm)",
     fontSize: 14,

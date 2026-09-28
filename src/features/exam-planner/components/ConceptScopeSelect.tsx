@@ -148,6 +148,6 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: "var(--radius-sm)",
     cursor: "pointer",
   },
-  checkbox: { accentColor: "var(--clay)", cursor: "pointer" },
+  checkbox: { accentColor: "var(--accent)", cursor: "pointer" },
   emptyNote: { margin: "6px 0 0", fontSize: 12.5, color: "var(--text-tertiary)" },
 };

@@ -12,7 +12,7 @@ export default async function CourseTutorPage({
   if (!conversationId) {
     return (
       <div style={{ padding: 24 }}>
-        <p style={{ color: "var(--clay)", fontSize: 13.5 }}>{error ?? "Could not start a conversation."}</p>
+        <p style={{ color: "var(--status-danger)", fontSize: 13.5 }}>{error ?? "Could not start a conversation."}</p>
       </div>
     );
   }

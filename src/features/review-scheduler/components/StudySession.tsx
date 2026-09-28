@@ -114,7 +114,7 @@ export function StudySession({
             <div style={s.progressBlock}>
               <div style={s.progressBar}>
                 {Array.from({ length: total }).map((_, i) => (
-                  <div key={i} style={{ ...s.progressSeg, background: i < answeredCount ? "var(--clay)" : "var(--border)" }} />
+                  <div key={i} style={{ ...s.progressSeg, background: i < answeredCount ? "var(--accent)" : "var(--border)" }} />
                 ))}
               </div>
               <span style={s.progressLabel}>
@@ -191,15 +191,15 @@ export function StudySession({
                               ...s.verdict,
                               flexDirection: "column",
                               alignItems: "flex-start",
-                              background: passed ? "var(--teal-muted)" : "var(--clay-muted)",
-                              border: `1px solid ${passed ? "var(--teal-border)" : "var(--clay-border)"}`,
+                              background: passed ? "var(--status-success-muted)" : "var(--status-danger-muted)",
+                              border: `1px solid ${passed ? "var(--status-success-border)" : "var(--status-danger-border)"}`,
                             }}
                           >
                             <div style={s.verdictRow}>
-                              <span style={{ ...s.verdictIcon, color: passed ? "var(--teal)" : "var(--clay)" }}>
+                              <span style={{ ...s.verdictIcon, color: passed ? "var(--status-success)" : "var(--status-danger)" }}>
                                 {passed ? <IconCheck /> : "✕"}
                               </span>
-                              <span style={{ ...s.verdictText, color: passed ? "var(--teal)" : "var(--clay)" }}>
+                              <span style={{ ...s.verdictText, color: passed ? "var(--status-success)" : "var(--status-danger)" }}>
                                 Result: {String(outcome.result.outcome)}
                               </span>
                             </div>
@@ -246,7 +246,7 @@ const s: Record<string, React.CSSProperties> = {
   progressSeg: { height: 3, flex: 1, borderRadius: 2 },
   progressLabel: { fontSize: 12, color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" },
   notice: { margin: 0, fontSize: 13.5, color: "var(--text-tertiary)" },
-  noticeWarn: { margin: 0, fontSize: 13.5, color: "var(--urgent-amber)" },
+  noticeWarn: { margin: 0, fontSize: 13.5, color: "var(--status-warning)" },
   itemList: { display: "flex", flexDirection: "column", gap: 16 },
   questionCard: {
     padding: 20,
@@ -280,8 +280,8 @@ const s: Record<string, React.CSSProperties> = {
     gap: 7,
     alignSelf: "flex-start",
     padding: "9px 16px",
-    background: "var(--clay)",
-    color: "var(--clay-fg)",
+    background: "var(--accent)",
+    color: "var(--accent-fg)",
     border: "none",
     borderRadius: "var(--radius-sm)",
     fontSize: 13.5,
@@ -289,7 +289,7 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "var(--font-sans)",
     cursor: "pointer",
   },
-  errorText: { margin: 0, fontSize: 12.5, color: "var(--clay)" },
+  errorText: { margin: 0, fontSize: 12.5, color: "var(--status-danger)" },
   verdict: { display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderRadius: "var(--radius-sm)", border: "1px solid" },
   verdictRow: { display: "flex", alignItems: "center", gap: 9 },
   verdictIcon: { display: "flex", flexShrink: 0 },

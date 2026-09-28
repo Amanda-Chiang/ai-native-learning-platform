@@ -75,8 +75,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   submit: {
     padding: "9px 16px",
-    background: "var(--clay)",
-    color: "var(--clay-fg)",
+    background: "var(--accent)",
+    color: "var(--accent-fg)",
     border: "none",
     borderRadius: "var(--radius-sm)",
     fontSize: 13.5,
@@ -85,5 +85,5 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     whiteSpace: "nowrap",
   },
-  error: { margin: 0, fontSize: 12.5, color: "var(--clay)" },
+  error: { margin: 0, fontSize: 12.5, color: "var(--status-danger)" },
 };
