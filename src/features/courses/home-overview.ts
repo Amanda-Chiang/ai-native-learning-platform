@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server.ts";
 import { listCoursesResult, type CourseWithIsland } from "@/features/courses/actions.ts";
 import { getDueQueueResult } from "@/features/review-scheduler/due-queue.ts";
-import { listExamConfigs } from "@/features/exam-planner/actions.ts";
+import { listExamConfigsResult } from "@/features/exam-planner/actions.ts";
 import { sortUpcomingExams, daysUntil } from "@/features/courses/today-selection.ts";
 import { summarizeCourseDue, orderSummaries, type ExamSection, type HomeOverview } from "@/features/courses/home-summary.ts";
 
@@ -58,19 +58,30 @@ export async function getHomeOverview(): Promise<HomeOverview> {
 async function loadExamSection(courses: CourseWithIsland[]): Promise<ExamSection> {
   try {
     const now = new Date();
-    const configured = (
-      await Promise.all(
-        courses.map(async (course) =>
-          (await listExamConfigs(course.id)).map((config) => ({
+    const results = await Promise.all(
+      courses.map(async (course) => ({ course, result: await listExamConfigsResult(course.id) })),
+    );
+
+    // A per-course query error must surface as `failed`, not as "this
+    // course simply has no exams" -- `listExamConfigsResult` (unlike
+    // `listExamConfigs`, which swallows the error into []) is what
+    // makes that distinction visible here.
+    const failedCourse = results.find((r) => !r.result.ok);
+    if (failedCourse && !failedCourse.result.ok) {
+      return { kind: "failed", reason: failedCourse.result.reason };
+    }
+
+    const configured = results.flatMap(({ course, result }) =>
+      result.ok
+        ? result.configs.map((config) => ({
             courseId: course.id,
             courseName: course.name,
             examConfigId: config.id,
             examDate: config.examDate,
             daysLeft: daysUntil(config.examDate, now),
-          })),
-        ),
-      )
-    ).flat();
+          }))
+        : [],
+    );
 
     // sortUpcomingExams (today-selection.ts) owns the filter-to-future
     // and sort-by-daysLeft rule -- pickNearestExam is defined in terms

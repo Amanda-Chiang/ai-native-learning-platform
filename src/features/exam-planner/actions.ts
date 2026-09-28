@@ -101,6 +101,34 @@ export async function listExamConfigs(courseId: string): Promise<ExamConfigView[
   return (data ?? []).map(rowToView);
 }
 
+export type ExamConfigsResult =
+  | { ok: true; configs: ExamConfigView[] }
+  | { ok: false; reason: string };
+
+/**
+ * `listExamConfigs`, but able to say that it failed.
+ *
+ * `listExamConfigs` swallows a query error into `[]` -- fine for its
+ * existing callers, wrong for the Home dashboard's exam section: an
+ * empty array there renders "No exams scheduled." to a student who has
+ * a real exam in three days, exactly the silent-placeholder failure
+ * mode `listCoursesResult` and `getDueQueueResult` were already split
+ * out to fix. `listExamConfigs` itself is untouched.
+ */
+export async function listExamConfigsResult(courseId: string): Promise<ExamConfigsResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("exam_configs").select("*").eq("course_id", courseId).order("exam_date");
+
+  if (error) {
+    return { ok: false, reason: error.message };
+  }
+  if (!data) {
+    return { ok: false, reason: "The exam config list came back empty with no error." };
+  }
+
+  return { ok: true, configs: data.map(rowToView) };
+}
+
 /**
  * Updates one specific exam by id -- unlike configureExam (always
  * inserts), this targets an already-existing row. Fetches the row's
