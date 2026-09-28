@@ -311,21 +311,41 @@ test("jitter is per-course, so two courses in the same slot position differently
   assert.notDeepEqual([a.leftPercent, a.topPercent], [b.leftPercent, b.topPercent]);
 });
 
-test("no two islands overlap", () => {
+// Only islands in the SAME row can collide: each row renders in its
+// own fixed-height container, so a row-0 and a row-1 island cannot
+// overlap no matter what their percentages are. Comparing across rows
+// would be asserting something the layout does not control.
+test("no two islands in the same row overlap", () => {
   const { placements } = layoutIslands(courses("a", "b", "c", "d", "e", "f", "g", "h"));
-  for (let i = 0; i < placements.length; i += 1) {
-    for (let j = i + 1; j < placements.length; j += 1) {
-      const dx = placements[i].leftPercent - placements[j].leftPercent;
-      const dy = placements[i].topPercent - placements[j].topPercent;
-      assert.ok(
-        Math.hypot(dx, dy) > 0.001,
-        `islands ${placements[i].courseId} and ${placements[j].courseId} share a position`,
-      );
-      assert.ok(
-        Math.abs(dx) > 1 || Math.abs(dy) > 1,
-        `islands ${placements[i].courseId} and ${placements[j].courseId} are too close`,
-      );
+
+  for (let row = 0; row * ISLANDS_PER_ROW < placements.length; row += 1) {
+    const inRow = placements.slice(row * ISLANDS_PER_ROW, (row + 1) * ISLANDS_PER_ROW);
+    for (let i = 0; i < inRow.length; i += 1) {
+      for (let j = i + 1; j < inRow.length; j += 1) {
+        assert.ok(
+          Math.abs(inRow[i].leftPercent - inRow[j].leftPercent) > 5,
+          `islands ${inRow[i].courseId} and ${inRow[j].courseId} are too close horizontally`,
+        );
+      }
     }
+  }
+});
+
+// The guarantee that makes the test above hold for ANY set of course
+// ids, not just these eight: jitter is bounded under half a cell, so
+// two neighbouring cells can never reach each other.
+test("horizontal jitter stays inside its own cell", () => {
+  const cellWidth = 100 / ISLANDS_PER_ROW;
+  const ids = Array.from({ length: 30 }, (_, i) => `course-${i}`);
+  const { placements } = layoutIslands(courses(...ids));
+
+  for (const [ordinal, placement] of placements.entries()) {
+    const column = ordinal % ISLANDS_PER_ROW;
+    const cellCenter = column * cellWidth + cellWidth / 2;
+    assert.ok(
+      Math.abs(placement.leftPercent - cellCenter) < cellWidth / 2,
+      `${placement.courseId} escaped its cell`,
+    );
   }
 });
 
@@ -434,12 +454,7 @@ course is appended.
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `export PATH="$HOME/.nvm/versions/node/v24.20.0/bin:$PATH" && node --test tests/unit/courses/island-layout.test.ts`
-Expected: PASS, 8/8.
-
-If the "no two islands overlap" test fails for two courses in the same
-column of different rows, that is expected to pass because they are in
-separate row containers — assert on column-mates only if the test
-proves otherwise; do NOT loosen the assertion to make it pass.
+Expected: PASS, 9/9.
 
 - [ ] **Step 5: Commit**
 
