@@ -2530,13 +2530,37 @@ due rail renders as though the query had succeeded with zero due
 concepts: "Nothing due right now," an affirmative claim rather than an
 error.
 
-**The plan under-counted the specs the route move touched.** It named
+**The plan under-counted the specs the route move touched -- twice, and
+the second one is the more instructive.** The plan named
 `tests/visual/review-queue.spec.ts` and `tests/e2e/basic-flows.spec.ts`
-as needing updates for the route move. `tests/e2e/upload-course-material.spec.ts`
-also depended on the course-detail/material page living at the course
-root, and broke (navigating to `/courses/{id}` no longer reached the
-upload form) until it was fixed to navigate to `/courses/{id}/material`
-explicitly before using the file input.
+as needing updates for the route move. Two more specs also depended on
+the course-detail/material page living at the course root:
+
+1. `tests/e2e/upload-course-material.spec.ts` broke outright --
+   navigating to `/courses/{id}` no longer reached the upload form --
+   and was fixed to navigate to `/courses/{id}/material` explicitly
+   before using the file input. Caught during the task that moved
+   course creation into a modal, because that task had to touch every
+   spec that creates a course through the UI.
+2. `tests/e2e/course-graph-ingestion-pipeline.spec.ts` was found only
+   by the final whole-branch review, and it was hiding in a way worth
+   recording. It navigated to `/courses/{id}`, waited on
+   `page.waitForSelector("li")`, and then clicked the Review Queue's
+   Confirm button. After the move, that `waitForSelector` still
+   SUCCEEDS -- the Concepts screen renders `<li>` rows for the very
+   same proposed concepts -- so the spec sails past its own guard and
+   then times out 30 seconds later on a Confirm button that is no
+   longer on the page. A wrong page that satisfies the wait is far
+   harder to read than an empty one that fails it. Its stale header
+   comment, which named `courses/[courseId]/page.tsx` as the Review
+   Queue's home, was corrected at the same time.
+
+The general lesson for the next route move in this repo: grepping for
+the moved path is not sufficient, because a spec can reach the wrong
+page and still pass its intermediate waits. Ask instead which specs
+depend on what that route *renders*. This one was additionally masked
+by the OpenAI-credits `429` that makes the whole spec fail before it
+ever reaches line 194, so CI would not have caught it either.
 
 **Known open items, not resolved by this task:**
 - Both ▷ controls remain disabled, awaiting Quick review (Phase 4) and
