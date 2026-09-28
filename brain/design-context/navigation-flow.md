@@ -2,28 +2,44 @@
 
 ## Real end-to-end path today
 
+Updated for Orca Phase 2 (bottom nav gained a third entry, and a course
+now opens on Concepts instead of Material) — the older per-feature-page
+"dead end back to home" framing below still describes real gaps and was
+left as-is except where the click-path itself changed.
+
 ```
 / (landing)
   -> /sign-up or /sign-in
        -> /courses                         (post-login landing, no separate dashboard)
-            -> create course -> /courses/{id}
+            -> "Add class" (CreateCourseModal) -> /courses/{id}
             -> click existing course -> /courses/{id}
 
-/courses/{id}  (course detail = material upload + hub nav)
-    |-- upload material (stays on this page; status updates live)
-    |-- nav: Concept atlas | Review queue | Tutor | Study | Exam plan
-    |     (this <nav> is the ONLY link surface into the 5 feature pages --
+Bottom nav (AppShell), three entries, present on every page:
+  Today | Courses | Chat
+    |-- Today      -> /
+    |-- Courses    -> /courses
+    `-- Chat       -> /chat -> CoursePicker -> pick a course -> /courses/{id}/tutor
+                      (no message input on /chat itself; picking a course
+                       is the only action this page offers)
+
+/courses/{id}  (course now opens on Concepts, not Material)
+    |-- CourseShell sub-nav: Concepts | Material | Atlas | Review | Tutor | Exam plan
+    |     (this <nav> is the ONLY link surface into the other 5 feature pages --
     |      nothing else in the app links to them)
     |
-    |-- /courses/{id}/atlas         (dead end: no links out except browser back /
-    |                                header link to "/")
-    |-- /courses/{id}/review        (same: dead end back to "/")
-    |-- /courses/{id}/tutor         (same: dead end back to "/")
-    |-- /courses/{id}/study         (same: dead end back to "/",
-    |                                except when a due question is a
-    |                                graph/tree checker-domain question,
-    |                                which routes into visual-assessment)
-    |-- /courses/{id}/exam-plan     (same: dead end back to "/")
+    |-- /courses/{id}                (Concepts: ConceptPath + DueRail, both ▷
+    |                                 controls disabled with a visible reason)
+    |-- /courses/{id}/material       (file upload; status updates live --
+    |                                 this is where course detail used to live)
+    |-- /courses/{id}/atlas          (dead end: no links out except browser back /
+    |                                 header link to "/")
+    |-- /courses/{id}/review         (same: dead end back to "/")
+    |-- /courses/{id}/tutor          (same: dead end back to "/")
+    |-- /courses/{id}/study          (same: dead end back to "/",
+    |                                 except when a due question is a
+    |                                 graph/tree checker-domain question,
+    |                                 which routes into visual-assessment)
+    |-- /courses/{id}/exam-plan      (same: dead end back to "/")
     |
     `-- /courses/{id}/visual-assessment/{questionId}
         (only reachable from inside a Study or Exam-plan session right now --

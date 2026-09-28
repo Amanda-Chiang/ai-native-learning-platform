@@ -2430,3 +2430,145 @@ and at the call site a credit-exhausted account is indistinguishable
 from an expired or revoked key. Whether to gate it -- loudly, with the
 reason surfaced -- is a CI-semantics decision for the product owner,
 not one to take silently.
+
+## 2026-09-28 -- Orca Phase 2 (concepts screen, chat entry, create-course modal): what shipped, what the plan got wrong, and what's still open
+
+Orca Phase 2 (`/courses/[courseId]` as a landing Concepts screen, `/chat`
+as a top-level entry, course creation moved into a modal) is built and
+committed on `orca-phase2-concepts-chat`. This entry records the
+decisions and the places execution diverged from the plan.
+
+**The route move, and why the visual spec moved with it.** The course
+detail page (material upload) moved from `/courses/[courseId]` to
+`/courses/[courseId]/material`, because `/courses/[courseId]` is now the
+Concepts screen -- the product wants a course to open on "what do I
+know," not "upload more material." `tests/visual/review-queue.spec.ts`
+targets that upload/review-queue UI, so it moved with the page it tests,
+retargeted from `/courses/demo` to `/courses/demo/material`; a visual
+spec that still pointed at the old path would have been asserting on
+whatever now renders at the course root (the Concepts screen), not the
+page it was written to cover.
+
+**Why both ▷ ("start review") controls ship disabled.** `ConceptPath`'s
+per-concept row and `DueRail`'s due-today/tomorrow cards each have a ▷
+control that would start Deep review or Quick review respectively.
+Neither review mode exists yet -- Quick review is Phase 4, Deep review
+is Phase 9 -- so both render via `PendingActionButton`, a real,
+visibly-disabled button that carries its own reason as a prop
+("Deep review is not built yet" / "Quick review is not built yet"),
+exposed to assistive tech rather than just visually dimmed. The
+alternative (omitting the controls until the modes exist) was rejected
+because the design calls for the *shape* of the eventual interaction to
+be visible now, with an honest "not yet" rather than a missing affordance.
+
+**Why the `/chat` picker exists instead of relaxing `tutor_conversations.course_id`.**
+The new top-level Chat tab needed some destination before a course is
+chosen. The schema's `tutor_conversations.course_id` is `not null` --
+every tutor turn is grounded in one course's material, by design (see
+this log's earlier tutor-agent entries on source-anchor grounding).
+Relaxing that constraint to allow a course-less conversation would let
+the model answer without any course material to ground against, which
+is exactly the ungrounded-answer failure mode the project's invariant
+rules exist to prevent. `CoursePicker` on `/chat` solves the same UX
+problem (chat needs a top-level entry point) without touching that
+constraint: it lists the signed-in user's courses and routes to
+`/courses/{id}/tutor` on selection, with no message input on `/chat`
+itself.
+
+**The parent design doc's "compatible as-is" audit was optimistic.** The
+Phase 2 design assumed the Concepts screen could be built entirely on
+existing reads. It can't: `getDailyReviewSession` (and `getDueQueue`)
+only return concepts that are currently *due* -- exactly what a review
+queue needs, and exactly wrong for a screen meant to show the whole
+course's concepts grouped by unit, due or not. One new read action,
+`listCourseConceptsWithMastery` (`src/features/courses/concept-path-actions.ts`),
+was genuinely required, not a nice-to-have refactor.
+
+**The plan's null-`unit_id` premise was factually wrong.** The plan's
+stated mechanism for the Concepts screen's "Unassigned" section was a
+concept with a null `unit_id`. Checking the schema
+(`supabase/migrations/0003_course_ontology.sql:58`):
+`unit_id uuid not null references public.course_units (id)` -- a
+`course_concepts` row can never have a null `unit_id`. The "Unassigned"
+section is still real and still needed, but reached by a different
+route: `listUnits` (`src/features/course-graph-ingestion/actions.ts:53-64`)
+filters with `.neq("status", "archived")`, so a concept whose unit
+was archived still carries a real (non-null) `unit_id`, but that id no
+longer appears in the `units` list `groupConceptsByUnit` is given --
+which is what actually produces the "doesn't match any given unit"
+case the grouping function treats as Unassigned. Recorded here so a
+future reader doesn't go looking for a null-`unit_id` row and conclude
+the feature is unreachable.
+
+**A review caught a real silent-placeholder defect before it shipped.**
+The first draft of `listCourseConceptsWithMastery` did
+`conceptsRes.data ?? []` with no check on `conceptsRes.error` -- a
+failed query (RLS, network, connection) would have rendered identically
+to "this course genuinely has no concepts," and because the mastery map
+is built from the same unchecked pattern, every concept would have
+silently rendered as `unverified` on top of that. Fixed by throwing on
+either query's `.error` before touching `.data`, matching this project's
+no-silent-placeholders rule. Ruling, deliberately scoped: only this new
+action throws. `listUnits` and `listCourses` keep their pre-existing
+`if (error || !data) return []` pattern unchanged -- fixing those is a
+separate decision, deferred rather than folded into this change
+silently. Known consequence: the Concepts screen still inherits a
+silent empty list from those two reads if either fails, even though its
+own new read is now honest about failure.
+
+**The plan under-counted the specs the route move touched.** It named
+`tests/visual/review-queue.spec.ts` and `tests/e2e/basic-flows.spec.ts`
+as needing updates for the route move. `tests/e2e/upload-course-material.spec.ts`
+also depended on the course-detail/material page living at the course
+root, and broke (navigating to `/courses/{id}` no longer reached the
+upload form) until it was fixed to navigate to `/courses/{id}/material`
+explicitly before using the file input.
+
+**Known open items, not resolved by this task:**
+- Both ▷ controls remain disabled, awaiting Quick review (Phase 4) and
+  Deep review (Phase 9).
+- The `/chat` picker's zero-courses empty state was browser-verified
+  earlier; this task additionally browser-verified the one-or-more-courses
+  case with a real signed-in user and two real courses (created via the
+  service-role client, the same pattern `tests/e2e/global-setup.ts`
+  uses, since Supabase requires email confirmation and no throwaway
+  e2e-run credentials persist across runs): `/chat` rendered "Which
+  course?" with one button per course, and selecting one routed to
+  `/courses/{id}/tutor` and rendered that course's real Tutor UI.
+- `CreateCourseModal` has no Escape-to-close and no focus trap. It does
+  carry the accessible shape the plan specified: `role="dialog"`,
+  `aria-modal="true"`, and a labelled close button.
+- `ConceptPath` uses `section.unitId ?? "unassigned"` as its React key,
+  which assumes at most one Unassigned section per course -- true under
+  `groupConceptsByUnit`'s current contract, but worth knowing if that
+  contract ever changes to produce more than one.
+- `tests/e2e/upload-course-material.spec.ts`'s `beforeAll` intermittently
+  fails with a Supabase "could not create test user" error. Confirmed
+  non-reproducible run-to-run during this task's regression pass (it
+  passed cleanly here); it throws rather than swallowing the error, so
+  the spec fails loudly rather than passing vacuously when it happens.
+- The Linux (`-linux.png`) visual baselines were **not** regenerated by
+  this task. The one-off `regen-linux-snapshots.yml` workflow requires
+  `workflow_dispatch` registration, which GitHub only allows for a
+  workflow file present on the repository's default branch (`main`),
+  even when the dispatch's `ref` input targets a different branch --
+  confirmed against this repo's own prior instances of this exact
+  pattern (commits `abe465d`, `de2071b`, `daea9d1`, each on `main`,
+  each followed by a removal commit). Pushing directly to `main` was
+  blocked by this session's permission system and, per this project's
+  own rule that no agent message constitutes user consent, was not
+  attempted a second time on a relayed authorization alone. The darwin
+  baselines are current (regenerated with `--update-snapshots=all`,
+  verified with a clean re-run); the linux baselines committed on this
+  branch are whatever `main` currently carries, not freshly regenerated
+  against Phase 2's UI, until someone with the required push access
+  completes Step 3 of `.superpowers/sdd/2026-09-28-orca-phase2-concepts-chat/task-8-brief.md`.
+
+Full regression at completion: typecheck clean; `eslint src tests trigger`
+0 errors (8 pre-existing warnings, unrelated to this branch); 360/360
+unit; visual suite 15 passed / 3 skipped on both re-baseline and the
+subsequent no-flag confirmation run; e2e 15 passed, with
+`tests/e2e/course-graph-ingestion-pipeline.spec.ts` failing on both
+projects for the pre-existing, already-logged reason (2026-09-28 entry
+above: OpenAI account has no credits, `429`) -- not caused by this
+branch.
