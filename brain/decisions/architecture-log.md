@@ -2249,3 +2249,28 @@ Worth stating plainly: this is the color-role mapping working as
 assignments as "a first-pass guess for a future design pass to confirm
 or override, not a locked decision" -- the product owner supplied raw
 tokens, never roles. This is the first such override.
+
+### Follow-on finding the same day: `--update-snapshots` was silently rewriting nothing
+
+Regenerating baselines for the ground change above appeared to succeed
+while changing zero files. Cause: `playwright.config.ts` sets
+`maxDiffPixelRatio: 0.02`, and Playwright's *per-pixel* default
+`threshold` is 0.2 in YIQ space. The ground moved only ~5/255 per
+channel, which is under that per-pixel threshold, so **no pixel counted
+as different at all** -- the suite passed, and plain
+`--update-snapshots` (which defaults to mode "changed", rewriting only
+baselines whose comparison failed) therefore had nothing to rewrite.
+
+The baselines were passing while depicting a color the app no longer
+rendered. That is the checked-in-artifact version of a silent
+placeholder: green, and wrong. Fixed by regenerating with
+`--update-snapshots=all` on both platforms, which rewrote all 17
+darwin and all 17 linux baselines.
+
+Worth flagging for the 2026-09-27 rebrand entry above: only 9 of 17
+baselines changed there for exactly this reason, so 8 committed
+baselines had been left depicting pre-Orca colors. Both platforms are
+now regenerated unconditionally and depict current UI. Any future
+whole-app color change should use `--update-snapshots=all`, not the
+bare flag -- a small uniform shift will otherwise pass and update
+nothing.
