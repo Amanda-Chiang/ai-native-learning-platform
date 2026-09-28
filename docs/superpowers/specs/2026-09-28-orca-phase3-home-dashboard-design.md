@@ -130,9 +130,15 @@ computed.
 
 ### Layout is a deterministic scatter, not stored coordinates
 
-Island positions come from a pure function of each course's stored shape
-index. Stable across reloads and devices, organic rather than gridded,
-and unit-testable. Persisted `island_x`/`island_y` columns were rejected:
+Island positions come from a pure function of each course's id and its
+ordinal in a creation-ordered course list (`orderByCreatedAt` in
+`home-summary.ts`, feeding `layoutIslands`) -- grid cell from the
+ordinal, per-course jitter from a hash of the id. Creation order, not
+the due-date order the rail uses, is what makes this stable across
+reloads and devices: a course's `created_at` never changes, so its
+ordinal -- and therefore its island -- never moves, regardless of due
+dates shifting or new courses being added. Persisted `island_x`/`island_y`
+columns were rejected:
 new persistence for a need nothing has stated (no drag-to-arrange
 feature is planned), which `CLAUDE.md` would additionally require an ADR
 for.

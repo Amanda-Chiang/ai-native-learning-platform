@@ -5,10 +5,12 @@
 Updated for Orca Phase 2 (bottom nav gained a third entry, and a course
 now opens on Concepts instead of Material) — the older per-feature-page
 "dead end back to home" framing below still describes real gaps and was
-left as-is except where the click-path itself changed.
+left as-is except where the click-path itself changed. Updated again for
+Orca Phase 3 (`/` replaced its Phase 2 `TodayDashboard` with the island
+Home — see below and `page-map.md`).
 
 ```
-/ (landing)
+/ (Island Home once signed in -- see below; a bare heading if signed out)
   -> /sign-up or /sign-in
        -> /courses                         (post-login landing, no separate dashboard)
             -> "Add class" (CreateCourseModal) -> /courses/{id}
@@ -16,11 +18,21 @@ left as-is except where the click-path itself changed.
 
 Bottom nav (AppShell), three entries, present on every page:
   Today | Courses | Chat
-    |-- Today      -> /
+    |-- Today      -> / (label unchanged from Phase 2; now opens Island Home)
     |-- Courses    -> /courses
     `-- Chat       -> /chat -> CoursePicker -> pick a course -> /courses/{id}/tutor
                       (no message input on /chat itself; picking a course
                        is the only action this page offers)
+
+Island Home (/, Orca Phase 3) has two distinct link surfaces per course,
+and they go to different places on purpose:
+  |-- click an island (IslandCanvas)        -> /courses/{id}        (Concepts)
+  `-- rail row's ▷ control (HomeReviewRail) -> /courses/{id}/study  (Study)
+      (the ▷ only renders for a "scheduled" row -- a nothing-scheduled
+      or failed row has nothing to start, so it has no ▷ at all, not a
+      disabled one)
+The rail's "Upcoming exams" entries link to
+  /courses/{id}/exam-plan?exam={examConfigId}
 
 /courses/{id}  (course now opens on Concepts, not Material)
     |-- CourseShell sub-nav: Concepts | Material | Atlas | Review | Tutor | Exam plan
@@ -61,12 +73,12 @@ Bottom nav (AppShell), three entries, present on every page:
    interstitial inside Study/Exam-plan, not a page a student navigates
    to on its own. Any redesign should treat it as embedded-in-session UI,
    not a standalone destination with its own nav needs.
-4. **Landing page (`/`) is not actually a marketing/product page** — it's
-   a one-line placeholder. A real landing page (for a logged-out visitor)
-   and "logged-in home" are currently the same route conceptually
-   collapsed into two different pages (`/` vs `/courses`), which a design
-   pass should treat as two genuinely distinct page *types* even though
-   only one of them (`/`) currently has content to design.
+4. **`/` still conflates two page types.** Orca Phase 3 gave the
+   signed-in state real content (Island Home), but a signed-out visitor
+   still gets a one-line placeholder heading on the same route — there is
+   still no real logged-out landing/marketing page, just a different
+   render branch of the same component. `/` vs `/courses` (post-login
+   landing) remain two separate concepts sharing awkward naming.
 
 ## What's deliberately NOT part of the navigation model
 

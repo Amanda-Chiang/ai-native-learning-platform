@@ -87,7 +87,10 @@ let courseId: string | null = null;
 try {
   const { data: course, error: courseError } = await admin
     .from("courses")
-    .insert({ owner_id: owner.id, name: "course_units RLS check" })
+    // island_shape_index is cosmetic and irrelevant to this RLS check;
+    // 0 is a valid library index, not a placeholder standing in for a
+    // missing value.
+    .insert({ owner_id: owner.id, name: "course_units RLS check", island_shape_index: 0 })
     .select("id")
     .single();
   if (courseError || !course) throw new Error(`could not create course: ${courseError?.message}`);

@@ -1,0 +1,105 @@
+{
+  "kind": "ready",
+  "courses": [
+    {
+      "kind": "scheduled",
+      "courseId": "demo-algorithms",
+      "courseName": "Algorithms",
+      "islandShapeIndex": 0,
+      "createdAt": "2026-01-05T00:00:00.000Z",
+      "label": "Due today",
+      "daysUntilDue": 0,
+      "dueNowCount": 5
+    },
+    {
+      "kind": "scheduled",
+      "courseId": "demo-discrete-math",
+      "courseName": "Discrete Math",
+      "islandShapeIndex": 1,
+      "createdAt": "2026-01-10T00:00:00.000Z",
+      "label": "In 4 days",
+      "daysUntilDue": 4,
+      "dueNowCount": null
+    },
+    {
+      "kind": "nothing-scheduled",
+      "courseId": "demo-databases",
+      "courseName": "Databases",
+      "islandShapeIndex": 2,
+      "createdAt": "2026-01-15T00:00:00.000Z"
+    },
+    {
+      "kind": "scheduled",
+      "courseId": "demo-operating-systems",
+      "courseName": "Operating Systems",
+      "islandShapeIndex": 3,
+      "createdAt": "2026-01-20T00:00:00.000Z",
+      "label": "Overdue",
+      "daysUntilDue": -1,
+      "dueNowCount": 3
+    },
+    {
+      "kind": "scheduled",
+      "courseId": "demo-computer-networks",
+      "courseName": "Computer Networks",
+      "islandShapeIndex": 4,
+      "createdAt": "2026-01-25T00:00:00.000Z",
+      "label": "In 7 days",
+      "daysUntilDue": 7,
+      "dueNowCount": null
+    },
+    {
+      "kind": "nothing-scheduled",
+      "courseId": "demo-linear-algebra",
+      "courseName": "Linear Algebra",
+      "islandShapeIndex": 5,
+      "createdAt": "2026-01-30T00:00:00.000Z"
+    },
+    {
+      "kind": "scheduled",
+      "courseId": "demo-compilers",
+      "courseName": "Compilers",
+      "islandShapeIndex": 6,
+      "createdAt": "2026-02-04T00:00:00.000Z",
+      "label": "In 2 days",
+      "daysUntilDue": 2,
+      "dueNowCount": null
+    },
+    {
+      "kind": "scheduled",
+      "courseId": "demo-machine-learning",
+      "courseName": "Machine Learning",
+      "islandShapeIndex": 7,
+      "createdAt": "2026-02-09T00:00:00.000Z",
+      "label": "Due today",
+      "daysUntilDue": 0,
+      "dueNowCount": 2
+    }
+  ],
+  "exams": {
+    "kind": "ok",
+    "upcoming": [
+      {
+        "courseId": "demo-algorithms",
+        "courseName": "Algorithms",
+        "examConfigId": "demo-exam-algorithms",
+        "examDate": "2026-03-02",
+        "daysLeft": 3
+      },
+      {
+        "courseId": "demo-operating-systems",
+        "courseName": "Operating Systems",
+        "examConfigId": "demo-exam-operating-systems",
+        "examDate": "2026-03-10",
+        "daysLeft": 11
+      },
+      {
+        "courseId": "demo-discrete-math",
+        "courseName": "Discrete Math",
+        "examConfigId": "demo-exam-discrete-math",
+        "examDate": "2026-03-18",
+        "daysLeft": 19
+      }
+    ]
+  }
+}
