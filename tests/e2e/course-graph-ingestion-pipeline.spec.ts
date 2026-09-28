@@ -143,9 +143,22 @@ test("a real extraction run's candidates flow through reconciliation, review-que
   // or skipped run here would make every assertion below meaningless
   // (they'd be checking nothing happened), so fail loudly rather than
   // let a downstream UI assertion report a confusing, indirect failure.
-  expect(result).not.toHaveProperty("status", "failed");
-  expect(result).not.toHaveProperty("skipped", true);
-  expect((result as { conceptsExtracted?: number }).conceptsExtracted ?? 0).toBeGreaterThan(0);
+  //
+  // The whole result object goes into the failure message on purpose.
+  // `expect(result).not.toHaveProperty("status", "failed")` alone prints
+  // only `Received: "failed"` and throws away `failureReason` -- the one
+  // field that says WHY. This run talks to a real OpenAI API and real
+  // Storage, so its realistic failures ("no credits remaining", an
+  // expired key, a missing fixture object) are all operational and all
+  // indistinguishable without that string, which is exactly what made
+  // this failure opaque on CI for as long as it was.
+  const resultSummary = JSON.stringify(result);
+  expect(result, `extraction did not succeed -- full result: ${resultSummary}`).not.toHaveProperty("status", "failed");
+  expect(result, `extraction was skipped -- full result: ${resultSummary}`).not.toHaveProperty("skipped", true);
+  expect(
+    (result as { conceptsExtracted?: number }).conceptsExtracted ?? 0,
+    `extraction reported no concepts -- full result: ${resultSummary}`,
+  ).toBeGreaterThan(0);
 
   // Reconciliation ran as part of the same call above (writeExtractionCandidates
   // always reconciles before writing) -- confirmed here by checking a real
