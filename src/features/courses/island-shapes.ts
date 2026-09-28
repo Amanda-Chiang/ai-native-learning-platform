@@ -55,9 +55,9 @@ export function shapeForIndex(index: number): IslandShape {
 
 /**
  * Island fill color. Unlike the shape, this is a pure hash with no
- * stored column: the brand palette is fixed at 6 colors and is not
- * going to grow the way the shape library will, so there is no
- * reshuffling risk to protect against.
+ * stored column: the brand palette is fixed and will not grow the
+ * way the shape library will, so there is no reshuffling risk to
+ * protect against.
  *
  * These encode WHICH COURSE this is, never how well it is known --
  * mastery is not represented on this screen at all.
@@ -66,7 +66,7 @@ const ISLAND_COLORS = [
   "var(--periwinkle)",
   "var(--wisteria-blue)",
   "var(--alice-blue)",
-  "var(--accent-secondary)",
+  "var(--prussian-blue)",
 ] as const;
 
 export function islandColorForCourseId(courseId: string): string {
