@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { chromium } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { Database } from "../../src/lib/supabase/database.types.ts";
 
 /**
  * Provisions one real throwaway student account + a course with one
@@ -31,7 +32,7 @@ export default async function globalSetup() {
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const admin = createClient(url, serviceKey);
+  const admin = createClient<Database>(url, serviceKey);
 
   const email = `tutor-agent-e2e-${Date.now()}@example.com`;
   const { data: userData, error: userError } = await admin.auth.admin.createUser({
@@ -93,6 +94,9 @@ export default async function globalSetup() {
       source_anchors: sourceAnchors,
       status: "confirmed",
       confidence: 0.9,
+      // Owner-authored fixture row, same as the unit above -- no
+      // extraction run produced it.
+      extraction_run_id: null,
     })
     .select()
     .single();
@@ -113,6 +117,7 @@ export default async function globalSetup() {
       source_anchors: sourceAnchors,
       status: "confirmed",
       confidence: 0.9,
+      extraction_run_id: null,
     })
     .select()
     .single();
@@ -165,6 +170,13 @@ export default async function globalSetup() {
     difficulty: 0.9,
     transfer_distance: 1,
     assessment_attempt_id: attempt.id,
+    // Genuinely absent for this fixture event, not stand-ins: no
+    // student self-rating was collected, it wasn't graded off an
+    // uploaded artifact, and it didn't come from a tutor conversation
+    // turn.
+    student_confidence: null,
+    source_artifact_id: null,
+    conversation_turn_id: null,
   });
   if (evidenceError) {
     throw new Error(`tutor-agent E2E setup: could not seed evidence: ${evidenceError.message}`);
