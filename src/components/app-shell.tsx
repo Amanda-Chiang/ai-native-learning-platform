@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { IconToday, IconCourses } from "@/components/icons.tsx";
+import { IconToday, IconCourses, IconTutor } from "@/components/icons.tsx";
 
 /**
  * Course-agnostic top-level nav only (Today, Courses), now a bottom
@@ -20,6 +20,7 @@ import { IconToday, IconCourses } from "@/components/icons.tsx";
 const NAV_MAIN = [
   { href: "/", label: "Today", icon: <IconToday />, exact: true },
   { href: "/courses", label: "Courses", icon: <IconCourses />, exact: false },
+  { href: "/chat", label: "Chat", icon: <IconTutor />, exact: false },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
