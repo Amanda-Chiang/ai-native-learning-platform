@@ -727,7 +727,7 @@ import assert from "node:assert/strict";
 import {
   summarizeCourseDue,
   orderSummaries,
-} from "../../../src/features/courses/home-overview.ts";
+} from "../../../src/features/courses/home-summary.ts";
 
 const course = { id: "c1", name: "ALD", islandShapeIndex: 2 };
 
@@ -1002,7 +1002,7 @@ Create `src/features/courses/components/IslandCanvas.tsx`:
 import Link from "next/link";
 import { layoutIslands, ISLANDS_PER_ROW } from "@/features/courses/island-layout.ts";
 import { shapeForIndex, islandColorForCourseId, ISLAND_VIEWBOX } from "@/features/courses/island-shapes.ts";
-import type { CourseReviewSummary } from "@/features/courses/home-overview.ts";
+import type { CourseReviewSummary } from "@/features/courses/home-summary.ts";
 
 /**
  * One island per course.
@@ -1119,7 +1119,7 @@ Create `src/features/courses/components/HomeReviewRail.tsx`:
 import Link from "next/link";
 import { formatCalendarDateLong } from "@/lib/format-date.ts";
 import { IconPlay } from "@/components/icons.tsx";
-import type { CourseReviewSummary, ExamSection } from "@/features/courses/home-overview.ts";
+import type { CourseReviewSummary, ExamSection } from "@/features/courses/home-summary.ts";
 
 /**
  * The rail: every course's next review session, soonest first, with
@@ -1285,7 +1285,7 @@ import { createCourse } from "@/features/courses/actions.ts";
 import { CreateCourseModal } from "@/features/courses/components/CreateCourseModal.tsx";
 import { IslandCanvas } from "@/features/courses/components/IslandCanvas.tsx";
 import { HomeReviewRail } from "@/features/courses/components/HomeReviewRail.tsx";
-import type { HomeOverview } from "@/features/courses/home-overview.ts";
+import type { HomeOverview } from "@/features/courses/home-summary.ts";
 
 export function IslandHome({ overview }: { overview: HomeOverview }) {
   // A failed course list must never render as "no courses yet": that
