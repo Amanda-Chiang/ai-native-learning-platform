@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { daysUntil, pickNearestExam } from "../../../src/features/courses/today-selection.ts";
+import { daysUntil, pickNearestExam, sortUpcomingExams } from "../../../src/features/courses/today-selection.ts";
 
 const NOW = new Date("2026-09-05T00:00:00Z");
 
@@ -37,4 +37,36 @@ test("pickNearestExam picks the nearer of two exams from the SAME course (multip
     { courseId: "course-1", courseName: "Course One", examConfigId: "exam-b", examDate: "2026-09-09", daysLeft: 4 },
   ]);
   assert.equal(result?.examConfigId, "exam-b");
+});
+
+test("sortUpcomingExams excludes past exams", () => {
+  const result = sortUpcomingExams([
+    { courseId: "past", courseName: "Past Course", examConfigId: "exam-past", examDate: "2026-08-01", daysLeft: -30 },
+    { courseId: "near", courseName: "Near Course", examConfigId: "exam-near", examDate: "2026-09-09", daysLeft: 4 },
+  ]);
+  assert.deepEqual(
+    result.map((e) => e.courseId),
+    ["near"],
+  );
+});
+
+test("sortUpcomingExams orders soonest first", () => {
+  const result = sortUpcomingExams([
+    { courseId: "far", courseName: "Far Course", examConfigId: "exam-far", examDate: "2026-10-01", daysLeft: 26 },
+    { courseId: "near", courseName: "Near Course", examConfigId: "exam-near", examDate: "2026-09-09", daysLeft: 4 },
+    { courseId: "mid", courseName: "Mid Course", examConfigId: "exam-mid", examDate: "2026-09-20", daysLeft: 15 },
+  ]);
+  assert.deepEqual(
+    result.map((e) => e.courseId),
+    ["near", "mid", "far"],
+  );
+});
+
+test("pickNearestExam agrees with sortUpcomingExams's first element", () => {
+  const exams = [
+    { courseId: "past", courseName: "Past Course", examConfigId: "exam-past", examDate: "2026-08-01", daysLeft: -30 },
+    { courseId: "far", courseName: "Far Course", examConfigId: "exam-far", examDate: "2026-10-01", daysLeft: 26 },
+    { courseId: "near", courseName: "Near Course", examConfigId: "exam-near", examDate: "2026-09-09", daysLeft: 4 },
+  ];
+  assert.equal(pickNearestExam(exams), sortUpcomingExams(exams)[0]);
 });

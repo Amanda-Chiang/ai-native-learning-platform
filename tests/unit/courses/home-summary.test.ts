@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   summarizeCourseDue,
   orderSummaries,
-} from "../../../src/features/courses/home-overview.ts";
+} from "../../../src/features/courses/home-summary.ts";
 
 const course = { id: "c1", name: "ALD", islandShapeIndex: 2 };
 

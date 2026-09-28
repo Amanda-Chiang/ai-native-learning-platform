@@ -13,11 +13,20 @@ export function daysUntil(examDate: string, now: Date): number {
 }
 
 /**
+ * Future exams only, soonest first -- a past exam date is over, not
+ * "upcoming". This is the one place the filter-and-sort rule lives;
+ * `pickNearestExam` and the Home dashboard's exam rail both defer to
+ * it instead of each keeping their own copy.
+ */
+export function sortUpcomingExams(exams: NearestExam[]): NearestExam[] {
+  return exams.filter((e) => e.daysLeft >= 0).sort((a, b) => a.daysLeft - b.daysLeft);
+}
+
+/**
  * Picks the soonest *future* exam -- a past exam date is over, not
  * "nearest". Pure so the ordering rule (and the exclusion of past
  * dates) is unit-testable without a real Supabase call.
  */
 export function pickNearestExam(exams: NearestExam[]): NearestExam | null {
-  const future = exams.filter((e) => e.daysLeft >= 0).sort((a, b) => a.daysLeft - b.daysLeft);
-  return future[0] ?? null;
+  return sortUpcomingExams(exams)[0] ?? null;
 }
