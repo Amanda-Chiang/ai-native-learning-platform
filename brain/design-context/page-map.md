@@ -5,11 +5,13 @@ and its real component-level building blocks. This reflects the current
 unstyled MVP state (plain semantic HTML, no CSS framework) — see
 `tech-constraints.md` for what that means for a design pass.
 
-## `/` — Landing (`src/app/page.tsx`)
-Static. `<h1>AI-Native Learning Platform</h1>` + one line of body text.
-No nav, no CTA button yet. Real placeholder for a real landing page.
-This `<h1>` is the eventual rename target once the approved "Orca"
-rebrand (`brand-identity.md`) is actually implemented — not done yet.
+## `/` — Today dashboard (`src/app/(app)/page.tsx`)
+There is no separate static landing page — `/` resolves directly to
+`TodayDashboard` (`getTodayOverview` + `<TodayDashboard>`), the same
+page reached after sign-in. This entry was stale before this rebrand
+(described a `src/app/page.tsx` that doesn't exist) — corrected while
+touching this area for the Orca rebrand, not itself a rebrand change.
+Heading now reads "Welcome to Orca." per `brand-identity.md`.
 
 ## `/sign-in`, `/sign-up`
 Plain email/password forms (`<input type=email>`, `<input type=password>`),

@@ -2126,3 +2126,83 @@ per this project's established "sequence now, plan-in-detail per
 phase when its turn comes" pattern -- same reasoning
 `docs/implementation-roadmap.md` already uses for the original PRD
 phases.
+
+## 2026-09-27 -- Orca rebrand Phase 1 (app shell + palette) shipped
+
+Applied the approved Orca brand (`brand-identity.md`) across every
+existing page: `globals.css`'s token system (still the same one the
+app has had since its "Luminary" placeholder brand, just retargeted --
+not rebuilt) now derives every ground/text/border/accent color from
+Orca's 6 canonical tokens. The old `--clay` token was overloaded --
+both "primary brand action" and "error/incorrect" depending on the
+file -- so it was split into `--accent` (brand) and `--status-danger`
+(functional, kept its original red regardless of brand palette, same
+reasoning `--status-success` stays green). `AppShell`'s left sidebar
+became a bottom icon bar per the wireframe; its logo moved into the
+top header instead, since the wireframe's bottom bar is icon-only.
+
+Logo is a text-only placeholder (`BrandLogo`, `src/components/
+brand-logo.tsx`) -- only a screenshot of the real logo exists, no
+SVG/PNG asset, per `brand-identity.md`'s own recorded gap. Swapping in
+a real asset later touches exactly one file.
+
+Three things diverged from the plan
+(`docs/superpowers/plans/2026-09-27-orca-rebrand-app-shell.md`,
+amended in place to match):
+
+1. **The old-token migration was 16 files, not the 4 the plan named**
+   (90 references, not the handful implied). The plan's Task 6 listed
+   `StudySession`/`ReviewQueue`/`DueQueue`/`ExamPlanner`, but its own
+   Step 4 demanded zero `var(--clay|--denim|--teal|--urgent)`
+   repo-wide, and the real consumer set also included both auth pages,
+   `TutorChat`, `TodayDashboard`, `CreateCourseForm`, `AddUnitForm`,
+   `MultipleChoiceForm`, `StructuredAnswerForm`, `ConceptScopeSelect`,
+   `artifact-board.tsx`, `display-status.ts`, and the tutor route page.
+   The plan's mapping table still covered every case semantically, so
+   each `--clay*` site was classified individually (error/verdict/
+   urgency -> `--status-danger`; button/active/selected -> `--accent`)
+   rather than blanket-renamed. Sites where the name already stated
+   intent (`dangerButton`, `rejectButton`, `errorText`, `uploadError`,
+   `failReason`, `getDisplayStatus`'s "failed" branches) went to
+   `--status-danger`; `--teal*`/`--denim*`/`--urgent-*` were
+   unambiguous one-to-one renames.
+
+2. **`-linux.png` visual baselines are now stale**, the same known
+   class as the 2026-09-08 and 2026-09-14 entries: `--update-snapshots`
+   on macOS regenerates only `-darwin` baselines, and real `-linux`
+   ones can only be produced on CI's own `ubuntu-latest` runner (a
+   local Docker approximation renders fonts differently). 9 `-darwin`
+   baselines were regenerated and each inspected by eye before
+   committing (Confirm wisteria / Reject red in the review queue,
+   Atlas mastery rings unchanged); the checked-in `-linux` pair of each
+   will fail the next `quality-gates` run on an intended change until
+   regenerated the way the 2026-09-08 entry describes.
+
+3. **Task 4's snippet didn't match the real file** -- it showed
+   `subNavItemActive`'s `color` and `borderBottom` as adjacent lines,
+   but the long shorthand-vs-longhand comment sits between them. Both
+   lines were retargeted and the comment kept verbatim, since it
+   documents a real bug (2026-09-11) that is exactly as true for
+   `--accent` as it was for `--clay`.
+
+Verified live against the real Supabase project, not just by
+typecheck: a real signed-in browser session confirmed the course
+sub-nav's active tab is wisteria and an inactive tab still falls back
+to `rgba(131,155,236,0)` rather than `currentColor` (i.e. the
+2026-09-11 stray-underline fix survived the retarget); a real seeded
+multiple-choice study session answered correctly and incorrectly
+produced green `rgb(43,146,87)` and red `rgb(201,79,83)` verdicts --
+byte-identical to the pre-Orca values, which is the intended outcome
+for status colors; and three real `exam_configs` at 3/14/40 days out
+rendered red/amber/green urgency distinctly on Today. Every
+`--status-*` token was also read back from the running page and
+confirmed to resolve to the app's exact pre-rebrand hex values.
+
+Full suite state: 350/350 unit, `tsc --noEmit` clean, visual suite 15
+passed / 3 skipped (the deliberate mobile-Atlas skips), e2e 8 passed
+with 9 failures **confirmed pre-existing by running the identical
+specs on `main`** (all `tutor-agent-e2e`, plus
+`course-graph-ingestion-pipeline`) -- unrelated to this change.
+
+Phases 2-9 of the redesign remain scoped-not-built per `docs/
+superpowers/specs/2026-09-27-orca-redesign-design.md`.

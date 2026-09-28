@@ -380,7 +380,20 @@ Known open items, not yet resolved as of 2026-09-27:
   Exam Plan page itself reports it already passed. Neither is new;
   both predate this branch.
 
-**Orca redesign (2026-09-27, scoped and planned, no code changed yet)**:
+**Orca redesign — Phase 1 shipped 2026-09-27; phases 2–9 scoped only**:
+Phase 1 (rebrand + app shell) is **built and committed**: `globals.css`
+now carries the real Orca token system (6 brand tokens, plus the
+`--accent*` / `--status-*` split that replaced the overloaded `--clay`),
+`AppShell` is a bottom icon nav bar, and a shared `BrandLogo` renders a
+deliberate text-only placeholder wordmark (no real logo asset exists
+yet). Known follow-up: the `-linux.png` visual baselines are stale and
+need regenerating on CI's own runner. See
+`brain/decisions/architecture-log.md`'s 2026-09-27 "Orca rebrand Phase 1"
+entry and the execution addendum in
+`docs/superpowers/plans/2026-09-27-orca-rebrand-app-shell.md`.
+The paragraph below describes the original scoping pass:
+
+**Orca redesign (2026-09-27, scoped and planned)**:
 a full brand + UI/UX flow redesign is scoped and sequenced into 9
 phases (rebrand/app shell, concepts screen, home dashboard,
 quick-review flow, material upload/reflection, review configuration,
@@ -393,8 +406,8 @@ sequencing/decisions), `docs/superpowers/plans/
 run via `superpowers:subagent-driven-development` or
 `superpowers:executing-plans`), and `brain/decisions/
 architecture-log.md`'s 2026-09-27 entries. Nothing in `src/` reflects
-any of this yet — `globals.css` still carries the old "Luminary"
-placeholder brand, `AppShell` is still the left sidebar. Existing
+any of phases 2–9 yet (Phase 1 above has since shipped: `globals.css`
+and `AppShell` are now Orca). Existing
 routes/pages described elsewhere in this doc and in `specs/` are
 unaffected until each phase actually ships.
 

@@ -38,11 +38,12 @@ nothing here is aspirational.
     Every page reimplements its own markup from scratch. A real design
     system pass has a genuinely blank canvas here — this is a strength,
     not just a gap, for whoever designs next.
-  - `brand-identity.md` (approved 2026-09-27, not yet implemented) now
-    gives this gap a real target: a 6-color palette (black plus five
-    named brand colors) to build CSS custom properties from, once a
-    token system is actually built. It's a color palette only, not a
-    component library or layout primitives — those gaps are unchanged.
+  - As of the Orca rebrand (2026-09-27), this is no longer a gap: `src/
+    app/globals.css` implements a real Orca-based token system (6 raw
+    brand tokens + semantic ground/text/border/accent/status tokens).
+    Still no shared component library or layout primitives (no
+    `<Button>`, no `<Card>`) — only the color-token half of "zero design
+    token system" has been addressed, not component reuse.
 - **Geist Sans / Geist Mono** (`next/font/google`) — already wired into
   the root layout as CSS variables (`--font-geist-sans`,
   `--font-geist-mono`). Free to keep, free to replace (single point of
