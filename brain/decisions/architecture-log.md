@@ -2802,3 +2802,78 @@ pushing a workflow to `main`, which per this project's own rule needs
 the product owner's direct authorization, not a relayed instruction from
 another agent (see the 2026-09-28 Orca Phase 2 entry above for the exact
 mechanics and prior precedent).
+
+**Post-Task-8 fix: the shipped screen was desktop-only, and the new
+visual spec is what caught it.** `HomeReviewRail`'s `rail` style had a
+fixed `width: 280` and `IslandHome`'s `inner` was a flex row with no
+breakpoint anywhere -- below ~670px the rail's fixed width squeezed the
+canvas to near-zero, so a phone showed the rail and bottom nav and not
+one island. The committed `home-populated-mobile-darwin.png` baseline
+(added by this same Phase 3 branch, one commit before this fix) shows
+it directly: no islands, just the rail. This is exactly the kind of bug
+Task 8's live verification (above) couldn't have caught -- that session
+drove a desktop-shaped browser-automation viewport, never a phone-sized
+one -- and it's a concrete point in favor of `tests/visual/home.spec.ts`
+existing at all: a spec written to cover Phase 3's main deliverable
+caught a real defect in that deliverable's actual target form factor
+(this app is bottom-nav, mobile-shaped) before merge, not after.
+
+The fix follows the same responsive pattern already used elsewhere in
+this codebase (`ConceptDetailPanel.tsx`'s side-panel/bottom-sheet switch,
+`DueQueue.tsx`'s `CONNECT_PANEL_MEDIA_QUERY`): an injected `<style>`
+block with a `className` + `@media (max-width: 768px)` rule, not a new
+styling approach, and not a `useMobileBreakpoint()` JS hook (`IslandHome`
+stays a server component). Below 768px, `.island-home-inner` switches to
+`flex-direction: column` (islands above the rail); `.home-review-rail`
+drops its fixed `width: 280` for `width: 100%` and swaps its
+`align-items: stretch`-derived height for an explicit `max-height: 400px`;
+`.island-home-main` gets an explicit `min-height: 256px` (header + one
+island row).
+
+Two flexbox-shrink approaches were tried and rejected before the
+`max-height` one, both found by actually rendering the fix in a real
+Chromium instance rather than reasoning about the CSS spec alone:
+giving `main` `flex: 1` (`1 1 0%`) next to the rail's content-sized
+`flex: 0 1 auto` let the shrink algorithm treat `main` as having
+nothing worth protecting and collapsed it to a literal 0px -- the
+header and every island vanished, a second, different way to reproduce
+the original defect. Giving both sides a matching `flex: 1 1 auto` (the
+textbook-correct technique, each side protected by its own
+`min-height: auto` content floor) still let the rail balloon to its
+full unshrunk natural size and push `main` off screen -- nested
+flex-in-flex automatic-minimum-size calculation is a known cross-engine
+soft spot, and a live-measured Chromium render disagreed with the
+spec-reasoned prediction. An explicit `max-height: 400px` on the rail
+(headings + all exam rows measured live at ~273px, so 400px leaves the
+review-list scroller real room instead of squeezing it to a sliver) plus
+an explicit `min-height: 256px` on `main` sidesteps that uncertainty
+with two deterministic numbers instead of relying on the shrink
+algorithm to arbitrate fairly between two very different content shapes.
+`page` also picked up `overflowY: "auto"` as a last-resort safety valve
+-- if a student's real device is short enough, or has enough upcoming
+exams, that even both explicit floors together don't fit, the excess is
+reachable by scrolling the page (AppShell's bottom nav stays pinned
+outside that scroll region) rather than being clipped invisibly by
+`AppShell`'s `outlet: { overflow: "hidden" }` with no way back.
+
+Verified: mobile `home-populated-mobile-darwin.png` re-baselined and
+opened -- shows the "Welcome back" header, three visible islands
+(Algorithms/Discrete Math/Databases), the review rail with two visible
+course rows and a scroll affordance, and the exam section's heading
+plus its first exam row, all above the bottom nav. Scrolling the page
+container (verified via a live Chromium check, not just DOM inspection)
+reaches the remaining exams while the bottom nav stays put. The desktop
+`home-populated-chromium-darwin.png` baseline was NOT touched by the
+`--update-snapshots=all` re-baseline run (confirmed via `git status`),
+i.e. desktop rendering is provably unchanged. `--update-snapshots=all`
+also rewrote several unrelated Concept Atlas / review-queue PNGs as a
+side effect of the flag rewriting every baseline regardless of pass/
+fail (its documented behavior, and why the task explicitly called for
+it over the bare flag) -- those were confirmed unchanged pixel-for-pixel
+via the suite's own <2% tolerance passing beforehand, then reverted with
+`git checkout --` rather than committed, so this fix's diff stays scoped
+to the two component files plus the one PNG that actually needed to
+change. Full regression: typecheck clean; `eslint src tests trigger` 0
+errors (8 pre-existing warnings); 386/386 unit; visual suite 17 passed /
+3 skipped (the skips are the unrelated `tutor-agent-e2e` project) on the
+no-flag confirmation run.
