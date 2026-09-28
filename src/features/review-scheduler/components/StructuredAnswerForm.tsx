@@ -63,7 +63,7 @@ export function StructuredAnswerForm({
           boxSizing: "border-box",
         }}
       />
-      {parseError && <p style={{ color: "var(--clay)", fontSize: 12.5, margin: 0 }}>Not valid: {parseError}</p>}
+      {parseError && <p style={{ color: "var(--status-danger)", fontSize: 12.5, margin: 0 }}>Not valid: {parseError}</p>}
       <button
         type="button"
         onClick={handleSubmit}
@@ -71,8 +71,8 @@ export function StructuredAnswerForm({
         style={{
           alignSelf: "flex-start",
           padding: "8px 16px",
-          background: "var(--clay)",
-          color: "var(--clay-fg)",
+          background: "var(--accent)",
+          color: "var(--accent-fg)",
           border: "none",
           borderRadius: "var(--radius-sm)",
           fontSize: 13,

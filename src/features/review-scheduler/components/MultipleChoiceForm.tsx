@@ -71,13 +71,13 @@ const s: Record<string, React.CSSProperties> = {
   // unchanged, React never re-applies it either -- leaving a stale
   // border-color instead of reverting to the base one. Using the
   // shorthand here means every render sets/diffs one atomic key.
-  optionSelected: { border: "1px solid var(--clay)", background: "var(--clay-muted)" },
-  radio: { accentColor: "var(--clay)", cursor: "pointer" },
+  optionSelected: { border: "1px solid var(--accent)", background: "var(--accent-muted)" },
+  radio: { accentColor: "var(--accent)", cursor: "pointer" },
   submitBtn: {
     alignSelf: "flex-start",
     padding: "9px 16px",
-    background: "var(--clay)",
-    color: "var(--clay-fg)",
+    background: "var(--accent)",
+    color: "var(--accent-fg)",
     border: "none",
     borderRadius: "var(--radius-sm)",
     fontSize: 13.5,

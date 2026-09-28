@@ -40,7 +40,7 @@ export default async function CourseDetailPage({
         <div style={s.section}>
           <h1 style={s.sectionTitle}>Course material</h1>
           <p style={s.sectionDesc}>
-            Upload lecture notes, slides, or problem sets. Luminary will extract concepts and build your knowledge
+            Upload lecture notes, slides, or problem sets. Orca will extract concepts and build your knowledge
             graph.
           </p>
         </div>

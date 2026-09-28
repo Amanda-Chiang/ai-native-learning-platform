@@ -4,14 +4,14 @@ import type { ConnectSessionResult } from "@/features/review-scheduler/connect-s
 import { IconArrow } from "@/components/icons.tsx";
 
 function urgencyStyle(bucket: UrgencyBucket): React.CSSProperties {
-  if (bucket === "overdue") return { color: "var(--clay)", background: "var(--clay-muted)", border: "1px solid var(--clay-border)" };
-  if (bucket === "today") return { color: "var(--clay)", background: "var(--clay-muted)", border: "1px solid var(--clay-border)", opacity: 0.75 };
-  if (bucket === "soon") return { color: "var(--teal)", background: "var(--teal-muted)", border: "1px solid var(--teal-border)" };
-  return { color: "var(--denim)", background: "var(--denim-muted)", border: "1px solid var(--denim-border)" };
+  if (bucket === "overdue") return { color: "var(--status-danger)", background: "var(--status-danger-muted)", border: "1px solid var(--status-danger-border)" };
+  if (bucket === "today") return { color: "var(--status-danger)", background: "var(--status-danger-muted)", border: "1px solid var(--status-danger-border)", opacity: 0.75 };
+  if (bucket === "soon") return { color: "var(--status-success)", background: "var(--status-success-muted)", border: "1px solid var(--status-success-border)" };
+  return { color: "var(--accent-secondary)", background: "var(--accent-secondary-muted)", border: "1px solid var(--accent-secondary-border)" };
 }
 
 function MasteryBar({ value }: { value: number }) {
-  const color = value >= 0.7 ? "var(--teal)" : value >= 0.5 ? "var(--denim)" : "var(--clay)";
+  const color = value >= 0.7 ? "var(--status-success)" : value >= 0.5 ? "var(--accent-secondary)" : "var(--status-danger)";
   return (
     <div style={{ width: 60, height: 3, background: "var(--border)", borderRadius: 2, overflow: "hidden", flexShrink: 0 }}>
       <div style={{ height: "100%", width: `${Math.round(value * 100)}%`, background: color, borderRadius: 2 }} />
@@ -182,8 +182,8 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 7,
     padding: "9px 16px",
-    background: "var(--clay)",
-    color: "var(--clay-fg)",
+    background: "var(--accent)",
+    color: "var(--accent-fg)",
     border: "none",
     borderRadius: "var(--radius-sm)",
     fontSize: 13.5,

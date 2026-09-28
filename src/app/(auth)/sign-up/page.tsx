@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo.tsx";
 import { signUp } from "@/features/auth/actions.ts";
 
 export default function SignUpPage() {
@@ -27,8 +28,7 @@ export default function SignUpPage() {
     <div style={s.page}>
       <div style={s.card}>
         <div style={s.logo}>
-          <span style={s.logoMark}>◆</span>
-          <span style={s.logoWord}>Luminary</span>
+          <BrandLogo />
         </div>
 
         <div style={s.heading}>
@@ -94,8 +94,6 @@ const s: Record<string, React.CSSProperties> = {
   page: { height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 24 },
   card: { width: "100%", maxWidth: 380, display: "flex", flexDirection: "column", gap: 28 },
   logo: { display: "flex", alignItems: "center", gap: 8 },
-  logoMark: { fontSize: 14, color: "var(--clay)", lineHeight: 1 },
-  logoWord: { fontSize: 15, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--text-primary)" },
   heading: { display: "flex", flexDirection: "column", gap: 4 },
   title: { margin: 0, fontSize: 22, fontWeight: 500, letterSpacing: "-0.03em", color: "var(--text-primary)" },
   subtitle: { margin: 0, fontSize: 14, color: "var(--text-secondary)", letterSpacing: "-0.005em" },
@@ -116,15 +114,15 @@ const s: Record<string, React.CSSProperties> = {
     margin: 0,
     padding: "10px 12px",
     borderRadius: "var(--radius-sm)",
-    background: "var(--clay-muted)",
-    border: "1px solid var(--clay-border)",
+    background: "var(--status-danger-muted)",
+    border: "1px solid var(--status-danger-border)",
     fontSize: 13,
-    color: "var(--clay)",
+    color: "var(--status-danger)",
   },
   submit: {
     padding: 11,
-    background: "var(--clay)",
-    color: "var(--clay-fg)",
+    background: "var(--accent)",
+    color: "var(--accent-fg)",
     border: "none",
     borderRadius: "var(--radius-sm)",
     fontSize: 14,
@@ -135,5 +133,5 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 4,
   },
   footer: { margin: 0, fontSize: 13, color: "var(--text-tertiary)", textAlign: "center" },
-  link: { color: "var(--clay)", fontWeight: 500 },
+  link: { color: "var(--accent)", fontWeight: 500 },
 };

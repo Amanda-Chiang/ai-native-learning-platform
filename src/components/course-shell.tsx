@@ -104,13 +104,13 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "var(--font-sans)",
     fontWeight: 450,
     color: "var(--text-secondary)",
-    borderBottom: "2px solid var(--clay-transparent)",
+    borderBottom: "2px solid var(--accent-transparent)",
     letterSpacing: "-0.005em",
     transition: "color 0.1s, border-color 0.1s",
     marginBottom: -1,
   },
   subNavItemActive: {
-    color: "var(--clay)",
+    color: "var(--accent)",
     // Shorthand, matching subNavItem's own `borderBottom` -- not the
     // longhand `borderBottomColor`. Mixing a shorthand base value with a
     // longhand override here was the real bug (found live, not just
@@ -127,7 +127,7 @@ const s: Record<string, React.CSSProperties> = {
     // stray "underline" on a tab that isn't active. Using the shorthand
     // here too means every render always re-sets the one `borderBottom`
     // key atomically, so there's nothing for that diff gap to hit.
-    borderBottom: "2px solid var(--clay)",
+    borderBottom: "2px solid var(--accent)",
     fontWeight: 500,
   },
   subNavIcon: {

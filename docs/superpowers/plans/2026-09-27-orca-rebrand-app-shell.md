@@ -105,7 +105,7 @@ here is semantically overloaded like `--clay` is.
   `--text-tertiary` keep their existing names (every consumer in the app
   already uses these names) but new values.
 
-- [ ] **Step 1: Replace the `:root` block's ground/text/border section**
+- [x] **Step 1: Replace the `:root` block's ground/text/border section**
 
 In `src/app/globals.css`, replace lines 37–51 (the `/* Ground */` through
 `/* Text */` block) with:
@@ -138,13 +138,13 @@ In `src/app/globals.css`, replace lines 37–51 (the `/* Ground */` through
 Leave everything from `/* ── Blushed Brick */` (old line 52) onward
 untouched for now — those tokens are handled in Tasks 5–6.
 
-- [ ] **Step 2: Verify the build and typecheck**
+- [x] **Step 2: Verify the build and typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS, no errors (this is a pure CSS value change, no TS
 surface touched).
 
-- [ ] **Step 3: Manual visual check**
+- [x] **Step 3: Manual visual check**
 
 Run: `npm run dev`, open `http://localhost:3000` (Today dashboard) and
 `http://localhost:3000/sign-in`. Confirm: page background is now a warm
@@ -152,7 +152,7 @@ off-white (parchment) instead of the old cool gray, borders have a faint
 blue-violet tint, body text is still clearly legible black. Nothing
 should look broken — only retinted.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/app/globals.css
@@ -181,7 +181,7 @@ git commit -m "style: retarget ground/text/border tokens to the Orca palette"
   props — nothing in this plan needs a variant, so none is added
   (YAGNI; add one later if a real future consumer needs it).
 
-- [ ] **Step 1: Create `src/components/brand-logo.tsx`**
+- [x] **Step 1: Create `src/components/brand-logo.tsx`**
 
 ```tsx
 /**
@@ -205,7 +205,7 @@ const s: Record<string, React.CSSProperties> = {
 };
 ```
 
-- [ ] **Step 2: Update root metadata**
+- [x] **Step 2: Update root metadata**
 
 In `src/app/layout.tsx`, replace lines 15–18:
 
@@ -216,7 +216,7 @@ export const metadata: Metadata = {
 };
 ```
 
-- [ ] **Step 3: Wire `BrandLogo` into sign-in and sign-up**
+- [x] **Step 3: Wire `BrandLogo` into sign-in and sign-up**
 
 In both `src/app/(auth)/sign-in/page.tsx` and
 `src/app/(auth)/sign-up/page.tsx`, find the block rendering the old
@@ -232,7 +232,7 @@ import { BrandLogo } from "@/components/brand-logo.tsx";
 Remove the now-unused `s.logoMark`/`s.logoWord` style entries and the
 `◆` mark markup from each file if present.
 
-- [ ] **Step 4: Replace remaining literal "Luminary" text**
+- [x] **Step 4: Replace remaining literal "Luminary" text**
 
 In `src/app/(app)/courses/[courseId]/page.tsx:43`, change "Luminary
 will extract concepts..." to "Orca will extract concepts...".
@@ -241,7 +241,7 @@ In `src/features/courses/components/TodayDashboard.tsx:21`, change
 `<h1 style={s.greetingHeading}>Welcome to Luminary.</h1>` to
 `<h1 style={s.greetingHeading}>Welcome to Orca.</h1>`.
 
-- [ ] **Step 5: Update the e2e assertion**
+- [x] **Step 5: Update the e2e assertion**
 
 In `tests/e2e/smoke.spec.ts:5`, change:
 
@@ -255,7 +255,7 @@ to:
 await expect(page.getByRole("heading", { name: "Welcome to Orca." })).toBeVisible();
 ```
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run: `npm run typecheck` — expect PASS.
 Run: `npx playwright test tests/e2e/smoke.spec.ts` — expect PASS.
@@ -265,7 +265,7 @@ stray reference left; `app-shell.tsx` and `globals.css`'s own
 grep still shows those two files, that's expected at this point, not a
 failure).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/components/brand-logo.tsx src/app/layout.tsx \
@@ -295,7 +295,7 @@ git commit -m "feat: add shared BrandLogo, rename product to Orca across UI copy
   `NAV_MAIN` routes) is unchanged — only its internal layout/CSS. No
   other file imports anything new from `app-shell.tsx`.
 
-- [ ] **Step 1: Replace the layout token**
+- [x] **Step 1: Replace the layout token**
 
 In `src/app/globals.css`, replace the `/* Layout */` block (current
 lines 83–89):
@@ -310,7 +310,7 @@ lines 83–89):
 `--sidebar-w-collapsed` are fully replaced — grep confirms no other
 consumer after this task, checked in Step 4.)
 
-- [ ] **Step 2: Rewrite `src/components/app-shell.tsx`**
+- [x] **Step 2: Rewrite `src/components/app-shell.tsx`**
 
 ```tsx
 "use client";
@@ -419,7 +419,7 @@ temporarily-unstyled active state, not a build/type error — CSS custom
 properties are not typechecked. Step 4 below confirms nothing else
 breaks; the color itself will look correct once Task 5 lands.
 
-- [ ] **Step 3: Add `BrandLogo` to the top header**
+- [x] **Step 3: Add `BrandLogo` to the top header**
 
 In `src/app/(app)/layout.tsx`, import and render it inside the existing
 header `<div>`, before `<SiteHeader />`:
@@ -455,7 +455,7 @@ export default function AppGroupLayout({ children }: { children: React.ReactNode
 }
 ```
 
-- [ ] **Step 4: Verify no leftover references**
+- [x] **Step 4: Verify no leftover references**
 
 Run: `grep -rn "sidebar-w\|useMobileBreakpoint" src/components/app-shell.tsx`
 Expected: zero results (the mobile-collapse behavior that motivated
@@ -469,7 +469,7 @@ Run: `npm run typecheck` — expect PASS.
 Run: `npx playwright test tests/e2e/smoke.spec.ts` — expect PASS
 (smoke test doesn't assert on nav position, only page content).
 
-- [ ] **Step 5: Manual visual check**
+- [x] **Step 5: Manual visual check**
 
 Run: `npm run dev`. Confirm: Today and Courses pages now show content
 filling the full height with a 2-item icon bar pinned to the bottom;
@@ -478,7 +478,7 @@ resizing the window narrow (mobile width) still shows a usable bottom
 bar (it was never the thing that needed collapsing — only the sidebar
 was).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/app-shell.tsx src/app/\(app\)/layout.tsx src/app/globals.css
@@ -508,7 +508,7 @@ here. (Reordered explicitly so the "shell chrome" file-grouping stays
 readable as one unit above, without forcing an artificial split of
 `globals.css` edits across two tasks.)
 
-- [ ] **Step 1: `course-shell.tsx` active-tab color**
+- [x] **Step 1: `course-shell.tsx` active-tab color**
 
 Replace:
 ```tsx
@@ -535,7 +535,7 @@ shorthand-vs-longhand bug stays — it's still exactly as true for
 `--accent`/`--accent-transparent` as it was for `--clay`/
 `--clay-transparent`; do not delete it.)
 
-- [ ] **Step 2: `site-header.tsx` primary link color**
+- [x] **Step 2: `site-header.tsx` primary link color**
 
 Replace:
 ```ts
@@ -558,14 +558,14 @@ with:
   },
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run: `npm run typecheck` — expect PASS.
 Run: `npx playwright test tests/e2e/smoke.spec.ts` — expect PASS.
 Run: `grep -rn "var(--clay" src/components/course-shell.tsx src/features/auth/site-header.tsx`
 Expected: zero results.
 
-- [ ] **Step 4: Manual visual check**
+- [x] **Step 4: Manual visual check**
 
 Run: `npm run dev`, open a course detail page. Confirm the active
 sub-nav tab (e.g. "Material") shows the new wisteria-blue underline/
@@ -574,7 +574,7 @@ disappears when navigating to an inactive tab (the exact bug the
 existing code comment warns about — re-verify it's still fixed, not
 just re-colored).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/course-shell.tsx src/features/auth/site-header.tsx
@@ -606,7 +606,7 @@ name).
   The old `--clay*`/`--denim*`/`--teal*`/`--urgent-*` names are **not**
   defined here — Task 6 confirms and removes every remaining reference.
 
-- [ ] **Step 1: Replace the accent/status block**
+- [x] **Step 1: Replace the accent/status block**
 
 Replace lines 52–82 of `src/app/globals.css` (from `/* ── Blushed
 Brick (primary + critical urgency) */` through the end of the
@@ -651,7 +651,7 @@ Brick (primary + critical urgency) */` through the end of the
   --status-warning: #a0622e;
 ```
 
-- [ ] **Step 2: Update the file's own header comment**
+- [x] **Step 2: Update the file's own header comment**
 
 Replace the `LUMINARY — Brand & Design Tokens` comment block at the top
 of the file (lines 1–35) with:
@@ -696,7 +696,7 @@ of the file (lines 1–35) with:
    ═══════════════════════════════════════════ */
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run: `npm run typecheck` — expect PASS (CSS-only change).
 Run: `npm run dev`, confirm the app still loads without console errors
@@ -705,7 +705,7 @@ now-removed `--clay`/`--denim`/`--teal` names until Tasks 4/6 finish —
 those fall back harmlessly to unstyled/inherited color, not a crash;
 this is expected and temporary, resolved by the end of Task 6).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/app/globals.css
@@ -738,7 +738,7 @@ git commit -m "feat: split brand-primary and status colors into --accent*/--stat
   `--status-danger`, `--status-warning` and their `-fg`/`-muted`/
   `-border`/`-hover` variants from Task 5.
 
-- [ ] **Step 1: Enumerate every remaining old-token reference**
+- [x] **Step 1: Enumerate every remaining old-token reference**
 
 Run:
 ```bash
@@ -758,7 +758,7 @@ tokens had in the app):
 | `--urgent-red` | `--status-danger` |
 | `--urgent-amber` | `--status-warning` |
 
-- [ ] **Step 2: Apply the mapping file by file**
+- [x] **Step 2: Apply the mapping file by file**
 
 Edit each of `StudySession.tsx`, `ReviewQueue.tsx`, `DueQueue.tsx`,
 `ExamPlanner.tsx` — every `var(--clay...)`/`var(--denim...)`/
@@ -774,7 +774,7 @@ border: `1px solid ${passed ? "var(--status-success-border)" : "var(--status-dan
 <span style={{ ...s.verdictText, color: passed ? "var(--status-success)" : "var(--status-danger)" }}>
 ```
 
-- [ ] **Step 3: Delete the old token names from `globals.css`**
+- [x] **Step 3: Delete the old token names from `globals.css`**
 
 Run: `grep -n "\-\-clay\|\-\-denim\|\-\-teal\|\-\-urgent" src/app/globals.css`
 Expected: zero results already, since Task 5 replaced that whole block
@@ -782,19 +782,19 @@ Expected: zero results already, since Task 5 replaced that whole block
 shows up, it means Task 5 was applied incompletely; fix `globals.css`
 directly before proceeding.
 
-- [ ] **Step 4: Full-repo confirmation**
+- [x] **Step 4: Full-repo confirmation**
 
 Run: `grep -rn "var(--clay\|var(--denim\|var(--teal\|var(--urgent" src`
 Expected: zero results, repo-wide.
 
-- [ ] **Step 5: Run the full regression suite**
+- [x] **Step 5: Run the full regression suite**
 
 Run: `npm run typecheck` — expect PASS.
 Run: `npm run test:unit` — expect PASS (none of this logic touches
 domain code, this run confirms no accidental breakage).
 Run: `npx playwright test tests/e2e/` — expect PASS.
 
-- [ ] **Step 6: Re-baseline visual regression**
+- [x] **Step 6: Re-baseline visual regression**
 
 Run: `npx playwright test tests/visual/ --update-snapshots`
 
@@ -811,7 +811,7 @@ Run: `npx playwright test tests/visual/` again (without
 `--update-snapshots`) — expect PASS against the newly-committed
 baselines.
 
-- [ ] **Step 7: Manual visual check**
+- [x] **Step 7: Manual visual check**
 
 Run: `npm run dev`. Answer one Study-session question correctly and one
 incorrectly — confirm green/red verdict colors are unchanged from
@@ -820,7 +820,7 @@ correct outcome, not "retinted"). Open Exam Planner with a real exam
 config and confirm critical/soon/comfortable urgency badges still read
 clearly as red/amber/green.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/features/review-scheduler/components/StudySession.tsx \
@@ -846,7 +846,7 @@ git commit -m "style: migrate remaining status colors off deprecated --clay/--de
 - Modify: `brain/design-context/brand-identity.md` (status line)
 - Modify: `brain/decisions/architecture-log.md` (new entry)
 
-- [ ] **Step 1: Fix `page-map.md`'s stale Landing section**
+- [x] **Step 1: Fix `page-map.md`'s stale Landing section**
 
 Replace:
 ```markdown
@@ -867,7 +867,7 @@ touching this area for the Orca rebrand, not itself a rebrand change.
 Heading now reads "Welcome to Orca." per `brand-identity.md`.
 ```
 
-- [ ] **Step 2: Update `tech-constraints.md`**
+- [x] **Step 2: Update `tech-constraints.md`**
 
 Replace the bullet added in the brand-identity pass:
 ```markdown
@@ -887,7 +887,7 @@ with:
     token system" has been addressed, not component reuse.
 ```
 
-- [ ] **Step 3: Update `README.md`**
+- [x] **Step 3: Update `README.md`**
 
 Replace the "Rebrand note" paragraph added in the brand-identity pass
 with:
@@ -902,7 +902,7 @@ material upload, review configuration, calendar, onboarding, deep
 review) are scoped but not yet built.
 ```
 
-- [ ] **Step 4: Update `brand-identity.md`'s status line**
+- [x] **Step 4: Update `brand-identity.md`'s status line**
 
 Change the top status line from:
 ```markdown
@@ -916,7 +916,7 @@ to:
 placeholder — no real SVG/PNG asset exists yet (see "Logo" below).
 ```
 
-- [ ] **Step 5: Log the architecture-log entry**
+- [x] **Step 5: Log the architecture-log entry**
 
 Append to `brain/decisions/architecture-log.md`, after the
 2026-09-27 "Orca redesign" entry:
@@ -952,7 +952,7 @@ Phases 2-9 of the redesign remain scoped-not-built per `docs/
 superpowers/specs/2026-09-27-orca-redesign-design.md`.
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add brain/design-context/page-map.md brain/design-context/tech-constraints.md \
@@ -979,3 +979,42 @@ and labeled in both code comment and doc updates, not a silent stand-in.
 identically at all three sites that render it (sign-in, sign-up, and
 `(app)/layout.tsx`'s header) — no site passes props, no drift between
 its definition and any call site.
+
+---
+
+## Execution addendum (2026-09-27) -- what actually happened
+
+This plan was executed end to end on branch `orca-rebrand-phase-1`.
+All 7 tasks are complete and committed (one commit per task). Three
+divergences from the plan as written, recorded here so the checklist
+above isn't read as a literal account:
+
+1. **Task 6's file list was incomplete.** The plan named 4 files;
+   the real old-token consumer set was **16 files / 90 references**
+   (its own Step 4 demanded zero repo-wide, which is the binding
+   requirement). Additional files migrated: `sign-in/page.tsx`,
+   `sign-up/page.tsx`, `courses/[courseId]/tutor/page.tsx`,
+   `TutorChat.tsx`, `TodayDashboard.tsx`, `CreateCourseForm.tsx`,
+   `AddUnitForm.tsx`, `MultipleChoiceForm.tsx`,
+   `StructuredAnswerForm.tsx`, `ConceptScopeSelect.tsx`,
+   `artifact-board.tsx`, `display-status.ts`. Every `--clay*` site was
+   classified by meaning per the plan's own mapping table, not blanket
+   renamed.
+
+2. **Task 4 Step 1's snippet didn't match the file.** It showed
+   `subNavItemActive`'s `color` and `borderBottom` as adjacent lines;
+   the long shorthand-vs-longhand comment sits between them. Both were
+   retargeted, comment kept verbatim as the plan required.
+
+3. **Task 6 Step 6 only regenerates `-darwin` baselines.** Running
+   `--update-snapshots` on macOS cannot produce the `-linux.png`
+   baselines CI compares against; those are now stale and must be
+   regenerated on CI's `ubuntu-latest` runner the way
+   `brain/decisions/architecture-log.md`'s 2026-09-08 entry describes,
+   or `quality-gates` will fail on an intended change. **This is the
+   one piece of Phase 1 that is not finished locally.**
+
+Also worth noting for anyone re-running this: every `npm run dev` /
+`playwright` / `typecheck` step needs Node 24 (`nvm use 24`) -- the
+default shell `node` here is v16 and `next dev` refuses to start on it
+(`brain/lessons/setup-gotchas.md` already documents this).

@@ -372,14 +372,14 @@ const s: Record<string, React.CSSProperties> = {
   // border-color survive after the longhand key disappears on the next
   // render, since the unchanged shorthand string is never re-applied).
   dropzoneActive: {
-    border: "1.5px dashed var(--clay)",
-    background: "var(--clay-muted)",
+    border: "1.5px dashed var(--accent)",
+    background: "var(--accent-muted)",
   },
   uploadIcon: { display: "flex", alignItems: "center", color: "var(--text-tertiary)" },
   uploadText: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4 },
   uploadPrimary: { fontSize: 14, fontWeight: 500, color: "var(--text-secondary)", letterSpacing: "-0.01em" },
   uploadSecondary: { fontSize: 12, color: "var(--text-tertiary)", letterSpacing: "-0.005em" },
-  uploadError: { margin: 0, fontSize: 12.5, color: "var(--clay)" },
+  uploadError: { margin: 0, fontSize: 12.5, color: "var(--status-danger)" },
   unitSelect: {
     marginTop: 8,
     padding: "6px 10px",
@@ -415,7 +415,7 @@ const s: Record<string, React.CSSProperties> = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  failReason: { fontSize: 11.5, color: "var(--clay)", letterSpacing: "-0.005em" },
+  failReason: { fontSize: 11.5, color: "var(--status-danger)", letterSpacing: "-0.005em" },
   extractionCounts: { fontSize: 11.5, color: "var(--text-tertiary)", letterSpacing: "-0.005em" },
   statusBadge: {
     fontSize: 10.5,

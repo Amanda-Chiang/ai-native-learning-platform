@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI-Native Learning Platform",
-  description: "An AI-native learning platform.",
+  title: "Orca",
+  description: "Orca — an AI-native learning platform.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

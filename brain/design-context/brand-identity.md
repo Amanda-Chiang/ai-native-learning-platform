@@ -1,7 +1,9 @@
-# Brand identity — Orca (approved, not yet applied to any UI)
+# Brand identity — Orca
 
-**Status: approved 2026-09-27, pending implementation.** Nothing in
-`src/` reflects this yet — no rename, no palette, no logo asset. This
+**Status: approved 2026-09-27; name/palette/app-shell applied
+2026-09-27 (Phase 1 of `docs/superpowers/specs/
+2026-09-27-orca-redesign-design.md`).** The logo remains a text-only
+placeholder — no real SVG/PNG asset exists yet (see "Logo" below). This
 doc exists so a future UX/flow design pass (and its implementation) has
 a real style guide to build from, per `brain/decisions/architecture-log.md`'s
 2026-09-27 entry. Read `tech-constraints.md` alongside this — it has no

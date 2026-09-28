@@ -1,33 +1,35 @@
 /* ═══════════════════════════════════════════
-   LUMINARY — Brand & Design Tokens
+   ORCA — Brand & Design Tokens
    ═══════════════════════════════════════════
 
-   Logo
-   ────
-   Mark:     ◆  (--clay / Blushed Brick, 13–16px)
-   Wordmark: "Luminary" Geist 600, --text-primary
-   Usage:    mark + 8px gap + wordmark
+   Name & logo: brain/design-context/brand-identity.md (placeholder
+   text-only wordmark for now -- no real logo asset file yet).
 
-   Palette
-   ───────
-   Blushed Brick   #C94F53   Primary — actions, buttons, active nav, brand mark, critical urgency
-   Warm Gray       #F7F7F6   Page ground / background
-   Cloudy Sky      #5890D5   Secondary — AI voice, informational text, links
-   Sea Green       #2B9257   Tertiary — new content, success, mastery, comfortable urgency
+   Brand palette (verbatim from brand-identity.md)
+   ────────────────────────────────────────────────
+   Black          #000000   Primary text, logo wordmark
+   Prussian Blue  #151d3a   Darkest brand hue besides black -- hover/
+                             mix target for accent variants
+   Alice Blue     #e1ecfa   Light cool background / hover surface /
+                             muted accent fill
+   Periwinkle     #afb5f2   Accent secondary -- AI voice, informational
+   Wisteria Blue  #839bec   Accent primary -- buttons, active nav, links
+   Parchment      #fcf7f4   Page ground
 
-   Urgency (shares brand palette — cohesive by design)
-   ──────
-   Critical   --clay (#C94F53)   Exam <7 days   (same as primary — intentional)
-   Soon       #A0622E            Exam 7–21 days  (warm amber, bridges brick & green)
-   Comfortable  --teal (#2B9257) implicit via exam card left border: transparent
+   Status colors (functional, not brand-tinted -- see --status-* below)
+   ──────────────────────────────────────────────────────────────────
+   Success   #2b9257   Correct answers, mastered concepts
+   Danger    #c94f53   Incorrect answers, errors, critical exam urgency
+   Warning   #a0622e   "Soon" exam urgency
 
    Usage rules
    ───────────
-   • Clay  → all primary interactive: buttons, active nav, logo mark, focus rings, critical urgency
-   • Sky   → AI-generated summaries, informational badges, secondary links
-   • Green → "new" concept badges, mastered states, session complete, comfortable exam
-   • Urgency intentionally shares brand hues so the full UI reads as one system
-   • Never use Clay and Sky as equals on the same component
+   • --accent   → all primary interactive: buttons, active nav, primary
+     links, focus rings
+   • --accent-secondary → AI-generated summaries, informational badges
+   • --status-* → correctness/urgency feedback only, never a generic
+     "brand color" substitute -- keeps correct/incorrect legible
+     regardless of what the brand palette itself does later
 
    Fonts are loaded via next/font/google in src/app/layout.tsx
    (--font-geist-sans / --font-geist-mono) — --font-sans/--font-mono
@@ -35,57 +37,67 @@
    ═══════════════════════════════════════════ */
 
 :root {
+  /* Orca brand — raw tokens, verbatim from brain/design-context/brand-identity.md */
+  --black: #000000;
+  --prussian-blue: #151d3a;
+  --alice-blue: #e1ecfa;
+  --periwinkle: #afb5f2;
+  --wisteria-blue: #839bec;
+  --parchment: #fcf7f4;
+
   /* Ground */
-  --bg: #f7f7f6;
+  --bg: var(--parchment);
   --surface: #ffffff;
-  --surface-hover: #f3f3f2;
+  --surface-hover: var(--alice-blue);
 
-  /* Borders */
-  --border: #e4e4e2;
-  --border-strong: #d0cfcc;
+  /* Borders — periwinkle-tinted instead of flat gray, ties chrome to brand */
+  --border: color-mix(in srgb, var(--periwinkle) 35%, transparent);
+  --border-strong: color-mix(in srgb, var(--periwinkle) 55%, transparent);
 
-  /* Text */
-  --text-primary: #0d0d0d;
-  --text-secondary: #4a5568;
-  --text-tertiary: #8a9bad;
+  /* Text — black-based, hierarchy via opacity so hue stays consistent with the logo */
+  --text-primary: var(--black);
+  --text-secondary: rgb(0 0 0 / 0.65);
+  --text-tertiary: rgb(0 0 0 / 0.42);
 
-  /* ── Blushed Brick (primary + critical urgency) */
-  --clay: #c94f53;
-  --clay-hover: #b03e42;
-  --clay-fg: #ffffff;
-  --clay-muted: #fceaea;
-  --clay-border: rgba(201, 79, 83, 0.22);
-  /* Same rgb channels as --clay, alpha 0 -- for a border-color that
-     transitions to/from --clay. Transitioning to the literal keyword
-     `transparent` interpolates RGB independently of alpha (transparent
-     is rgba(0,0,0,0)), so a red border fading to "transparent" visibly
-     flashes black/gray mid-transition. Fading to this instead keeps the
-     same hue the whole way, so only opacity animates. */
-  --clay-transparent: rgba(201, 79, 83, 0);
+  /* ── Accent (brand primary — buttons, active nav, primary links) */
+  --accent: var(--wisteria-blue);
+  --accent-hover: color-mix(in srgb, var(--wisteria-blue) 80%, var(--prussian-blue) 20%);
+  --accent-fg: #ffffff;
+  --accent-muted: var(--alice-blue);
+  --accent-border: color-mix(in srgb, var(--wisteria-blue) 30%, transparent);
+  /* Same RGB channels as --wisteria-blue, alpha 0 -- see the identical
+     --clay-transparent comment this replaces (course-shell.tsx's active-
+     tab underline needs a same-hue fade, not a fade through gray/black). */
+  --accent-transparent: rgb(131 155 236 / 0);
 
-  /* ── Cloudy Sky (AI voice / informational) */
-  --denim: #5890d5;
-  --denim-hover: #4578bb;
-  --denim-fg: #ffffff;
-  --denim-muted: #e8f1fb;
-  --denim-border: rgba(88, 144, 213, 0.25);
+  /* ── Accent secondary (AI voice / informational, lighter than --accent) */
+  --accent-secondary: var(--periwinkle);
+  --accent-secondary-hover: color-mix(in srgb, var(--periwinkle) 80%, var(--prussian-blue) 20%);
+  --accent-secondary-fg: var(--black);
+  --accent-secondary-muted: var(--alice-blue);
+  --accent-secondary-border: color-mix(in srgb, var(--periwinkle) 35%, transparent);
 
-  /* ── Sea Green (new content / success / mastery / comfortable) */
-  --teal: #2b9257;
-  --teal-fg: #ffffff;
-  --teal-muted: #e2f4eb;
-  --teal-border: rgba(43, 146, 87, 0.22);
+  /* ── Status colors (functional, deliberately NOT brand-tinted --
+     correct/incorrect/warning stay their conventional hues regardless
+     of brand palette, same reasoning a fire-alarm stays red no matter
+     what color the building is painted). Values unchanged from the
+     app's pre-Orca colors -- only the names/grouping changed, so every
+     correct/incorrect/urgency indicator in the app looks exactly as it
+     did before this rebrand. */
+  --status-success: #2b9257;
+  --status-success-fg: #ffffff;
+  --status-success-muted: #e2f4eb;
+  --status-success-border: rgba(43, 146, 87, 0.22);
 
-  /* ── Urgency (shares brand palette — cohesive by design) */
-  --urgent-red: var(--clay);
-  --urgent-amber: #a0622e;
+  --status-danger: #c94f53;
+  --status-danger-fg: #ffffff;
+  --status-danger-muted: #fceaea;
+  --status-danger-border: rgba(201, 79, 83, 0.22);
+
+  --status-warning: #a0622e;
 
   /* Layout */
-  --sidebar-w: 220px;
-  /* AppShell's own collapsed (icon-only) rail below its mobile breakpoint
-     -- the sidebar never collapsed at all before this, leaving almost no
-     width for page content on a phone-sized viewport. */
-  --sidebar-w-collapsed: 56px;
+  --bottom-nav-h: 56px;
   --right-w: 280px;
 
   /* Typography — aliases onto the real next/font/google variables */
