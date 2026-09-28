@@ -390,7 +390,7 @@ Known open items, not yet resolved as of 2026-09-28:
   Exam Plan page itself reports it already passed. Neither is new;
   both predate this branch.
 
-**Orca redesign — Phases 1–2 shipped 2026-09-27/28; phases 3–9 scoped only**:
+**Orca redesign — Phases 1–3 shipped 2026-09-27/28; phases 4–9 scoped only**:
 Phase 1 (rebrand + app shell) is **built and committed**: `globals.css`
 now carries the real Orca token system (6 brand tokens, plus the
 `--accent*` / `--status-*` split that replaced the overloaded `--clay`),
@@ -426,6 +426,32 @@ temporary-commit sequence that worked). See also
 implementation plan) and `docs/superpowers/specs/
 2026-09-28-orca-phase2-concepts-chat-design.md` (the design).
 
+Phase 3 (home dashboard) is also **built and committed**: `/` now renders
+`IslandHome` — one placeholder island per course (`IslandCanvas`,
+deterministic scatter, shape from a stored `island_shape_index` column
+via migration `0016_course_island_shape.sql`, color hashed from the
+course id) and a right-hand rail (`HomeReviewRail`) listing every
+course's next review session soonest-first, with a pinned "Upcoming
+exams" section below the rail's own scroll region. `TodayDashboard` and
+`today.ts` (Phase 2's dashboard) are deleted, not kept alongside the new
+one. An island opens that course's Concepts screen; the rail's ▷ opens
+Study (Quick review's existing, working page — unlike Phase 2's disabled
+▷ controls, this one had a real destination to link to). A count next to
+a course's due date appears only when that work is due *now*; a future
+date renders with no count, because no session that far out is ever
+persisted (see `brain/decisions/architecture-log.md`'s 2026-09-28 "Orca
+Phase 3" entry for the full reasoning, including why this doesn't
+discharge the calendar ADR Phase 7 still owes). Visual baselines: macOS
+regenerated locally with `--update-snapshots=all` (Task 8); the
+`-linux.png` regen was intentionally left to the product owner/controller
+(pushing the regen workflow to `main` needs their explicit
+authorization) — see Task 8's report,
+`.superpowers/sdd/2026-09-28-orca-phase3-home-dashboard/task-8-report.md`.
+Pending: the settings gear seen in earlier design mockups has no route
+yet — it's still waiting on Phase 6's Configurations screen, not a Phase
+3 gap. See `docs/superpowers/plans/2026-09-28-orca-phase3-home-dashboard.md`
+and the corresponding design doc for the full spec.
+
 The paragraph below describes the original scoping pass:
 
 **Orca redesign (2026-09-27, scoped and planned)**:
@@ -441,8 +467,7 @@ sequencing/decisions), `docs/superpowers/plans/
 run via `superpowers:subagent-driven-development` or
 `superpowers:executing-plans`), and `brain/decisions/
 architecture-log.md`'s 2026-09-27 entries. Nothing in `src/` reflects
-any of phases 2–9 yet (Phase 1 above has since shipped: `globals.css`
-and `AppShell` are now Orca). Existing
+any of phases 4–9 yet (Phases 1–3 above have since shipped). Existing
 routes/pages described elsewhere in this doc and in `specs/` are
 unaffected until each phase actually ships.
 

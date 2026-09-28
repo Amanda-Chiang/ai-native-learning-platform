@@ -2629,3 +2629,176 @@ subsequent no-flag confirmation run; e2e 15 passed, with
 projects for the pre-existing, already-logged reason (2026-09-28 entry
 above: OpenAI account has no credits, `429`) -- not caused by this
 branch.
+
+## 2026-09-28 -- Orca Phase 3 (island home dashboard): what shipped, and the six decisions behind it
+
+Phase 3 replaces `TodayDashboard`/`today.ts` (Phase 2's home) with
+`IslandHome`: one placeholder island per course (`IslandCanvas`) plus a
+review rail (`HomeReviewRail`) listing every course's next review
+session, soonest first, with an "Upcoming exams" section pinned below
+the rail's own scroll region. Six decisions worth recording, since a
+typecheck cannot confirm any of them:
+
+**1. Why the rail's ▷ links to the existing `/study` rather than
+shipping disabled, like Phase 2's two ▷ controls did.** Phase 2's
+Concepts-screen controls (Quick review, Deep review) shipped visibly
+disabled because neither had a working destination yet -- Quick review
+was Phase 4, Deep review Phase 9. Quick review has since shipped (the
+existing `/courses/{id}/study` page, reachable today from Concepts).
+Home's ▷ is that same action surfaced one level up; shipping it disabled
+here would have hidden a path to studying that already works elsewhere
+in the app, which is a worse default than linking to it. The rail's ▷
+only renders at all for a `"scheduled"` row -- a `"nothing-scheduled"` or
+`"failed"` row has nothing to start, so it gets no ▷, not a disabled one
+(see decision 3 below for the same "no work, no false affordance"
+reasoning applied to the count).
+
+**2. Why the rail shows one nearest date per course instead of "the
+next 5 review sessions."** `specs/009-review-scheduler/data-model.md`
+is explicit that every review session type is computed on read, not
+stored -- there is no `review_sessions` table this system could query
+for "the next 5." Rendering five dated future sessions would mean
+running today's ranking algorithm five times against a simulated future
+state and presenting the result as fact. That's a materially different
+claim from "here is what's due" -- it assumes no evidence is recorded
+between now and then, when recording evidence is the entire point of
+using this app, and any evidence recorded in the interim changes what
+those future days actually hold. So Home shows exactly one date: the
+soonest, computed the same way `getDueQueueResult` already computes it
+for every other caller, with no second projection-generation path to
+keep in sync.
+
+This does **not** discharge the ADR Phase 7's calendar still owes,
+which was flagged when review-scheduler shipped and remains open. A
+month of future dates is a categorically stronger claim than one nearest
+date -- it invites a student to plan around a specific day three weeks
+out, which this system cannot honestly promise (same computed-on-read
+constraint, at a scale where "evidence recorded in the interim" is no
+longer an edge case but the median case for a 30-day window). Phase 7's
+calendar has to solve that projection-vs-fact problem on its own terms;
+Phase 3 sidesteps it entirely by only ever showing one date, which is
+why this entry records that the two are not the same problem solved
+twice.
+
+**3. Why a count appears only for work due now.** `summarizeCourseDue`
+(`src/features/courses/home-summary.ts`) sets `dueNowCount` from
+`result.items.filter((i) => i.daysUntilDue <= 0).length` only when the
+soonest item's `daysUntilDue <= 0`; a future soonest date gets
+`dueNowCount: null` and the rail renders the label with no `· N due`
+suffix. "6 due" is a true claim about work that exists in the database
+right now. A count attached to a future date would be a claim about the
+size of a session that has not been generated, computed from today's
+snapshot of concepts that may themselves accrue more due items (or lose
+some, on new evidence) before that date arrives -- exactly the
+projection-as-fact problem decision 2 describes, just at the
+single-course-count level instead of the five-session level. Keeping
+the rule in `home-summary.ts` (pure, unit-tested, zero `@/...` imports)
+rather than in the rendering component means this is one rule with one
+enforcement point, not something each caller could independently get
+wrong.
+
+**4. Why the island shape index is a stored column
+(`courses.island_shape_index`, migration `0016_course_island_shape.sql`)
+rather than `hash(course.id) % library.length`, and why the shape
+library (`island-shapes.ts`) is append-only.** A hash-derived index
+would silently reassign every course's shape the moment the library
+gained a 9th shape, because `% N` changes for every existing id when `N`
+changes -- a student's islands would visibly reshuffle on a release that
+had nothing to do with their courses. Storing the index at
+`createCourse` time (`Math.floor(Math.random() * ISLAND_SHAPES.length)`,
+current library length) freezes each course's shape at creation and
+makes it immune to the library growing later. The library is append-only
+for the same reason from the other direction: removing or reordering an
+existing entry would either invalidate stored indices (a course now
+points past the end of the array) or silently reassign a different shape
+to an old index. `shapeForIndex` throws rather than substituting shape 0
+for an out-of-range index, so a genuinely corrupt row surfaces as a
+visible "couldn't load" state on that one island (caught locally in
+`IslandCanvas`) instead of rendering a plausible-looking wrong shape --
+the no-silent-placeholders rule applied to a cosmetic column, because a
+cosmetic column can still lie.
+
+**5. Why `listCoursesResult`/`getDueQueueResult` were added as siblings
+rather than changing `listCourses`/`getDueQueue` in place.** Both
+originals collapse a failed query into an empty result (`[]`), which
+every existing caller already depends on as "nothing here" -- changing
+that return shape in place would be a silent behavior change for call
+sites this task never audited. Home needs to tell "this course has
+nothing due" apart from "the due-queue query for this course errored,"
+because those are different states requiring different UI (a calm
+"Nothing scheduled" row versus a visible failure), and that distinction
+cannot be recovered once collapsed into an empty array. Adding
+`getDueQueueResult`/`listCoursesResult` as new functions that return a
+discriminated `{ ok: true, ... } | { ok: false, reason }` shape, with
+the originals reimplemented as thin wrappers around them (`getDueQueue`
+= `getDueQueueResult(...).ok ? items : []`), means the failure
+information exists for the one caller (Home) that needs it, with zero
+risk to the callers that don't.
+
+**6. The real migration backfill output (Task 3, live verification).**
+`0016_course_island_shape.sql` backfills `island_shape_index` for
+existing rows via `row_number() - 1 % 8` ordered by `created_at`, then
+adds the `not null` + `>= 0` check constraint. Queried live against the
+project's real database after the push (`npx supabase db push` --
+`{"upToDate":false,"dryRun":false,"migrations":["0016_course_island_shape.sql"],...}`):
+
+```json
+{
+  "nulls": 0,
+  "distribution": [
+    { "island_shape_index": 0, "count": 3 },
+    { "island_shape_index": 1, "count": 3 },
+    { "island_shape_index": 2, "count": 2 },
+    { "island_shape_index": 3, "count": 2 },
+    { "island_shape_index": 4, "count": 2 },
+    { "island_shape_index": 5, "count": 2 },
+    { "island_shape_index": 6, "count": 2 },
+    { "island_shape_index": 7, "count": 2 }
+  ],
+  "totalRows": 18
+}
+```
+
+Zero NULLs and all 8 library indices represented across the 18 rows that
+existed at migration time -- the backfill ran for real, against real
+rows, not a no-op that happened to produce all zeros.
+
+**Live verification (Task 8).** A throwaway confirmed user, twelve
+courses, and one exam were seeded through the service-role admin client
+(same pattern as `tests/e2e/global-setup.ts`) and driven through the
+real signed-in UI. Confirmed: one island per course; an island's link
+target is `/courses/{id}` (Concepts); a course with two never-attempted
+concepts showed "Due today · 2 due"; a course with one concept carrying
+fresh high-confidence evidence showed "In 25 days" with **no** count --
+the central truthfulness rule from decision 3, both cases produced in
+the same session, not asserted from code reading alone; a course with
+zero confirmed concepts rendered a visible "Nothing scheduled" row
+rather than disappearing from the rail, and correctly had no ▷; the ▷ on
+a due course opened `/courses/{id}/study` and rendered the real Study
+page; "Add class" opened `CreateCourseModal`, created a course through
+the real form, and that course appeared as a new island reachable by its
+own link. The rail's independent scroll (with the exam section pinned
+below it) was confirmed structurally -- `HomeReviewRail`'s scroller div
+carries `overflowY: auto` / `minHeight: 0` inside a `maxHeight: 100%`
+column, all 12 seeded courses were present in the rendered rail's DOM,
+and the exam section remained visible in every screenshot taken -- but
+the browser-automation tool used for this session's live check could
+only scroll the page's outer canvas region, not this specific inner
+scroll container, so no pixel screenshot exists of the rail mid-scroll.
+That gap is recorded plainly rather than implied away; see Task 8's
+report (`.superpowers/sdd/2026-09-28-orca-phase3-home-dashboard/
+task-8-report.md`) for the full detail and screenshots. All seeded rows
+and the throwaway user were deleted afterward via the same admin client.
+
+Full regression at Task 8: typecheck clean; `eslint src tests trigger` 0
+errors (8 pre-existing warnings, unrelated to this branch); 384/384
+unit; visual suite 15 passed / 3 skipped on both the `--update-snapshots=all`
+re-baseline and the subsequent no-flag confirmation run (only 3 PNGs
+actually changed pixel content -- unrelated Concept Atlas mobile
+snapshots, opened and confirmed correct); `smoke.spec.ts` and
+`basic-flows.spec.ts` both green. The Linux (`-linux.png`) re-baseline
+was deliberately left to the controller/product owner -- it requires
+pushing a workflow to `main`, which per this project's own rule needs
+the product owner's direct authorization, not a relayed instruction from
+another agent (see the 2026-09-28 Orca Phase 2 entry above for the exact
+mechanics and prior precedent).

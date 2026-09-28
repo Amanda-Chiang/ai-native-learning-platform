@@ -5,13 +5,23 @@ and its real component-level building blocks. This reflects the current
 unstyled MVP state (plain semantic HTML, no CSS framework) — see
 `tech-constraints.md` for what that means for a design pass.
 
-## `/` — Today dashboard (`src/app/(app)/page.tsx`)
+## `/` — Island Home (`src/app/(app)/page.tsx`)
 There is no separate static landing page — `/` resolves directly to
-`TodayDashboard` (`getTodayOverview` + `<TodayDashboard>`), the same
-page reached after sign-in. This entry was stale before this rebrand
-(described a `src/app/page.tsx` that doesn't exist) — corrected while
-touching this area for the Orca rebrand, not itself a rebrand change.
-Heading now reads "Welcome to Orca." per `brand-identity.md`.
+`IslandHome` (`getHomeOverview` + `<IslandHome>`), the same page reached
+after sign-in. `TodayDashboard`/`today.ts` (Orca Phase 2's dashboard) were
+deleted in Orca Phase 3; this is a full replacement, not a restyle.
+
+One island per course (`IslandCanvas`, deterministic scatter over a fixed
+3-column grid, shape from a stored `islandShapeIndex`, color hashed from
+the course id — see `island-shapes.ts`/`island-layout.ts`), a "Welcome
+back." heading with the `CreateCourseModal` trigger, and a right-hand
+rail (`HomeReviewRail`) listing every course's next review session
+soonest-first, with an "Upcoming exams" section pinned below the rail's
+own scroll region. Empty-courses and courses-unavailable both render an
+explicit state — see `navigation-flow.md` for how the two link targets
+(island vs. rail ▷) differ. Heading now reads "Welcome to Orca." on the
+empty state, "Welcome back." once at least one course exists, per
+`brand-identity.md`.
 
 ## `/sign-in`, `/sign-up`
 Plain email/password forms (`<input type=email>`, `<input type=password>`),
