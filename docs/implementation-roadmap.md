@@ -380,14 +380,21 @@ Known open items, not yet resolved as of 2026-09-27:
   Exam Plan page itself reports it already passed. Neither is new;
   both predate this branch.
 
-**Orca redesign (2026-09-27, in progress)**: a full brand + UI/UX flow
-redesign is scoped and sequenced into 9 phases (rebrand/app shell,
-concepts screen, home dashboard, quick-review flow, material
-upload/reflection, review configuration, calendar, onboarding, deep
-review) — design and backend-compatibility audit done, only Phase 1
-planned in detail so far. See
-`docs/superpowers/specs/2026-09-27-orca-redesign-design.md` and
-`brain/decisions/architecture-log.md`'s 2026-09-27 entries. Existing
+**Orca redesign (2026-09-27, scoped and planned, no code changed yet)**:
+a full brand + UI/UX flow redesign is scoped and sequenced into 9
+phases (rebrand/app shell, concepts screen, home dashboard,
+quick-review flow, material upload/reflection, review configuration,
+calendar, onboarding, deep review) — design doc and a live
+backend-compatibility audit are done; a detailed task-by-task
+implementation plan exists for Phase 1 only, not yet executed. See
+`docs/superpowers/specs/2026-09-27-orca-redesign-design.md` (full
+sequencing/decisions), `docs/superpowers/plans/
+2026-09-27-orca-rebrand-app-shell.md` (Phase 1's real plan, ready to
+run via `superpowers:subagent-driven-development` or
+`superpowers:executing-plans`), and `brain/decisions/
+architecture-log.md`'s 2026-09-27 entries. Nothing in `src/` reflects
+any of this yet — `globals.css` still carries the old "Luminary"
+placeholder brand, `AppShell` is still the left sidebar. Existing
 routes/pages described elsewhere in this doc and in `specs/` are
 unaffected until each phase actually ships.
 

@@ -47,11 +47,18 @@ current source in this repo for "what changed and why."
 - `navigation-flow.md` — the real click-path through the product today,
   plus named navigation gaps.
 - `tech-constraints.md` — what's locked in (React Flow + ELK for the
-  graph) vs. genuinely open (no CSS framework/component library/icons/
-  animation installed at all) for anyone proposing a visual redesign.
+  graph) vs. genuinely open (no component library/icons/animation
+  installed) for anyone proposing a visual redesign; also notes the
+  real CSS-custom-property token system now in `globals.css` (was
+  "zero design token system" before the Orca rebrand's Phase 1 plan).
+- `brand-identity.md` — the approved Orca brand (name/logo/6-color
+  palette). **Check its status line before assuming it's live** — as
+  of 2026-09-27 it's approved and planned (Phase 1 plan:
+  `docs/superpowers/plans/2026-09-27-orca-rebrand-app-shell.md`) but
+  not yet applied to any code; `src/app/globals.css` still carries the
+  old placeholder "Luminary" brand until that plan is executed.
 - `frontend-design-handoff-prompt.md` — a ready-to-paste prompt for
-  handing a design pass to another LLM, referencing the three files
-  above.
+  handing a design pass to another LLM, referencing the files above.
 
 ## `lessons/`
 
