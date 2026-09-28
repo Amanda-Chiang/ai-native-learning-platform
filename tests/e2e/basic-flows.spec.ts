@@ -58,6 +58,7 @@ test("sign in, create a course via the real form, and reach every linked feature
   await expect(page.getByRole("heading", { name: "Courses" })).toBeVisible();
 
   const courseName = `E2E Basic Flow Course ${Date.now()}`;
+  await page.getByRole("button", { name: "Add class" }).click();
   await page.getByLabel("Course name").fill(courseName);
   await page.getByRole("button", { name: "Create course" }).click();
 
@@ -114,6 +115,7 @@ test("Review's Start review button still reaches Study's UI, with no separate St
   await expect(page).toHaveURL(/\/courses$/);
 
   const courseName = `E2E Study Redirect Course ${Date.now()}`;
+  await page.getByRole("button", { name: "Add class" }).click();
   await page.getByLabel("Course name").fill(courseName);
   await page.getByRole("button", { name: "Create course" }).click();
   await expect(page).toHaveURL(/\/courses\/[0-9a-f-]{36}$/);

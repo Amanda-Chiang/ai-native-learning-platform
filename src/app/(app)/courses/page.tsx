@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createCourse, listCourses } from "@/features/courses/actions.ts";
-import { CreateCourseForm } from "@/features/courses/components/CreateCourseForm.tsx";
+import { CreateCourseModal } from "@/features/courses/components/CreateCourseModal.tsx";
 import { IconChevronRight } from "@/components/icons.tsx";
 
 export default async function CoursesPage() {
@@ -16,9 +16,8 @@ export default async function CoursesPage() {
               {courses.length} {courses.length === 1 ? "course" : "courses"}
             </p>
           </div>
+          <CreateCourseModal createCourse={createCourse} />
         </div>
-
-        <CreateCourseForm createCourse={createCourse} />
 
         {courses.length > 0 && (
           <div style={s.courseList}>

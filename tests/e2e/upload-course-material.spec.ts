@@ -55,6 +55,7 @@ test("uploading a real course syllabus succeeds, with no RLS error, and appears 
   await expect(page).toHaveURL(/\/courses$/);
 
   const courseName = `E2E Upload Course ${Date.now()}`;
+  await page.getByRole("button", { name: "Add class" }).click();
   await page.getByLabel("Course name").fill(courseName);
   await page.getByRole("button", { name: "Create course" }).click();
   await expect(page).toHaveURL(/\/courses\/[0-9a-f-]{36}$/);
