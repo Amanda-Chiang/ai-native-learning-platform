@@ -58,6 +58,7 @@ test("sign in, create a course via the real form, and reach every linked feature
   await expect(page.getByRole("heading", { name: "Courses" })).toBeVisible();
 
   const courseName = `E2E Basic Flow Course ${Date.now()}`;
+  await page.getByRole("button", { name: "Add class" }).click();
   await page.getByLabel("Course name").fill(courseName);
   await page.getByRole("button", { name: "Create course" }).click();
 
@@ -66,21 +67,34 @@ test("sign in, create a course via the real form, and reach every linked feature
   // live -- createCourse's {course}|{error} result was being
   // discarded entirely).
   await expect(page).toHaveURL(/\/courses\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole("heading", { name: "Course material" })).toBeVisible();
 
   const courseId = page.url().split("/").filter(Boolean).pop()!;
   createdCourseIds.push(courseId);
+
+  // The course root itself is the Concepts screen (Task 5) -- confirm it
+  // renders before walking the feature nav, so a broken root page fails
+  // here rather than being masked by the loop below navigating away from
+  // it immediately.
+  await expect(page.getByRole("complementary", { name: "Due for review" })).toBeVisible();
 
   // Regression guard: the course detail page must link to every other
   // feature (previously had none at all).
   // "Study" is deliberately absent here -- it's no longer a top-level nav
   // tab (course-shell.tsx), only reachable via the Review page's own
   // "Start review" button (covered by review-navigates-to-study below).
+  // We start the walk from the course root (asserted above), so every
+  // entry below -- Material included -- is a genuine navigation away and
+  // a genuine goBack() back to it, not a same-URL no-op. Previously the
+  // walk began on /material directly (the course root had no page yet),
+  // which made Material's own click-and-goBack a no-op that only ever
+  // exercised its href, not its navigation; now that the root renders
+  // real content, Material behaves like every other entry.
   const featurePages: [name: string, path: string, heading: string][] = [
     ["Atlas", "atlas", "Concept Atlas"],
     ["Review", "review", "Review queue"],
     ["Tutor", "tutor", "Tutor"],
     ["Exam plan", "exam-plan", "Exam Plan"],
+    ["Material", "material", "Course material"],
   ];
 
   for (const [linkName, path, heading] of featurePages) {
@@ -101,6 +115,7 @@ test("Review's Start review button still reaches Study's UI, with no separate St
   await expect(page).toHaveURL(/\/courses$/);
 
   const courseName = `E2E Study Redirect Course ${Date.now()}`;
+  await page.getByRole("button", { name: "Add class" }).click();
   await page.getByLabel("Course name").fill(courseName);
   await page.getByRole("button", { name: "Create course" }).click();
   await expect(page).toHaveURL(/\/courses\/[0-9a-f-]{36}$/);

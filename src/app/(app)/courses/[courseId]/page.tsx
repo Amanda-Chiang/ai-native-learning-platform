@@ -1,58 +1,61 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { listArtifacts } from "@/features/artifacts/actions.ts";
-import { getReviewQueue, listUnits, type ReviewQueueItem } from "@/features/course-graph-ingestion/actions.ts";
-import { getExtractionStatuses } from "@/features/course-graph-ingestion/extraction-status.ts";
-import { UnitsSection } from "@/features/course-graph-ingestion/components/UnitsSection.tsx";
-import { ReviewQueue } from "@/features/course-graph-ingestion/components/ReviewQueue.tsx";
+import { listUnits } from "@/features/course-graph-ingestion/actions.ts";
+import { getDueQueue } from "@/features/review-scheduler/due-queue.ts";
+import { listCourseConceptsWithMastery } from "@/features/courses/concept-path-actions.ts";
+import { groupConceptsByUnit } from "@/features/courses/concept-path.ts";
+import { ConceptPath } from "@/features/courses/components/ConceptPath.tsx";
+import { DueRail } from "@/features/courses/components/DueRail.tsx";
 
-/**
- * Loads the checked-in demo fixture as the review queue -- same
- * courseId === "demo" special case atlas/page.tsx already established
- * for concept-atlas-renderer's own visual suite, here for
- * tests/visual/review-queue.spec.ts. Real courses go through
- * getReviewQueue (a real, possibly-empty Supabase read); "demo" is a
- * fixture route for the visual suite, not a stand-in for "no real data
- * yet" (which getReviewQueue already handles honestly on its own).
- */
-async function loadDemoReviewQueue(): Promise<ReviewQueueItem[]> {
-  const fixturePath = path.join(process.cwd(), "tests/fixtures/review-queue-demo.json");
-  const raw = await readFile(fixturePath, "utf-8");
-  return JSON.parse(raw) as ReviewQueueItem[];
-}
-
-export default async function CourseDetailPage({
+export default async function CourseConceptsPage({
   params,
 }: {
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
-  const [artifacts, pendingItems, units, extractionStatuses] = await Promise.all([
-    listArtifacts(courseId),
-    courseId === "demo" ? loadDemoReviewQueue() : getReviewQueue(courseId),
+
+  // "demo" is a fixture route id, not a real course row (see
+  // material/page.tsx's own courseId === "demo" branch) -- it isn't a
+  // UUID, so listCourseConceptsWithMastery's `.eq("course_id", "demo")`
+  // errors and (correctly, by the no-silent-placeholders rule) the
+  // action throws, which would crash this page. Unlike the material and
+  // atlas demo branches, there is no checked-in concept-path fixture to
+  // stand in here, and inventing plausible-looking concept/mastery data
+  // for a course that was never really ingested would itself be the
+  // silent placeholder this project's rules forbid. So this branch
+  // shows an explicit, honest "no concept data for this route" state
+  // instead of fabricating one.
+  if (courseId === "demo") {
+    return (
+      <div style={s.page}>
+        <div style={s.outer}>
+          <h1 style={s.heading}>Concepts</h1>
+          <p style={s.demoNotice}>
+            The demo course is a fixture for visual QA of the Review Queue and Concept Atlas. It has no concept
+            data of its own, so there is nothing to show here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const [concepts, units, dueItems] = await Promise.all([
+    listCourseConceptsWithMastery(courseId),
     listUnits(courseId),
-    getExtractionStatuses(courseId),
+    getDueQueue(courseId),
   ]);
+
+  const sections = groupConceptsByUnit(
+    concepts,
+    units.map((u) => ({ id: u.id, title: u.title })),
+  );
 
   return (
     <div style={s.page}>
-      <div style={s.inner}>
-        <div style={s.section}>
-          <h1 style={s.sectionTitle}>Course material</h1>
-          <p style={s.sectionDesc}>
-            Upload lecture notes, slides, or problem sets. Orca will extract concepts and build your knowledge
-            graph.
-          </p>
+      <div style={s.outer}>
+        <h1 style={s.heading}>Concepts</h1>
+        <div style={s.inner}>
+          <ConceptPath sections={sections} />
+          <DueRail items={dueItems} />
         </div>
-
-        <UnitsSection
-          courseId={courseId}
-          initialArtifacts={artifacts}
-          initialUnits={units}
-          initialExtractionStatuses={extractionStatuses}
-        />
-
-        <ReviewQueue items={pendingItems} courseId={courseId} />
       </div>
     </div>
   );
@@ -67,14 +70,8 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     justifyContent: "center",
   },
-  inner: {
-    width: "100%",
-    maxWidth: 600,
-    display: "flex",
-    flexDirection: "column",
-    gap: 32,
-  },
-  section: { display: "flex", flexDirection: "column", gap: 4 },
-  sectionTitle: { margin: 0, fontSize: 20, fontWeight: 500, letterSpacing: "-0.025em", color: "var(--text-primary)" },
-  sectionDesc: { margin: 0, fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.55, letterSpacing: "-0.005em" },
+  outer: { width: "100%", maxWidth: 900, display: "flex", flexDirection: "column", gap: 24 },
+  heading: { margin: 0, fontSize: 20, fontWeight: 500, letterSpacing: "-0.025em", color: "var(--text-primary)" },
+  inner: { width: "100%", display: "flex", gap: 32, alignItems: "flex-start" },
+  demoNotice: { margin: 0, fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.55, letterSpacing: "-0.005em" },
 };

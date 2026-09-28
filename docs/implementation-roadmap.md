@@ -390,7 +390,7 @@ Known open items, not yet resolved as of 2026-09-28:
   Exam Plan page itself reports it already passed. Neither is new;
   both predate this branch.
 
-**Orca redesign — Phase 1 shipped 2026-09-27; phases 2–9 scoped only**:
+**Orca redesign — Phases 1–2 shipped 2026-09-27/28; phases 3–9 scoped only**:
 Phase 1 (rebrand + app shell) is **built and committed**: `globals.css`
 now carries the real Orca token system (6 brand tokens, plus the
 `--accent*` / `--status-*` split that replaced the overloaded `--clay`),
@@ -402,6 +402,30 @@ See
 `brain/decisions/architecture-log.md`'s 2026-09-27 "Orca rebrand Phase 1"
 entry and the execution addendum in
 `docs/superpowers/plans/2026-09-27-orca-rebrand-app-shell.md`.
+
+Phase 2 (concepts screen, chat entry, create-course modal) is also
+**built and committed**: `/courses/[courseId]` is now the Concepts
+screen (`ConceptPath`, concepts grouped under unit headers with an
+explicit "Unassigned" section, plus `DueRail` for due-today/tomorrow);
+the former course-detail material-upload page moved to
+`/courses/[courseId]/material`, carrying its visual spec with it; `/chat`
+is a new third bottom-nav tab with a `CoursePicker` that routes into a
+course's Tutor page rather than relaxing `tutor_conversations.course_id`
+off its NOT NULL grounding constraint; and course creation moved into
+`CreateCourseModal` behind an "Add class" trigger on `/courses`. Both ▷
+("start review") controls on the Concepts screen ship visibly disabled,
+each with its own stated reason — Quick review and Deep review are
+Phases 4 and 9 respectively, not built yet. Visual baselines are current
+on both platforms: macOS regenerated locally with `--update-snapshots=all`,
+and the `-linux.png` baselines regenerated on CI's own `ubuntu-latest`
+runner via the one-off `regen-linux-snapshots.yml` workflow (which can
+only be dispatched from `main` — see the 2026-09-28 "Orca Phase 2" entry
+in `brain/decisions/architecture-log.md` for why, and for the exact
+temporary-commit sequence that worked). See also
+`docs/superpowers/plans/2026-09-28-orca-phase2-concepts-chat.md` (the
+implementation plan) and `docs/superpowers/specs/
+2026-09-28-orca-phase2-concepts-chat-design.md` (the design).
+
 The paragraph below describes the original scoping pass:
 
 **Orca redesign (2026-09-27, scoped and planned)**:

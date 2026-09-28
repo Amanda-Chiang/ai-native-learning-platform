@@ -30,7 +30,7 @@ import { test, expect } from "@playwright/test";
 test("proposed concepts and edges render with reconciliation reasoning and flags visible", async ({
   page,
 }) => {
-  await page.goto("/courses/demo");
+  await page.goto("/courses/demo/material");
   await page.waitForSelector("li");
 
   await expect(page).toHaveScreenshot("review-queue-populated.png");
@@ -46,7 +46,7 @@ test("confirming a fixture-seeded (not real-database) candidate surfaces the act
   // for a candidate that was never really in the database (per this
   // project's no-silent-placeholders rule: a test asserting a fake
   // success would itself be exactly that kind of placeholder).
-  await page.goto("/courses/demo");
+  await page.goto("/courses/demo/material");
   await page.waitForSelector("li");
 
   // The card's title and its Confirm/Edit/Reject buttons are siblings

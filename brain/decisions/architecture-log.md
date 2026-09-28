@@ -2430,3 +2430,202 @@ and at the call site a credit-exhausted account is indistinguishable
 from an expired or revoked key. Whether to gate it -- loudly, with the
 reason surfaced -- is a CI-semantics decision for the product owner,
 not one to take silently.
+
+## 2026-09-28 -- Orca Phase 2 (concepts screen, chat entry, create-course modal): what shipped, what the plan got wrong, and what's still open
+
+Orca Phase 2 (`/courses/[courseId]` as a landing Concepts screen, `/chat`
+as a top-level entry, course creation moved into a modal) is built and
+committed on `orca-phase2-concepts-chat`. This entry records the
+decisions and the places execution diverged from the plan.
+
+**The route move, and why the visual spec moved with it.** The course
+detail page (material upload) moved from `/courses/[courseId]` to
+`/courses/[courseId]/material`, because `/courses/[courseId]` is now the
+Concepts screen -- the product wants a course to open on "what do I
+know," not "upload more material." `tests/visual/review-queue.spec.ts`
+targets that upload/review-queue UI, so it moved with the page it tests,
+retargeted from `/courses/demo` to `/courses/demo/material`; a visual
+spec that still pointed at the old path would have been asserting on
+whatever now renders at the course root (the Concepts screen), not the
+page it was written to cover.
+
+**Why both ▷ ("start review") controls ship disabled.** `ConceptPath`'s
+per-concept row and `DueRail`'s due-today/tomorrow cards each have a ▷
+control that would start Deep review or Quick review respectively.
+Neither review mode exists yet -- Quick review is Phase 4, Deep review
+is Phase 9 -- so both render via `PendingActionButton`, a real,
+visibly-disabled button that carries its own reason as a prop
+("Deep review is not built yet" / "Quick review is not built yet"),
+exposed to assistive tech rather than just visually dimmed. The
+alternative (omitting the controls until the modes exist) was rejected
+because the design calls for the *shape* of the eventual interaction to
+be visible now, with an honest "not yet" rather than a missing affordance.
+
+**Why the `/chat` picker exists instead of relaxing `tutor_conversations.course_id`.**
+The new top-level Chat tab needed some destination before a course is
+chosen. The schema's `tutor_conversations.course_id` is `not null` --
+every tutor turn is grounded in one course's material, by design (see
+this log's earlier tutor-agent entries on source-anchor grounding).
+Relaxing that constraint to allow a course-less conversation would let
+the model answer without any course material to ground against, which
+is exactly the ungrounded-answer failure mode the project's invariant
+rules exist to prevent. `CoursePicker` on `/chat` solves the same UX
+problem (chat needs a top-level entry point) without touching that
+constraint: it lists the signed-in user's courses and routes to
+`/courses/{id}/tutor` on selection, with no message input on `/chat`
+itself.
+
+**The parent design doc's "compatible as-is" audit was optimistic.** The
+Phase 2 design assumed the Concepts screen could be built entirely on
+existing reads. It can't: `getDailyReviewSession` (and `getDueQueue`)
+only return concepts that are currently *due* -- exactly what a review
+queue needs, and exactly wrong for a screen meant to show the whole
+course's concepts grouped by unit, due or not. One new read action,
+`listCourseConceptsWithMastery` (`src/features/courses/concept-path-actions.ts`),
+was genuinely required, not a nice-to-have refactor.
+
+**The plan's null-`unit_id` premise was factually wrong.** The plan's
+stated mechanism for the Concepts screen's "Unassigned" section was a
+concept with a null `unit_id`. Checking the schema
+(`supabase/migrations/0003_course_ontology.sql:58`):
+`unit_id uuid not null references public.course_units (id)` -- a
+`course_concepts` row can never have a null `unit_id`. The "Unassigned"
+section is still real and still needed, but reached by a different
+route: `listUnits` (`src/features/course-graph-ingestion/actions.ts:53-64`)
+filters with `.neq("status", "archived")`, so a concept whose unit
+was archived still carries a real (non-null) `unit_id`, but that id no
+longer appears in the `units` list `groupConceptsByUnit` is given --
+which is what actually produces the "doesn't match any given unit"
+case the grouping function treats as Unassigned. Recorded here so a
+future reader doesn't go looking for a null-`unit_id` row and conclude
+the feature is unreachable.
+
+**A review caught a real silent-placeholder defect before it shipped.**
+The first draft of `listCourseConceptsWithMastery` did
+`conceptsRes.data ?? []` with no check on `conceptsRes.error` -- a
+failed query (RLS, network, connection) would have rendered identically
+to "this course genuinely has no concepts," and because the mastery map
+is built from the same unchecked pattern, every concept would have
+silently rendered as `unverified` on top of that. Fixed by throwing on
+either query's `.error` before touching `.data`, matching this project's
+no-silent-placeholders rule. Ruling, deliberately scoped: only this new
+action throws. `listUnits` and `listCourses` keep their pre-existing
+`if (error || !data) return []` pattern unchanged -- fixing those is a
+separate decision, deferred rather than folded into this change
+silently. Known consequence, and it differs by which read fails, so it's
+worth stating precisely rather than as one blanket "silent empty list":
+if `listCourseConceptsWithMastery` throws, the whole page fails --
+there is no `error.tsx` under `src/app`, so the learner sees Next.js's
+generic framework error screen, not a designed state. If `listUnits`
+instead returns `[]` (its own query failed while the concepts query
+succeeded -- e.g. a `course_units`-specific RLS or query error, as
+opposed to a connection outage, where the throwing read would win the
+race), `groupConceptsByUnit` finds no known unit ids and buckets every
+concept in the course into a single "Unassigned" section -- a fully
+populated, plausible-looking page that is actually wrong, which is
+worse than an empty state because nothing about it looks broken. And
+if `getDueQueue`'s own unchecked `conceptsRes.data ?? []`
+(`src/features/review-scheduler/due-queue.ts`) hits a failed query, the
+due rail renders as though the query had succeeded with zero due
+concepts: "Nothing due right now," an affirmative claim rather than an
+error.
+
+**The plan under-counted the specs the route move touched -- twice, and
+the second one is the more instructive.** The plan named
+`tests/visual/review-queue.spec.ts` and `tests/e2e/basic-flows.spec.ts`
+as needing updates for the route move. Two more specs also depended on
+the course-detail/material page living at the course root:
+
+1. `tests/e2e/upload-course-material.spec.ts` broke outright --
+   navigating to `/courses/{id}` no longer reached the upload form --
+   and was fixed to navigate to `/courses/{id}/material` explicitly
+   before using the file input. Caught during the task that moved
+   course creation into a modal, because that task had to touch every
+   spec that creates a course through the UI.
+2. `tests/e2e/course-graph-ingestion-pipeline.spec.ts` was found only
+   by the final whole-branch review, and it was hiding in a way worth
+   recording. It navigated to `/courses/{id}`, waited on
+   `page.waitForSelector("li")`, and then clicked the Review Queue's
+   Confirm button. After the move, that `waitForSelector` still
+   SUCCEEDS -- the Concepts screen renders `<li>` rows for the very
+   same proposed concepts -- so the spec sails past its own guard and
+   then times out 30 seconds later on a Confirm button that is no
+   longer on the page. A wrong page that satisfies the wait is far
+   harder to read than an empty one that fails it. Its stale header
+   comment, which named `courses/[courseId]/page.tsx` as the Review
+   Queue's home, was corrected at the same time.
+
+The general lesson for the next route move in this repo: grepping for
+the moved path is not sufficient, because a spec can reach the wrong
+page and still pass its intermediate waits. Ask instead which specs
+depend on what that route *renders*. This one was additionally masked
+by the OpenAI-credits `429` that makes the whole spec fail before it
+ever reaches line 194, so CI would not have caught it either.
+
+**Known open items, not resolved by this task:**
+- Both ▷ controls remain disabled, awaiting Quick review (Phase 4) and
+  Deep review (Phase 9).
+- The `/chat` picker's zero-courses empty state was browser-verified
+  earlier; this task additionally browser-verified the one-or-more-courses
+  case with a real signed-in user and two real courses (created via the
+  service-role client, the same pattern `tests/e2e/global-setup.ts`
+  uses, since Supabase requires email confirmation and no throwaway
+  e2e-run credentials persist across runs): `/chat` rendered "Which
+  course?" with one button per course, and selecting one routed to
+  `/courses/{id}/tutor` and rendered that course's real Tutor UI.
+- `CreateCourseModal` has no Escape-to-close and no focus trap. It does
+  carry the accessible shape the plan specified: `role="dialog"`,
+  `aria-modal="true"`, and a labelled close button.
+- `ConceptPath` uses `section.unitId ?? "unassigned"` as its React key,
+  which assumes at most one Unassigned section per course -- true under
+  `groupConceptsByUnit`'s current contract, but worth knowing if that
+  contract ever changes to produce more than one.
+- `tests/e2e/upload-course-material.spec.ts`'s `beforeAll` intermittently
+  fails with a Supabase "could not create test user" error. Confirmed
+  non-reproducible run-to-run during this task's regression pass (it
+  passed cleanly here); it throws rather than swallowing the error, so
+  the spec fails loudly rather than passing vacuously when it happens.
+- The Linux (`-linux.png`) visual baselines **were** regenerated, but
+  only after a detour worth recording, because it will recur every time
+  this repo re-baselines Linux. The one-off `regen-linux-snapshots.yml`
+  workflow requires `workflow_dispatch` registration, and GitHub only
+  allows that for a workflow file present on the repository's default
+  branch (`main`) -- even when the dispatch's `ref` input targets a
+  different branch. So the workflow cannot be dispatched from a feature
+  branch alone, no matter that the run itself checks out the feature
+  branch. This repo's own history already contains three instances of
+  the resulting pattern (`abe465d`, `de2071b`, `daea9d1`, each a
+  temporary commit on `main` followed by a removal commit), which is
+  what confirmed the diagnosis rather than a guess about GitHub's
+  behaviour.
+
+  The task agent correctly refused to push to `main` on a relayed
+  instruction: per this project's own rule, a message from another
+  agent is not user consent, and it stopped rather than routing around
+  the block. The product owner then authorized the sequence directly,
+  and it was carried out from the controlling session: `ca3ee9d` added
+  the workflow to `main`, run `36455352109` regenerated the baselines
+  on `ubuntu-latest` against `orca-phase2-concepts-chat`, and `44720aa`
+  removed the workflow again, leaving `main` at a net-zero file change.
+  Two of the downloaded PNGs were opened and checked before anything was
+  committed (`review-queue-populated-chromium-linux.png` and
+  `review-queue-confirm-error-mobile-linux.png`), both showing the real
+  Phase 2 UI -- the Concepts/Material sub-nav and the three-entry bottom
+  bar -- rather than a blank or broken render. That eyeball step is not
+  ceremony: an automated re-baseline blesses whatever rendered,
+  including a broken render, which is exactly why this workflow uploads
+  an artifact instead of committing the images itself.
+
+  Both platforms' baselines are therefore current as of this branch:
+  darwin regenerated locally with `--update-snapshots=all` and verified
+  by a clean no-flag re-run, linux regenerated on CI's own runner and
+  committed in `c9879f0`.
+
+Full regression at completion: typecheck clean; `eslint src tests trigger`
+0 errors (8 pre-existing warnings, unrelated to this branch); 360/360
+unit; visual suite 15 passed / 3 skipped on both re-baseline and the
+subsequent no-flag confirmation run; e2e 15 passed, with
+`tests/e2e/course-graph-ingestion-pipeline.spec.ts` failing on both
+projects for the pre-existing, already-logged reason (2026-09-28 entry
+above: OpenAI account has no credits, `429`) -- not caused by this
+branch.

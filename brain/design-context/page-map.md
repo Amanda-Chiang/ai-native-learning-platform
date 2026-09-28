@@ -20,19 +20,43 @@ auth page. Supabase Auth (GoTrue) underneath — no OAuth/social buttons.
 
 ## `/courses` — Course list (post-login landing)
 List of the signed-in user's courses (`<Link>` per course → course detail),
-empty state ("You haven't created a course yet"), and a create-course form
-(name input + submit) below the list. This is the real first screen after
-sign-in — there is no separate "dashboard."
+empty state ("You haven't created a course yet"), and an "Add class"
+trigger that opens `CreateCourseModal` (`role="dialog"`, `aria-modal="true"`,
+a labelled close button) rather than the inline name-input form this page
+used to render directly. This is the real first screen after sign-in —
+there is no separate "dashboard."
 
-## `/courses/[courseId]` — Course detail / material upload
-`<h1>Course material</h1>`, then a `<nav>` with 5 links (Concept atlas |
-Review queue | Tutor | Study | Exam plan) — this nav is the *only* way to
-reach any other feature for a course; nothing else links to these pages.
-Below the nav: `ArtifactBoard` — a file-upload form (drag/click, accepts
-pdf/png/jpg/jpeg/heic/webp) plus a live list of uploaded artifacts, each
-with a status label (Queued / Processing… / Ready / Failed) that updates
-in place via a Supabase Realtime subscription — no polling, no reload.
-Failed artifacts show their real failure reason inline.
+## `/courses/[courseId]` — Concept path (course landing page, Orca Phase 2)
+No longer the material-upload page (that moved to `/courses/[courseId]/material`,
+below). This is now where a course opens: `ConceptPath` — the course's
+concepts grouped under unit headers (`groupConceptsByUnit`), each concept
+row showing mastery as a word plus a color, not color alone. A concept
+whose `unit_id` points at an archived unit (filtered out of `listUnits`)
+falls into an explicit "Unassigned" section rather than disappearing.
+Above the grouped list, `DueRail` shows due-today/due-tomorrow cards,
+reusing `DueQueueItem.dueLabel` verbatim from the existing due-queue
+logic. Both screens' ▷ ("start review") controls render via
+`PendingActionButton` — visibly disabled, each carrying its own reason
+("Deep review is not built yet" on concept rows, "Quick review is not
+built yet" on the due rail) — Quick/Deep review are later phases, not
+implemented yet.
+
+The `CourseShell` sub-nav (see below) is the way to reach every other
+per-course page, same as before; Concepts is now its first, default tab.
+
+## `/courses/[courseId]/material` — Material upload
+`<h1>Course material</h1>` plus `ArtifactBoard` — a file-upload form
+(drag/click, accepts pdf/png/jpg/jpeg/heic/webp) plus a live list of
+uploaded artifacts, each with a status label (Queued / Processing… /
+Ready / Failed) that updates in place via a Supabase Realtime
+subscription — no polling, no reload. Failed artifacts show their real
+failure reason inline. This is the page that used to live at
+`/courses/[courseId]` before Orca Phase 2 moved the course root to the
+Concepts screen above; its visual spec (`tests/visual/review-queue.spec.ts`)
+moved with it, retargeted to this new path.
+
+Reached via the `CourseShell` sub-nav, now six entries: Concepts |
+Material | Atlas | Review | Tutor | Exam plan.
 
 ## `/courses/[courseId]/atlas` — Concept Atlas
 The product's signature screen (see `brain/product/concept-atlas.md`).
@@ -85,8 +109,18 @@ Not reachable from the course-detail nav yet — currently only linked from
 inside Study/Exam-plan sessions when a due question happens to be one of
 these checker domains.
 
+## `/chat` — AI Chat entry (top-level, Orca Phase 2)
+A new third bottom-nav tab. `CoursePicker` lists the signed-in user's
+courses; picking one routes to that course's `/courses/[courseId]/tutor`
+— there is no message input on `/chat` itself, deliberately. This exists
+instead of relaxing `tutor_conversations.course_id` to allow a
+course-less conversation: the schema's NOT NULL constraint grounds every
+tutor turn in one course's material, and a picker screen preserves that
+grounding while still giving chat its own top-level entry point.
+
 ## Global chrome
 `SiteHeader` (`src/features/auth/site-header.tsx`) — present on every page
-via the root layout. Minimal: no persistent app-wide nav beyond whatever
-this renders (sign-in state / sign-out control). All per-course navigation
-lives inside the course-detail page's own `<nav>`, not globally.
+via the root layout. `AppShell` (`src/components/app-shell.tsx`) renders
+the bottom icon nav bar, now three entries: Today, Courses, Chat (Orca
+Phase 2 added Chat; Today and Courses predate it). All per-course
+navigation lives inside `CourseShell`'s own sub-nav, not globally.
