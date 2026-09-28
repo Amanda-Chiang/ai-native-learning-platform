@@ -18,6 +18,9 @@ export type CourseRow = {
   owner_id: string;
   name: string;
   created_at: string;
+  /** Assigned once at creation from island-shapes.ts's length at that
+   *  moment; never recomputed. See migration 0016. */
+  island_shape_index: number;
 };
 
 export type ArtifactRow = {
