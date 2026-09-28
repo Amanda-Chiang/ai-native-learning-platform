@@ -415,10 +415,13 @@ off its NOT NULL grounding constraint; and course creation moved into
 `CreateCourseModal` behind an "Add class" trigger on `/courses`. Both ▷
 ("start review") controls on the Concepts screen ship visibly disabled,
 each with its own stated reason — Quick review and Deep review are
-Phases 4 and 9 respectively, not built yet. Visual baselines were
-re-regenerated on macOS (`=all`); see the self-review note in
-`brain/decisions/architecture-log.md`'s 2026-09-28 "Orca Phase 2" entry
-for the Linux (`-linux.png`) baseline status. See also
+Phases 4 and 9 respectively, not built yet. Visual baselines are current
+on both platforms: macOS regenerated locally with `--update-snapshots=all`,
+and the `-linux.png` baselines regenerated on CI's own `ubuntu-latest`
+runner via the one-off `regen-linux-snapshots.yml` workflow (which can
+only be dispatched from `main` — see the 2026-09-28 "Orca Phase 2" entry
+in `brain/decisions/architecture-log.md` for why, and for the exact
+temporary-commit sequence that worked). See also
 `docs/superpowers/plans/2026-09-28-orca-phase2-concepts-chat.md` (the
 implementation plan) and `docs/superpowers/specs/
 2026-09-28-orca-phase2-concepts-chat-design.md` (the design).
