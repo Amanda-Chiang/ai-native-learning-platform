@@ -34,6 +34,15 @@ export async function listCourseConceptsWithMastery(courseId: string): Promise<C
     supabase.from("learner_concept_state").select("concept_id, mastery_state").eq("course_id", courseId),
   ]);
 
+  // Distinguish: a query error (network, RLS, connection) throws visibly.
+  // A missing learner_concept_state row is a real "unverified" state, not a placeholder.
+  if (conceptsRes.error) {
+    throw new Error(`Failed to fetch course concepts: ${conceptsRes.error.message}`);
+  }
+  if (stateRes.error) {
+    throw new Error(`Failed to fetch learner concept state: ${stateRes.error.message}`);
+  }
+
   const concepts = conceptsRes.data ?? [];
   const masteryByConceptId = new Map<string, ConceptMasteryState>(
     (stateRes.data ?? []).map((row) => [row.concept_id as string, row.mastery_state as ConceptMasteryState]),
