@@ -11,6 +11,10 @@ import type { CourseReviewSummary, ExamSection } from "@/features/courses/home-s
  * student with eight courses would otherwise scroll the exam countdown
  * out of view exactly when the list is busiest, and an exam in three
  * days outranks everything else on this screen.
+ *
+ * `courses` is never empty here: `IslandHome` returns its own
+ * "add a class" empty state before this component ever renders, so
+ * there is no reachable empty-courses case to render inside the rail.
  */
 export function HomeReviewRail({
   courses,
@@ -23,11 +27,9 @@ export function HomeReviewRail({
     <aside style={s.rail}>
       <h2 style={s.heading}>Next review</h2>
       <div style={s.scroller}>
-        {courses.length === 0 ? (
-          <p style={s.quiet}>No courses yet.</p>
-        ) : (
-          courses.map((course) => <CourseRow key={course.courseId} course={course} />)
-        )}
+        {courses.map((course) => (
+          <CourseRow key={course.courseId} course={course} />
+        ))}
       </div>
 
       <h2 style={s.heading}>Upcoming exams</h2>

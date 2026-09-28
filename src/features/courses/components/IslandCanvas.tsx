@@ -18,17 +18,24 @@ import type { CourseReviewSummary } from "@/features/courses/home-summary.ts";
  */
 export function IslandCanvas({ courses }: { courses: CourseReviewSummary[] }) {
   const { placements, rows } = layoutIslands(courses.map((c) => ({ id: c.courseId })));
-  const summaryByCourseId = new Map(courses.map((c) => [c.courseId, c]));
+
+  // Zipped by index rather than looked up from a `Map<courseId, ...>`:
+  // `layoutIslands` produces exactly one placement per input course, in
+  // the same order it was given them, so `placements[i]` and
+  // `courses[i]` always describe the same course. Pairing them by
+  // index makes that guarantee a type-level fact (no `| undefined` to
+  // silently swallow) instead of a runtime lookup that could -- in
+  // principle, if `layoutIslands` were ever changed to drop or reorder
+  // entries -- come back empty and silently drop an island.
+  const islands = placements.map((placement, i) => ({ placement, summary: courses[i] }));
 
   return (
     <div style={s.canvas}>
       {Array.from({ length: rows }, (_, row) => (
         <div key={row} style={s.row}>
-          {placements
+          {islands
             .slice(row * ISLANDS_PER_ROW, (row + 1) * ISLANDS_PER_ROW)
-            .map((placement) => {
-              const summary = summaryByCourseId.get(placement.courseId);
-              if (!summary) return null;
+            .map(({ placement, summary }) => {
               const failed = summary.kind === "failed";
 
               // shapeForIndex throws when a course's stored
@@ -40,9 +47,8 @@ export function IslandCanvas({ courses }: { courses: CourseReviewSummary[] }) {
               // propagate would take down the WHOLE Home page over one
               // corrupt row. Caught here and scoped to just this
               // island: it renders with a neutral fill and a visible
-              // "couldn't load" label instead of a shape, the same
-              // treatment a `failed` due-queue read already gets --
-              // not a silent fallback, an explicit broken state.
+              // label instead of a shape -- not a silent fallback, an
+              // explicit broken state.
               let shapePath: string | null = null;
               let corrupt = false;
               if (!failed) {
@@ -54,6 +60,20 @@ export function IslandCanvas({ courses }: { courses: CourseReviewSummary[] }) {
               }
               const broken = failed || corrupt;
 
+              // These are two different failures and must say so: a
+              // `failed` summary means the review-status READ failed
+              // (the due queue query errored); `corrupt` means the
+              // read succeeded fine and the STORED SHAPE INDEX is the
+              // thing with no entry in the shape library. Collapsing
+              // them into one "review status could not be loaded"
+              // message (as this used to) would misreport a shape-data
+              // problem as a review-data problem.
+              const brokenLabel = failed
+                ? `${summary.courseName} — review status could not be loaded`
+                : corrupt
+                  ? `${summary.courseName} — island shape could not be loaded`
+                  : summary.courseName;
+
               return (
                 <Link
                   key={placement.courseId}
@@ -63,11 +83,7 @@ export function IslandCanvas({ courses }: { courses: CourseReviewSummary[] }) {
                     left: `${placement.leftPercent}%`,
                     top: `${placement.topPercent}%`,
                   }}
-                  aria-label={
-                    broken
-                      ? `${summary.courseName} — review status could not be loaded`
-                      : summary.courseName
-                  }
+                  aria-label={brokenLabel}
                 >
                   <svg viewBox={ISLAND_VIEWBOX} width="88" height="88" aria-hidden="true">
                     {shapePath ? (
@@ -82,7 +98,11 @@ export function IslandCanvas({ courses }: { courses: CourseReviewSummary[] }) {
                     )}
                   </svg>
                   <span style={s.name}>{summary.courseName}</span>
-                  {broken && <span style={s.failed}>Couldn&apos;t load</span>}
+                  {broken && (
+                    <span style={s.failed}>
+                      {failed ? "Couldn't load" : "Unknown shape"}
+                    </span>
+                  )}
                 </Link>
               );
             })}
