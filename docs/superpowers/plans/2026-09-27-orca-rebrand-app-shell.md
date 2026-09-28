@@ -1016,6 +1016,14 @@ above isn't read as a literal account:
    9 regenerated `-linux.png` baselines eyeballed and committed. Phase 1
    is complete.
 
+**Superseded value (2026-09-28):** Task 1's `--bg: var(--parchment)`
+did not survive contact with a real screen. Parchment (`#fcf7f4`, hue
+22°) reads pink across a full-viewport ground, and was replaced by a
+neutral `--off-white` (`#f7f8f9`); the `--parchment` token no longer
+exists. Every other token in this plan is unchanged. See
+`brain/design-context/brand-identity.md` and the 2026-09-28
+architecture-log entry.
+
 Also worth noting for anyone re-running this: every `npm run dev` /
 `playwright` / `typecheck` step needs Node 24 (`nvm use 24`) -- the
 default shell `node` here is v16 and `next dev` refuses to start on it

@@ -2213,3 +2213,39 @@ specs on `main`** (all `tutor-agent-e2e`, plus
 
 Phases 2-9 of the redesign remain scoped-not-built per `docs/
 superpowers/specs/2026-09-27-orca-redesign-design.md`.
+
+## 2026-09-28 -- The supplied `parchment` ground reads pink; replaced with a neutral `--off-white`
+
+Reported directly after Phase 1 shipped: the page background looked
+pink rather than the cream/off-white the palette implied. Checked
+rather than assumed -- walked the paint chain at page center in a real
+browser, which showed exactly one painted background (`body`, at
+`rgb(252,247,244)`) and no overlay, leftover token, or stray tint. The
+pink *was* parchment.
+
+Root cause is that `#fcf7f4` is `hsl(22, 57%, 97%)` -- hue 22°, with
+R(252) > G(247) > B(244). A 3-step channel spread is invisible in a
+palette swatch and unmistakable across a full viewport, and the app's
+previous ground (`#f7f7f6`) was essentially neutral gray, so the
+rebrand moved from *no* hue to a warm one in one step.
+
+Decision: replace it with `--off-white: #f7f8f9` (`hsl(210, 14%, 97%)`)
+-- neutral very light gray with only a faint cool cast, so it sits
+under the wisteria/periwinkle accents without competing. The token was
+**renamed**, not just revalued: a token named `--parchment` holding a
+gray is a name that lies about its value, which is the same class of
+problem as a silent placeholder.
+
+`brand-identity.md`'s palette table, CSS block, and gradients now carry
+`--off-white`, but the originally-supplied `#fcf7f4ff` is recorded
+there explicitly rather than erased -- it is what the brand tool
+actually produced, and a doc that pretended otherwise would misrepresent
+provenance. The 2026-09-27 entry above still names parchment because
+that is what was supplied on that date; this entry supersedes it rather
+than rewriting it.
+
+Worth stating plainly: this is the color-role mapping working as
+`brand-identity.md` said it would. That doc recorded the role
+assignments as "a first-pass guess for a future design pass to confirm
+or override, not a locked decision" -- the product owner supplied raw
+tokens, never roles. This is the first such override.
