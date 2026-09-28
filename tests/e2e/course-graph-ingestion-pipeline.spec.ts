@@ -25,7 +25,7 @@ import type { Database } from "../../src/lib/supabase/database.types.ts";
  *  - reconciliation: exercised for free as part of the same extraction
  *    call (writeExtractionCandidates always reconciles before writing).
  *  - confirm: through the real Review Queue UI's own Confirm button
- *    (src/app/(app)/courses/[courseId]/page.tsx), not a direct DB write.
+ *    (src/app/(app)/courses/[courseId]/material/page.tsx), not a direct DB write.
  *  - materialize: through the real Atlas UI
  *    (src/app/(app)/courses/[courseId]/atlas/page.tsx ->
  *    getCourseGraph -> materializeCourseGraph), confirming the
@@ -191,7 +191,7 @@ test("a real extraction run's candidates flow through reconciliation, review-que
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL(/\/courses$/);
 
-    await page.goto(`/courses/${courseId}`);
+    await page.goto(`/courses/${courseId}/material`);
     await page.waitForSelector("li");
     await page
       .locator("li", { hasText: bfsConcept!.canonical_name as string })
