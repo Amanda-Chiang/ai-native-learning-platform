@@ -380,6 +380,17 @@ Known open items, not yet resolved as of 2026-09-27:
   Exam Plan page itself reports it already passed. Neither is new;
   both predate this branch.
 
+**Orca redesign (2026-09-27, in progress)**: a full brand + UI/UX flow
+redesign is scoped and sequenced into 9 phases (rebrand/app shell,
+concepts screen, home dashboard, quick-review flow, material
+upload/reflection, review configuration, calendar, onboarding, deep
+review) — design and backend-compatibility audit done, only Phase 1
+planned in detail so far. See
+`docs/superpowers/specs/2026-09-27-orca-redesign-design.md` and
+`brain/decisions/architecture-log.md`'s 2026-09-27 entries. Existing
+routes/pages described elsewhere in this doc and in `specs/` are
+unaffected until each phase actually ships.
+
 **This section will go stale the moment more work lands** — it is a
 snapshot taken on the date above, not a maintained tracker. The
 authoritative source for "what's actually done" is always each

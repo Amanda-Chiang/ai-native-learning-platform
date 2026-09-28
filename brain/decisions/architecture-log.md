@@ -2071,3 +2071,58 @@ until a real asset lands in the repo. Color-to-role mapping in the doc
 (e.g. wisteria-blue as a candidate primary interactive color) is
 explicitly a first-pass guess for a future design pass to confirm, not
 a locked decision -- the user did not specify roles, only raw tokens.
+
+## 2026-09-27 -- Orca redesign: full UI/UX flow scoped, sequenced into 9 phases
+
+Same day, the "no UX/flow changes yet" scope from the brand-identity
+entry above was reopened once the user supplied real wireframes
+(`UX_snapshots.pdf`). Brainstormed via `superpowers:brainstorming`,
+backed by a live repo audit (agent research, file:line-cited) mapping
+every wireframe screen against real backend/data-model state before
+any design commitment. Full writeup:
+`docs/superpowers/specs/2026-09-27-orca-redesign-design.md`.
+
+Decisions load-bearing enough to repeat here:
+- Concept Atlas (React Flow + ELK) stays completely untouched -- the
+  wireframe's organic "island" imagery is a new, separate Home
+  dashboard screen, explicitly confirmed not a re-skin of the Atlas's
+  node/edge rendering. This was the single highest-risk ambiguity in
+  the wireframes and was resolved before any other design work.
+- Per-course "island" shapes need a real stored `island_shape_index`
+  column assigned once at course creation, not a pure
+  `hash(course.id) % N` scheme -- the latter reshuffles every existing
+  course's shape the moment the shape library grows, which the user
+  explicitly needs (targeting 30+ shapes, added over time). The shape
+  library itself is append-only by convention (never reorder/remove
+  entries) so a stored index stays valid forever. No shape art exists
+  yet -- ships as an explicit, visually-obvious placeholder set
+  (plain uniform blobs) per the no-silent-placeholder rule, swappable
+  later at the same indices with zero schema change.
+- The homework-upload "reflect" free-text field (a student self-
+  reporting e.g. "I guessed on this" or "I didn't understand X") is
+  scoped as a signal that nudges review-scheduler priority or flags a
+  concept for extra practice -- explicitly never a direct learner-state/
+  mastery write, per this project's exposure-is-not-mastery and
+  flags-are-signal-not-ontology-truth rules. Called out in the design
+  doc precisely because it's the phase most likely to accidentally
+  violate those invariants if designed loosely later.
+- A calendar showing future review-session dates (not just exam dates)
+  was confirmed in scope despite reversing review-scheduler's
+  deliberate "never persist a future schedule" design
+  (`specs/009-review-scheduler/data-model.md`) -- sequenced last (Phase
+  7) specifically because it needs its own ADR first, per `CLAUDE.md`.
+- Quiz-end "start Deep review?" is same-session-only, no persisted
+  unlock state -- deliberately chosen over persisting an unlock flag,
+  since there was no real product need to survive a session boundary
+  and a persisted flag would need its own evidence-boundary
+  justification for no real gain.
+- Onboarding and Deep review (phases 8-9) are deliberately left
+  unspecified -- the user's own wireframes don't have them fully
+  sketched yet; they'll be brainstormed properly once sketched, not
+  guessed at now.
+
+Only Phase 1 (rebrand + app shell) is being planned in detail next,
+per this project's established "sequence now, plan-in-detail per
+phase when its turn comes" pattern -- same reasoning
+`docs/implementation-roadmap.md` already uses for the original PRD
+phases.
