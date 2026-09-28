@@ -105,6 +105,15 @@ makes a real, un-doubled model call — fails with
 2 failed, 3 skipped). Adding credits should turn it green with no code
 change. Don't go looking for a bug in the ingestion pipeline.
 
+**The wireframes** for the whole Orca redesign (phases 2-9) are
+`UX_snapshots.pdf` at the repo root — hand-drawn, and the source of
+truth the design docs were written from. They are vector drawings, not
+embedded images, so extracting them with a script yields nothing
+useful; `pdftoppm`/poppler is not installed here either. To actually
+look at them, use macOS Quick Look:
+`qlmanage -t -s 2400 -o <outdir> UX_snapshots.pdf`, then open the PNG
+it writes.
+
 **Three traps that will cost you an hour each if you don't know them:**
 
 1. `nvm use 24` first. See Prerequisites — the default `node` is v16.
