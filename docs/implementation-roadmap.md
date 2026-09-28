@@ -346,7 +346,17 @@ phase numbering:**
   full account: `brain/decisions/architecture-log.md`'s 2026-09-26
   entries. `specs/010-exam-planner/tasks.md` amended with an addendum.
 
-Known open items, not yet resolved as of 2026-09-27:
+Known open items, not yet resolved as of 2026-09-28:
+- `quality-gates` is green except for
+  `tests/e2e/course-graph-ingestion-pipeline.spec.ts` (both projects),
+  and the cause is **operational, not a code defect**: the OpenAI
+  account has no credits, so the one spec that makes a real (un-doubled)
+  model call gets `429 You have no credits remaining`. Confirmed
+  identically locally and on CI. Adding credits should turn it green
+  with no code change; nothing in the ingestion pipeline is known to be
+  broken. See `brain/decisions/architecture-log.md`'s 2026-09-28 entry
+  for the full diagnosis, including why the `tutor-agent` suite is
+  unaffected (it uses a test double).
 - `assessment-generation-pipeline`'s heavy (checker-domain/free-text)
   generation path is real and tested but still unwired to any UI —
   `requestQuestionGeneration` exists, but no page/button anywhere calls

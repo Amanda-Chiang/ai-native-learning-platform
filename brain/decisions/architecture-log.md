@@ -2374,3 +2374,59 @@ Verified live with both the Next server and the browser pinned to
 on Today, with no hydration or console errors. 355/355 unit (350 + 5),
 `eslint src tests trigger` 0 errors, visual suite 15 passed / 3 skipped
 after re-baselining.
+
+## 2026-09-28 -- The long-standing ingestion-pipeline CI failure is an OpenAI billing state, not a broken pipeline
+
+`tests/e2e/course-graph-ingestion-pipeline.spec.ts` had been failing on
+both projects for long enough to be written off as "pre-existing". It
+isn't a code defect. The real reason, identical locally and on CI:
+
+    Extraction call failed: 429 You have no credits remaining.
+    Add credits to continue using the API.
+
+Adding credits should make it pass with no code change. Nothing in the
+extract -> reconcile -> confirm -> materialize chain is known to be
+broken.
+
+Three things this investigation corrected, all of which had been
+obscuring the diagnosis:
+
+1. **The assertion threw away the reason.**
+   `expect(result).not.toHaveProperty("status", "failed")` prints only
+   `Received: "failed"` -- `failureReason`, the single field that says
+   why, never reached the log or the uploaded Playwright report. Since
+   this spec talks to a real model API and real Storage, every realistic
+   failure it can have (no credits, expired key, missing fixture object)
+   is operational and indistinguishable without that string. The
+   assertions now embed the whole result object in their failure
+   message. That is the actual fix delivered here: the failure is now
+   self-explaining instead of requiring a local reproduction to decode.
+
+2. **A false lead, recorded so it isn't re-followed.** A first
+   reproduction attempt skipped the spec's `beforeAll` fixture upload
+   and produced "The uploaded file could not be found in storage." That
+   is a different failure, caused by the reproduction script, not the
+   product -- the spec does upload `tests/fixtures/dummy-syllabus.pdf`.
+   Reproducing faithfully, upload included, surfaced the real 429.
+
+3. **`tutor-agent`'s local-only failures were an artifact of the
+   developer's own dev server.** Those 7 specs use a scripted test
+   double gated by `TUTOR_AGENT_USE_TEST_DOUBLE`, which
+   `playwright.config.ts` sets on the webServer it starts. Locally,
+   `reuseExistingServer: !process.env.CI` means an already-running
+   `npm run dev` (started without that variable) is reused, the double
+   is never enabled, and the suite makes real model calls -- which then
+   hit the same 429. They pass on CI precisely because CI starts its own
+   server. So `tutor-agent` passing on CI was never evidence that the
+   API key had credits, and both failure sets share one cause.
+   **Practical consequence: don't leave a dev server running while
+   running the e2e suite locally, or `tutor-agent` fails for a reason
+   that has nothing to do with the code.**
+
+Left deliberately unresolved: the spec still fails while the account has
+no credits, rather than being skipped or gated. Skipping on a 429 would
+convert a real, fixable operational signal into a silently green suite,
+and at the call site a credit-exhausted account is indistinguishable
+from an expired or revoked key. Whether to gate it -- loudly, with the
+reason surfaced -- is a CI-semantics decision for the product owner,
+not one to take silently.
