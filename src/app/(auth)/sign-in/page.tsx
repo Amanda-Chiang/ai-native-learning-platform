@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo.tsx";
 import { signIn } from "@/features/auth/actions.ts";
 
 export default function SignInPage() {
@@ -27,8 +28,7 @@ export default function SignInPage() {
     <div style={s.page}>
       <div style={s.card}>
         <div style={s.logo}>
-          <span style={s.logoMark}>◆</span>
-          <span style={s.logoWord}>Luminary</span>
+          <BrandLogo />
         </div>
 
         <div style={s.heading}>
@@ -93,8 +93,6 @@ const s: Record<string, React.CSSProperties> = {
   page: { height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 24 },
   card: { width: "100%", maxWidth: 380, display: "flex", flexDirection: "column", gap: 28 },
   logo: { display: "flex", alignItems: "center", gap: 8 },
-  logoMark: { fontSize: 14, color: "var(--clay)", lineHeight: 1 },
-  logoWord: { fontSize: 15, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--text-primary)" },
   heading: { display: "flex", flexDirection: "column", gap: 4 },
   title: { margin: 0, fontSize: 22, fontWeight: 500, letterSpacing: "-0.03em", color: "var(--text-primary)" },
   subtitle: { margin: 0, fontSize: 14, color: "var(--text-secondary)", letterSpacing: "-0.005em" },

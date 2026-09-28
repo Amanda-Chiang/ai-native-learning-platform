@@ -18,7 +18,7 @@ export function TodayDashboard({ overview }: { overview: TodayOverview }) {
     return (
       <div style={s.emptyPage}>
         <div style={s.emptyBlock}>
-          <h1 style={s.greetingHeading}>Welcome to Luminary.</h1>
+          <h1 style={s.greetingHeading}>Welcome to Orca.</h1>
           <p style={s.greetingSubtext}>Create your first course to start building a knowledge graph.</p>
           <Link href="/courses" style={s.startButton}>
             Go to Courses <IconArrow />
