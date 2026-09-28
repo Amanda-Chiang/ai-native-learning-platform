@@ -1,0 +1,74 @@
+name: Regenerate Linux visual baselines (temporary)
+
+# TEMPORARY, one-off workflow -- delete once the regenerated `-linux.png`
+# baselines are committed. Same mechanism the 2026-09-08 CI hardening pass
+# used (see brain/decisions/architecture-log.md): Playwright snapshot names
+# are platform-suffixed, `--update-snapshots` on a developer's macOS only
+# regenerates `-darwin` baselines, and a local Docker approximation renders
+# fonts differently from CI's own runner -- so real `-linux` baselines can
+# only be produced here, on the same ubuntu-latest image that compares
+# against them.
+#
+# It uploads the regenerated PNGs as an artifact rather than committing
+# them: every baseline is eyeballed before it lands, because an automated
+# re-baseline blesses whatever rendered, including a broken render.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or SHA to regenerate baselines against"
+        required: true
+        default: "main"
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Next.js route types
+        run: npx next typegen
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      # Only the visual suite -- the e2e specs are not snapshot-based and
+      # have their own (currently failing, pre-existing) state.
+      - name: Regenerate visual baselines
+        run: npx playwright test tests/visual/ --update-snapshots
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Show what changed
+        if: always()
+        run: git status --porcelain tests/visual/
+
+      - name: Upload regenerated baselines
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-visual-baselines
+          path: tests/visual/**/*-linux.png
+          retention-days: 7
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-regen
+          path: playwright-report/
+          retention-days: 7
