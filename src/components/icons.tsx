@@ -150,3 +150,11 @@ export function IconMaterial() {
     </svg>
   );
 }
+
+export function IconPlay() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M5.5 3.5L12 8l-6.5 4.5V3.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
