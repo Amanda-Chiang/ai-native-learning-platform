@@ -1,10 +1,29 @@
+import Link from "next/link";
 import { createCourse } from "@/features/courses/actions.ts";
 import { CreateCourseModal } from "@/features/courses/components/CreateCourseModal.tsx";
 import { IslandCanvas } from "@/features/courses/components/IslandCanvas.tsx";
 import { HomeReviewRail } from "@/features/courses/components/HomeReviewRail.tsx";
-import type { HomeOverview } from "@/features/courses/home-summary.ts";
+import { orderByCreatedAt, type HomeOverview } from "@/features/courses/home-summary.ts";
 
 export function IslandHome({ overview }: { overview: HomeOverview }) {
+  // Distinct from "signed in, zero courses" below: a signed-out
+  // visitor cannot create a course (createCourse rejects with no
+  // session), so this state points at sign-in instead of offering a
+  // create button that would fail on submit.
+  if (overview.kind === "signed-out") {
+    return (
+      <div style={s.page}>
+        <div style={s.centered}>
+          <h1 style={s.heading}>Welcome to Orca.</h1>
+          <p style={s.quiet}>Sign in to see your courses.</p>
+          <Link href="/sign-in" style={s.signInLink}>
+            Sign in
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   // A failed course list must never render as "no courses yet": that
   // would tell a student with twelve courses they have none.
   if (overview.kind === "courses-unavailable") {
@@ -30,6 +49,16 @@ export function IslandHome({ overview }: { overview: HomeOverview }) {
     );
   }
 
+  // The canvas and the rail deliberately render the SAME set of
+  // courses in DIFFERENT orders. `overview.courses` is due-date order
+  // (home-overview.ts's `orderSummaries`) -- right for the rail, wrong
+  // for the canvas: island-layout.ts derives each island's grid cell
+  // from array ordinal, so feeding it due-date order would relocate a
+  // course's island every time its due date changes. `orderByCreatedAt`
+  // gives the canvas the one ordinal that never changes after a course
+  // is created.
+  const canvasCourses = orderByCreatedAt(overview.courses);
+
   return (
     <div style={s.page}>
       <div style={s.inner}>
@@ -38,7 +67,7 @@ export function IslandHome({ overview }: { overview: HomeOverview }) {
             <h1 style={s.heading}>Welcome back.</h1>
             <CreateCourseModal createCourse={createCourse} />
           </div>
-          <IslandCanvas courses={overview.courses} />
+          <IslandCanvas courses={canvasCourses} />
         </div>
         <HomeReviewRail courses={overview.courses} exams={overview.exams} />
       </div>
@@ -55,4 +84,5 @@ const s: Record<string, React.CSSProperties> = {
   heading: { margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: "-0.03em", color: "var(--text-primary)" },
   quiet: { margin: 0, fontSize: 13.5, color: "var(--text-secondary)" },
   failed: { margin: 0, fontSize: 13.5, color: "var(--status-warning)" },
+  signInLink: { fontSize: 13.5, fontWeight: 500, color: "var(--accent)", textDecoration: "none" },
 };

@@ -14,12 +14,20 @@ import type { DueQueueResult } from "../review-scheduler/due-queue.ts";
  * and importable by the plain `node --test` unit runner with zero
  * database dependency.
  */
-export type CourseIdentity = { id: string; name: string; islandShapeIndex: number };
+export type CourseIdentity = { id: string; name: string; islandShapeIndex: number; createdAt: string };
 
 /**
  * One rail row. Three variants, because these are three genuinely
  * different states and collapsing any two of them would hide a real
  * one: work is waiting, nothing is waiting, or we could not find out.
+ *
+ * `createdAt` rides along on every variant not because the rail needs
+ * it -- the rail orders by due date -- but because the island canvas
+ * does: it needs a course ordering that is stable across due-date
+ * churn, and `orderSummaries` below only produces a due-date order.
+ * Carrying creation time here means the canvas can derive its own
+ * stable order from the same summaries the rail uses, instead of a
+ * second database read.
  */
 export type CourseReviewSummary =
   | {
@@ -27,20 +35,33 @@ export type CourseReviewSummary =
       courseId: string;
       courseName: string;
       islandShapeIndex: number;
+      createdAt: string;
       /** Reused verbatim from due-queue-bucketing's `bucketFor`. */
       label: string;
       daysUntilDue: number;
       /** Number of items due now. Null for a future date -- see below. */
       dueNowCount: number | null;
     }
-  | { kind: "nothing-scheduled"; courseId: string; courseName: string; islandShapeIndex: number }
-  | { kind: "failed"; courseId: string; courseName: string; islandShapeIndex: number; reason: string };
+  | { kind: "nothing-scheduled"; courseId: string; courseName: string; islandShapeIndex: number; createdAt: string }
+  | { kind: "failed"; courseId: string; courseName: string; islandShapeIndex: number; createdAt: string; reason: string };
 
 export type ExamSection =
   | { kind: "ok"; upcoming: NearestExam[] }
   | { kind: "failed"; reason: string };
 
+/**
+ * `signed-out` is its own kind, not folded into "ready" with zero
+ * courses. A signed-out visitor and a signed-in student with no
+ * courses yet look identical if both render "add a class to get
+ * started" -- but they are not the same state: the signed-out visitor
+ * cannot actually create a course (createCourse rejects with no
+ * session), so offering that button is a call to action that silently
+ * fails on submit. Collapsing distinct states like this is exactly
+ * what this phase's design otherwise refuses to do (see the
+ * `CourseReviewSummary` kinds above).
+ */
 export type HomeOverview =
+  | { kind: "signed-out" }
   | { kind: "courses-unavailable"; reason: string }
   | { kind: "ready"; courses: CourseReviewSummary[]; exams: ExamSection };
 
@@ -61,6 +82,7 @@ export function summarizeCourseDue(course: CourseIdentity, result: DueQueueResul
     courseId: course.id,
     courseName: course.name,
     islandShapeIndex: course.islandShapeIndex,
+    createdAt: course.createdAt,
   };
 
   if (!result.ok) {
@@ -101,4 +123,17 @@ export function orderSummaries(summaries: CourseReviewSummary[]): CourseReviewSu
     if (a.kind === "scheduled" && b.kind === "scheduled") return a.daysUntilDue - b.daysUntilDue;
     return 0;
   });
+}
+
+/**
+ * Oldest-first. This is the order the island canvas lays out from --
+ * deliberately NOT `orderSummaries`, whose due-date order reshuffles
+ * every time a due date changes or a review is completed. A course's
+ * creation time never changes, so this ordinal is the one stable axis
+ * to derive a grid position from: a new course always sorts last and
+ * only ever appends an island, and no existing island moves when
+ * anyone's due dates shift.
+ */
+export function orderByCreatedAt(summaries: CourseReviewSummary[]): CourseReviewSummary[] {
+  return [...summaries].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
 }

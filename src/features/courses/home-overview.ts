@@ -1,3 +1,4 @@
+import { createClient } from "@/lib/supabase/server.ts";
 import { listCoursesResult, type CourseWithIsland } from "@/features/courses/actions.ts";
 import { getDueQueueResult } from "@/features/review-scheduler/due-queue.ts";
 import { listExamConfigs } from "@/features/exam-planner/actions.ts";
@@ -23,6 +24,20 @@ import { summarizeCourseDue, orderSummaries, type ExamSection, type HomeOverview
  * suite uses) is never in the test's path.
  */
 export async function getHomeOverview(): Promise<HomeOverview> {
+  // Checked first and separately from `listCoursesResult`: RLS alone
+  // would make a signed-out visitor's query come back as zero rows,
+  // indistinguishable from a signed-in student who genuinely has no
+  // courses yet. Those are different states (home-summary.ts's
+  // `HomeOverview` doc comment) and only an explicit session check can
+  // tell them apart.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { kind: "signed-out" };
+  }
+
   const coursesResult = await listCoursesResult();
   if (!coursesResult.ok) {
     return { kind: "courses-unavailable", reason: coursesResult.reason };

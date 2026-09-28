@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import {
   summarizeCourseDue,
   orderSummaries,
+  orderByCreatedAt,
 } from "../../../src/features/courses/home-summary.ts";
 
-const course = { id: "c1", name: "ALD", islandShapeIndex: 2 };
+const course = { id: "c1", name: "ALD", islandShapeIndex: 2, createdAt: "2026-01-01T00:00:00Z" };
 
 const item = (daysUntilDue: number, dueLabel: string) => ({
   conceptId: `concept-${daysUntilDue}-${dueLabel}`,
@@ -54,12 +55,21 @@ test("a count is given for work due now, and withheld for a future date", () => 
 
 test("ordering puts the soonest first, then failures, then nothing-scheduled", () => {
   const scheduledIn = (id: string, days: number) =>
-    summarizeCourseDue({ id, name: id, islandShapeIndex: 0 }, { ok: true, items: [item(days, `In ${days} days`)] });
+    summarizeCourseDue(
+      { id, name: id, islandShapeIndex: 0, createdAt: "2026-01-01T00:00:00Z" },
+      { ok: true, items: [item(days, `In ${days} days`)] },
+    );
 
   const ordered = orderSummaries([
-    summarizeCourseDue({ id: "empty", name: "empty", islandShapeIndex: 0 }, { ok: true, items: [] }),
+    summarizeCourseDue(
+      { id: "empty", name: "empty", islandShapeIndex: 0, createdAt: "2026-01-01T00:00:00Z" },
+      { ok: true, items: [] },
+    ),
     scheduledIn("later", 5),
-    summarizeCourseDue({ id: "broken", name: "broken", islandShapeIndex: 0 }, { ok: false, reason: "boom" }),
+    summarizeCourseDue(
+      { id: "broken", name: "broken", islandShapeIndex: 0, createdAt: "2026-01-01T00:00:00Z" },
+      { ok: false, reason: "boom" },
+    ),
     scheduledIn("sooner", 1),
   ]);
 
@@ -67,8 +77,55 @@ test("ordering puts the soonest first, then failures, then nothing-scheduled", (
 });
 
 test("ordering is stable for two courses due on the same day", () => {
-  const a = summarizeCourseDue({ id: "a", name: "a", islandShapeIndex: 0 }, { ok: true, items: [item(2, "In 2 days")] });
-  const b = summarizeCourseDue({ id: "b", name: "b", islandShapeIndex: 0 }, { ok: true, items: [item(2, "In 2 days")] });
+  const a = summarizeCourseDue(
+    { id: "a", name: "a", islandShapeIndex: 0, createdAt: "2026-01-01T00:00:00Z" },
+    { ok: true, items: [item(2, "In 2 days")] },
+  );
+  const b = summarizeCourseDue(
+    { id: "b", name: "b", islandShapeIndex: 0, createdAt: "2026-01-02T00:00:00Z" },
+    { ok: true, items: [item(2, "In 2 days")] },
+  );
   assert.deepEqual(orderSummaries([a, b]).map((s) => s.courseId), ["a", "b"]);
   assert.deepEqual(orderSummaries([b, a]).map((s) => s.courseId), ["b", "a"]);
+});
+
+// The bug this guards against: due-date order reshuffles as due dates
+// change or reviews are completed, but island position is derived from
+// array ordinal. `orderByCreatedAt` must give the canvas an ordering
+// that ignores due-date state entirely.
+test("orderByCreatedAt sorts oldest-first regardless of due-date order", () => {
+  const older = summarizeCourseDue(
+    { id: "older", name: "older", islandShapeIndex: 0, createdAt: "2026-01-01T00:00:00Z" },
+    { ok: true, items: [item(9, "In 9 days")] },
+  );
+  const newer = summarizeCourseDue(
+    { id: "newer", name: "newer", islandShapeIndex: 0, createdAt: "2026-02-01T00:00:00Z" },
+    { ok: true, items: [item(0, "Due today")] },
+  );
+
+  // Due-date order puts "newer" first (soonest due); creation order
+  // must not follow it.
+  assert.deepEqual(orderSummaries([older, newer]).map((s) => s.courseId), ["newer", "older"]);
+  assert.deepEqual(orderByCreatedAt([older, newer]).map((s) => s.courseId), ["older", "newer"]);
+  assert.deepEqual(orderByCreatedAt([newer, older]).map((s) => s.courseId), ["older", "newer"]);
+});
+
+test("orderByCreatedAt puts a newly created course last, appending rather than reshuffling", () => {
+  const a = summarizeCourseDue(
+    { id: "a", name: "a", islandShapeIndex: 0, createdAt: "2026-01-01T00:00:00Z" },
+    { ok: true, items: [] },
+  );
+  const b = summarizeCourseDue(
+    { id: "b", name: "b", islandShapeIndex: 0, createdAt: "2026-01-02T00:00:00Z" },
+    { ok: true, items: [] },
+  );
+  const freshlyCreated = summarizeCourseDue(
+    { id: "c", name: "c", islandShapeIndex: 0, createdAt: "2026-01-03T00:00:00Z" },
+    { ok: true, items: [] },
+  );
+
+  assert.deepEqual(
+    orderByCreatedAt([freshlyCreated, a, b]).map((s) => s.courseId),
+    ["a", "b", "c"],
+  );
 });
