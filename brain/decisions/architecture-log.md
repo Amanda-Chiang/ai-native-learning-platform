@@ -2320,3 +2320,57 @@ Verified live against a real Supabase project with two seeded exams
 `npx eslint src tests trigger` now reports **0 errors** (8 pre-existing
 warnings remain, none blocking), 350/350 unit, typecheck clean, visual
 15 passed / 3 skipped.
+
+## 2026-09-28 -- Locale date formatting was hiding a real off-by-one day, not just a hydration warning
+
+Following the `Date.now()` fix above, the same React hydration warning
+listed "date formatting in a user's locale which doesn't match the
+server" as a cause, and `ExamPlanner`/`TodayDashboard`/
+`ConceptDetailPanel` had five bare `toLocaleDateString()` calls. Checked
+before fixing, and the more serious defect was not the mismatch:
+
+`exam_configs.exam_date` is a Postgres `date`, so it reaches the client
+as `"2026-10-18"`. `new Date("2026-10-18")` is **UTC midnight**, so
+`.toLocaleDateString()` in any negative-offset zone renders the previous
+day. Demonstrated directly:
+
+    TZ=UTC              -> 10/18/2026
+    TZ=America/New_York -> 10/17/2026
+    TZ=Asia/Tokyo       -> 10/18/2026
+
+Every US student was seeing their exam dated one day early -- in the
+dropdown, in Today's "Upcoming" card, and inside the delete-confirmation
+dialog ("Delete the exam dated 10/17/2026?"), which is the worst place
+for it: a student confirming a destructive action against a date that
+isn't the one stored.
+
+Fix: `src/lib/format-date.ts`, a small pure module pinning both locale
+(`en-US`) and time zone (`UTC`) via reused `Intl.DateTimeFormat`
+instances, replacing all five call sites. Pinning the zone is what fixes
+the off-by-one (it renders the calendar day actually stored); pinning
+the locale is what fixes the hydration mismatch. An unparseable value
+returns an explicit `"Unknown date"` rather than `"Invalid Date"` or a
+silently substituted today, per the no-silent-placeholders rule.
+
+Stated tradeoff, deliberately taken: dates now render in `en-US`/UTC for
+every viewer, so a true instant (`lastEvidenceAt`) shows its UTC
+calendar day rather than the viewer's local day -- visible in the
+regenerated atlas detail-panel baselines, where "Last evidence" moved
+8/19 -> 8/20. Real localization requires formatting after mount
+(client-only, post-hydration); that is strictly more machinery than this
+UI needs today, and naive local formatting is worse than wrong-by-locale
+because it shifts calendar dates by a day.
+
+Tests first (`tests/unit/lib/format-date.test.ts`, 5 cases, and
+`tests/unit/lib/*.test.ts` added to the `test:unit` script). The
+load-bearing one re-runs the formatter in child processes under
+`TZ=America/New_York`, `Asia/Tokyo`, `Pacific/Kiritimati` and
+`Pacific/Niue` and asserts byte-identical output -- a direct regression
+guard on the bug, not a restatement of the implementation.
+
+Verified live with both the Next server and the browser pinned to
+`America/New_York` -- the zone that produced the bug: an exam stored as
+`2026-10-18` renders "10/18/2026" in the exam dropdown and "Sun, Oct 18"
+on Today, with no hydration or console errors. 355/355 unit (350 + 5),
+`eslint src tests trigger` 0 errors, visual suite 15 passed / 3 skipped
+after re-baselining.

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { MasteryState, RelationshipType } from "@/types/graph/course-graph.ts";
 import type { EvidenceType } from "@/types/domain/evidence-event.ts";
+import { formatCalendarDate } from "@/lib/format-date.ts";
 
 /**
  * One component, responsive container -- side panel on desktop, bottom
@@ -175,7 +176,7 @@ function EvidenceProvenanceNote({ evidenceProvenance }: { evidenceProvenance?: E
   return (
     <p style={{ color: "#6b7280", fontSize: 12 }}>
       Last evidence: {evidenceProvenance.lastEvidenceType} on{" "}
-      {new Date(evidenceProvenance.lastEvidenceAt).toLocaleDateString()}
+      {formatCalendarDate(evidenceProvenance.lastEvidenceAt)}
     </p>
   );
 }

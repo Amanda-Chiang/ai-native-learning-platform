@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { TodayOverview } from "@/features/courses/today.ts";
 import { DEFAULT_MINUTES_PER_QUESTION } from "@/features/review-scheduler/daily-session.ts";
 import { IconArrow } from "@/components/icons.tsx";
+import { formatCalendarDateLong } from "@/lib/format-date.ts";
 
 function urgencyColor(daysLeft: number) {
   if (daysLeft <= 6) return "var(--status-danger)";
@@ -126,11 +127,7 @@ export function TodayDashboard({ overview }: { overview: TodayOverview }) {
                   <span style={{ ...s.examDays, color: urgencyColor(exam.daysLeft) }}>{exam.daysLeft}d</span>
                 </div>
                 <div style={s.examDate}>
-                  {new Date(exam.examDate).toLocaleDateString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  {formatCalendarDateLong(exam.examDate)}
                 </div>
               </div>
             </Link>

@@ -6,6 +6,7 @@ import type { SessionItem } from "@/features/review-scheduler/daily-session.ts";
 import { StructuredAnswerForm } from "@/features/review-scheduler/components/StructuredAnswerForm.tsx";
 import { ConceptScopeSelect } from "@/features/exam-planner/components/ConceptScopeSelect.tsx";
 import { IconCheck } from "@/components/icons.tsx";
+import { formatCalendarDate } from "@/lib/format-date.ts";
 
 type SubmitResult = { result: { outcome: string; [key: string]: unknown }; error: string | null };
 
@@ -159,7 +160,7 @@ export function ExamPlanner({
   async function handleDelete() {
     if (!selectedConfig) return;
     const confirmed = window.confirm(
-      `Delete the exam dated ${new Date(selectedConfig.examDate).toLocaleDateString()}? This can't be undone.`,
+      `Delete the exam dated ${formatCalendarDate(selectedConfig.examDate)}? This can't be undone.`,
     );
     if (!confirmed) return;
     const outcome = await deleteExamConfig(selectedConfig.id);
@@ -236,7 +237,7 @@ export function ExamPlanner({
                   const isPast = new Date(c.examDate).getTime() <= renderedAtMs;
                   return (
                     <option key={c.id} value={c.id}>
-                      {new Date(c.examDate).toLocaleDateString()}
+                      {formatCalendarDate(c.examDate)}
                       {isPast ? " (past)" : ""}
                     </option>
                   );
@@ -348,7 +349,7 @@ export function ExamPlanner({
                     <div style={s.stageHeader}>
                       <span style={{ ...s.stageType, ...(isCurrent ? s.stageTypeActive : {}) }}>{stage.stage}</span>
                       <span style={s.stageDates}>
-                        {new Date(stage.startDate).toLocaleDateString()} – {new Date(stage.endDate).toLocaleDateString()}
+                        {formatCalendarDate(stage.startDate)} – {formatCalendarDate(stage.endDate)}
                       </span>
                     </div>
 
