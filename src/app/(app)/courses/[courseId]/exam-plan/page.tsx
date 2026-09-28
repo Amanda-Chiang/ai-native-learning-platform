@@ -36,7 +36,12 @@ export default async function CourseExamPlanPage({
   // same default-pick logic below, never an error page.
   const requestedId = typeof examParam === "string" ? examParam : undefined;
   const requestedConfig = requestedId ? (examConfigs.find((c) => c.id === requestedId) ?? null) : null;
-  const selectedConfig = requestedConfig ?? pickDefaultExamConfig(examConfigs, new Date());
+  // One instant for this render, shared by the default-exam pick and
+  // the dropdown's "(past)" labels -- two separate clock reads could
+  // straddle an exam's moment and disagree with each other (and with
+  // getExamPlan's own "exam_date_passed" check).
+  const renderedAt = new Date();
+  const selectedConfig = requestedConfig ?? pickDefaultExamConfig(examConfigs, renderedAt);
 
   const [plan, readiness] = await Promise.all([
     selectedConfig ? getExamPlan(selectedConfig.id) : Promise.resolve(null),
@@ -47,6 +52,7 @@ export default async function CourseExamPlanPage({
     <ExamPlanner
       courseId={courseId}
       examConfigs={examConfigs}
+      renderedAt={renderedAt.toISOString()}
       selectedExamConfigId={selectedConfig?.id ?? null}
       initialPlan={plan}
       initialReadiness={readiness}

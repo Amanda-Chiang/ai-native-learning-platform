@@ -2274,3 +2274,49 @@ now regenerated unconditionally and depict current UI. Any future
 whole-app color change should use `--update-snapshots=all`, not the
 bare flag -- a small uniform shift will otherwise pass and update
 nothing.
+
+## 2026-09-28 -- `Date.now()` in ExamPlanner's render was a real hydration bug, not just a lint violation
+
+`quality-gates` had been failing at its **Lint** step (never reaching
+typecheck, build, or the e2e/visual suites) on one error in
+`ExamPlanner.tsx`: React's `@next/next` purity rule flagging
+`const isPast = new Date(c.examDate).getTime() <= Date.now()` inside the
+exam dropdown's `.map()`. Worth noting this postdates the 2026-09-08
+"quality-gates is green" entry -- the rule is newer than that run, so
+the workflow had quietly regressed to red.
+
+Reading the call rather than silencing the rule showed two real defects
+behind it:
+
+1. **Server/client hydration divergence.** `ExamPlanner` is a client
+   component rendered from a server page, so the server produced HTML
+   using its clock and the browser hydrated using a different one. An
+   exam whose moment falls between those two instants renders "(past)"
+   on one side and not the other.
+2. **A second clock contradicting the page's own.** The page already
+   establishes an instant for `pickDefaultExamConfig`, and
+   `default-exam-selection.ts` documents in its own header that its
+   boundary matches `getExamPlan`'s `exam_date_passed` check exactly so
+   the two "can never disagree." The dropdown label was a third,
+   independent reading, which could label an exam "(past)" while the
+   plan rendered directly beneath it was still live.
+
+Fix: the page takes one `renderedAt = new Date()`, uses it for both the
+default-exam pick and (as an ISO string prop) the dropdown's labels, so
+every "has this exam passed?" question on the page resolves against a
+single instant. Render is now pure -- the label is derived from props,
+not the clock -- which is what actually satisfies the rule rather than
+working around it.
+
+The label is deliberately a snapshot of the request instant: it does not
+flip live if the page sits open past an exam's moment, exactly like the
+plan and readiness rendered beside it, and it refreshes on reload. A
+live-updating label would have to re-introduce a clock the server
+doesn't share.
+
+Verified live against a real Supabase project with two seeded exams
+(one 10 days past, one 21 days out): the dropdown labels exactly one
+"(past)", and the page hydrates with no console or hydration errors.
+`npx eslint src tests trigger` now reports **0 errors** (8 pre-existing
+warnings remain, none blocking), 350/350 unit, typecheck clean, visual
+15 passed / 3 skipped.

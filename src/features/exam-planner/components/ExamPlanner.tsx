@@ -29,6 +29,7 @@ function isPassedOutcome(result: SubmitResult["result"]): boolean {
 export function ExamPlanner({
   courseId,
   examConfigs,
+  renderedAt,
   selectedExamConfigId,
   initialPlan,
   initialReadiness,
@@ -42,6 +43,12 @@ export function ExamPlanner({
 }: {
   courseId: string;
   examConfigs: ExamConfigView[];
+  /** ISO timestamp of the server render that produced these props --
+   * the single instant every "has this exam passed?" comparison on this
+   * page is made against (the page derives its default exam pick from
+   * the same one). Passed in rather than read from the clock here so
+   * render stays pure and server/client can't disagree. */
+  renderedAt: string;
   selectedExamConfigId: string | null;
   initialPlan: GetExamPlanResult | null;
   initialReadiness: GetExamReadinessResult | null;
@@ -65,6 +72,7 @@ export function ExamPlanner({
   const [switching, setSwitching] = useState(false);
 
   const selectedConfig = examConfigs.find((c) => c.id === selectedId) ?? null;
+  const renderedAtMs = new Date(renderedAt).getTime();
 
   async function handleSelectExam(examConfigId: string) {
     setSelectedId(examConfigId);
@@ -210,7 +218,22 @@ export function ExamPlanner({
                 style={s.select}
               >
                 {examConfigs.map((c) => {
-                  const isPast = new Date(c.examDate).getTime() <= Date.now();
+                  // Compared against the server's own render instant
+                  // (`renderedAt`), never a fresh `Date.now()` here.
+                  // Calling the clock during render is impure: the same
+                  // props could render "(past)" or not depending on when
+                  // React happened to re-render, and server HTML and
+                  // client hydration read two different clocks -- an
+                  // exam whose moment falls between them hydrates
+                  // mismatched. It also reintroduces exactly the
+                  // divergence default-exam-selection.ts exists to
+                  // prevent: `getExamPlan`'s "exam_date_passed" check
+                  // and this label must use one instant, or the dropdown
+                  // can say "(past)" for an exam the page below it is
+                  // still showing a live plan for. Snapshot semantics
+                  // are deliberate -- this label refreshes on reload,
+                  // like the plan and readiness beside it.
+                  const isPast = new Date(c.examDate).getTime() <= renderedAtMs;
                   return (
                     <option key={c.id} value={c.id}>
                       {new Date(c.examDate).toLocaleDateString()}
