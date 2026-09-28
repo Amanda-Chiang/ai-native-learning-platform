@@ -10,14 +10,22 @@ brand-identity.md`, Phase 1 of `docs/superpowers/specs/
 placeholder wordmark pending a real asset file. Phases 2–9 of the
 redesign (Concepts screen, Home dashboard islands, quick-review flow,
 material upload, review configuration, calendar, onboarding, deep
-review) are scoped but not yet built.
+review) are scoped but not yet built — **except Phase 2, which is
+designed and planned and is the next thing to build**: see
+`docs/superpowers/specs/2026-09-28-orca-phase2-concepts-chat-design.md`
+and its ready-to-run plan
+`docs/superpowers/plans/2026-09-28-orca-phase2-concepts-chat.md`.
+The palette was amended 2026-09-28: the supplied `parchment` ground read
+pink across a full viewport and was replaced by a neutral `--off-white`
+(`brain/design-context/brand-identity.md`).
 
-**Status (2026-09-27)**: All six roadmap phases fully implemented and
+**Status (2026-09-28)**: All six roadmap phases fully implemented and
 verified live, plus a long tail of post-completion hardening and
 enhancement passes — a browser/Playwright hardening pass, a full
 design-system reskin, a unit-extraction & reconciliation rework for
 `course-graph-ingestion`, a CI hardening pass that took `quality-gates`
-from never-once-green to genuinely green, an automatic lightweight
+from never-once-green to green at the time (see the CI note below for
+its current state), an automatic lightweight
 daily multiple-choice quiz (closing a real gap where `question_bank`
 had sat empty in every real course), a real end-to-end integration test
 for the extract → reconcile → confirm → materialize pipeline, a UI
@@ -79,6 +87,40 @@ If you're an agent picking this project up cold, read in this order:
 5. `brain/README.md` — index of everything else under `brain/`
    (architecture rationale, product commitments, lessons, setup).
 
+## What to build next, and the state of CI
+
+**Next task:** Orca redesign Phase 2 — the per-course Concepts screen,
+a top-level AI Chat tab, and a create-course modal. The design is
+approved and the implementation plan is written task-by-task and ready
+to execute: `docs/superpowers/plans/2026-09-28-orca-phase2-concepts-chat.md`.
+Run it with `superpowers:subagent-driven-development` or
+`superpowers:executing-plans`.
+
+**CI (`quality-gates`) as of 2026-09-28:** Lint, Typecheck and Build are
+green. The E2E/visual job is red, and the cause is **operational, not a
+code defect**: the OpenAI account has no credits, so
+`tests/e2e/course-graph-ingestion-pipeline.spec.ts` — the one spec that
+makes a real, un-doubled model call — fails with
+`429 You have no credits remaining`. Everything else passes (30 passed,
+2 failed, 3 skipped). Adding credits should turn it green with no code
+change. Don't go looking for a bug in the ingestion pipeline.
+
+**Three traps that will cost you an hour each if you don't know them:**
+
+1. `nvm use 24` first. See Prerequisites — the default `node` is v16.
+2. **Don't leave a dev server running while running the Playwright e2e
+   suite.** `playwright.config.ts` sets `reuseExistingServer:
+   !process.env.CI`, so your own `npm run dev` gets reused *without*
+   `TUTOR_AGENT_USE_TEST_DOUBLE=true`, the tutor test double never
+   engages, and all 7 `tutor-agent` specs make real model calls and
+   fail for reasons unrelated to your change.
+3. Re-baseline visual snapshots with `--update-snapshots=all`, never the
+   bare flag. The bare flag defaults to mode "changed" and only rewrites
+   baselines whose comparison *failed*; a small uniform change (a page
+   ground shifting a few RGB steps) passes under Playwright's per-pixel
+   threshold, so nothing gets rewritten and the committed baselines keep
+   depicting stale UI.
+
 Not every real feature in this repo went through Spec Kit's numbered
 `specs/NNN-*` flow — some (design/reskin passes, enhancements to an
 already-shipped feature) were built via `superpowers:brainstorming` →
@@ -90,7 +132,12 @@ this repo does.
 
 ## Prerequisites
 
-- Node.js 18.18+ (or 20+)
+- **Node.js 24** — run `nvm use 24` before anything (v24.20.0 is already
+  installed via nvm). This is not optional and it is the first thing a
+  fresh checkout gets wrong: the default shell `node` here is v16, and
+  `next dev` refuses to start on it with a bare
+  `You are using Node.js 16.20.2. For Next.js, Node.js version ">=20.9.0"
+  is required.` Playwright needs 20+ too, and CI pins 24.
 - npm
 
 ## Install dependencies

@@ -38,9 +38,31 @@
   produce or update the other. To (re)generate real `-linux.png`
   baselines without a local Linux machine, use a one-off
   `workflow_dispatch` GitHub Actions run (`npx playwright test
-  tests/visual --update-snapshots`), download the resulting artifact,
+  tests/visual --update-snapshots=all`), download the resulting artifact,
   and commit the files directly — don't approximate via local Docker
   unless you've confirmed the Playwright/browser versions match exactly.
+- **`--update-snapshots=all`, never the bare flag.** The bare
+  `--update-snapshots` defaults to mode "changed": it rewrites only
+  baselines whose comparison actually *failed*. `playwright.config.ts`
+  sets `maxDiffPixelRatio: 0.02`, and Playwright's *per-pixel* default
+  `threshold` is 0.2 (YIQ), so a small uniform color shift — a page
+  ground moving a few RGB steps, say — registers zero differing pixels,
+  passes, and rewrites nothing. The suite then stays green while the
+  committed baselines depict a UI the app no longer renders. This bit
+  twice: the Orca rebrand updated only 9 of 17 baselines for this
+  reason, and the follow-up ground-color change appeared to update none.
+  (Found 2026-09-28.)
+- **Don't leave a dev server running while running the Playwright e2e
+  suite.** `playwright.config.ts` sets `reuseExistingServer:
+  !process.env.CI` *and* passes `TUTOR_AGENT_USE_TEST_DOUBLE: "true"` in
+  its own `webServer.env`. A dev server you started yourself doesn't
+  have that variable, so when Playwright reuses it the tutor test double
+  never engages, all 7 `tutor-agent` specs make real model calls, and
+  they fail for reasons that have nothing to do with your change (on a
+  credit-less account, a 429). They pass on CI precisely because CI
+  always starts its own server. This is distinct from the
+  orphaned-wrong-checkout trap below — here the server is the right
+  tree, just missing an env var. (Found 2026-09-28.)
 - `playwright.config.ts` scopes `testMatch` to `**/*.spec.ts` on
   purpose — without it, Playwright's default pattern also matches
   `tests/unit/**/*.test.ts` (this project's `node:test` files) and tries
