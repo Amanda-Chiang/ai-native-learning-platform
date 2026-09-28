@@ -14,7 +14,7 @@
                              muted accent fill
    Periwinkle     #afb5f2   Accent secondary -- AI voice, informational
    Wisteria Blue  #839bec   Accent primary -- buttons, active nav, links
-   Parchment      #fcf7f4   Page ground
+   Off White      #f7f8f9   Page ground (neutral)
 
    Status colors (functional, not brand-tinted -- see --status-* below)
    ──────────────────────────────────────────────────────────────────
@@ -43,10 +43,10 @@
   --alice-blue: #e1ecfa;
   --periwinkle: #afb5f2;
   --wisteria-blue: #839bec;
-  --parchment: #fcf7f4;
+  --off-white: #f7f8f9;
 
   /* Ground */
-  --bg: var(--parchment);
+  --bg: var(--off-white);
   --surface: #ffffff;
   --surface-hover: var(--alice-blue);
 

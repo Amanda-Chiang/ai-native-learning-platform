@@ -2213,3 +2213,64 @@ specs on `main`** (all `tutor-agent-e2e`, plus
 
 Phases 2-9 of the redesign remain scoped-not-built per `docs/
 superpowers/specs/2026-09-27-orca-redesign-design.md`.
+
+## 2026-09-28 -- The supplied `parchment` ground reads pink; replaced with a neutral `--off-white`
+
+Reported directly after Phase 1 shipped: the page background looked
+pink rather than the cream/off-white the palette implied. Checked
+rather than assumed -- walked the paint chain at page center in a real
+browser, which showed exactly one painted background (`body`, at
+`rgb(252,247,244)`) and no overlay, leftover token, or stray tint. The
+pink *was* parchment.
+
+Root cause is that `#fcf7f4` is `hsl(22, 57%, 97%)` -- hue 22°, with
+R(252) > G(247) > B(244). A 3-step channel spread is invisible in a
+palette swatch and unmistakable across a full viewport, and the app's
+previous ground (`#f7f7f6`) was essentially neutral gray, so the
+rebrand moved from *no* hue to a warm one in one step.
+
+Decision: replace it with `--off-white: #f7f8f9` (`hsl(210, 14%, 97%)`)
+-- neutral very light gray with only a faint cool cast, so it sits
+under the wisteria/periwinkle accents without competing. The token was
+**renamed**, not just revalued: a token named `--parchment` holding a
+gray is a name that lies about its value, which is the same class of
+problem as a silent placeholder.
+
+`brand-identity.md`'s palette table, CSS block, and gradients now carry
+`--off-white`, but the originally-supplied `#fcf7f4ff` is recorded
+there explicitly rather than erased -- it is what the brand tool
+actually produced, and a doc that pretended otherwise would misrepresent
+provenance. The 2026-09-27 entry above still names parchment because
+that is what was supplied on that date; this entry supersedes it rather
+than rewriting it.
+
+Worth stating plainly: this is the color-role mapping working as
+`brand-identity.md` said it would. That doc recorded the role
+assignments as "a first-pass guess for a future design pass to confirm
+or override, not a locked decision" -- the product owner supplied raw
+tokens, never roles. This is the first such override.
+
+### Follow-on finding the same day: `--update-snapshots` was silently rewriting nothing
+
+Regenerating baselines for the ground change above appeared to succeed
+while changing zero files. Cause: `playwright.config.ts` sets
+`maxDiffPixelRatio: 0.02`, and Playwright's *per-pixel* default
+`threshold` is 0.2 in YIQ space. The ground moved only ~5/255 per
+channel, which is under that per-pixel threshold, so **no pixel counted
+as different at all** -- the suite passed, and plain
+`--update-snapshots` (which defaults to mode "changed", rewriting only
+baselines whose comparison failed) therefore had nothing to rewrite.
+
+The baselines were passing while depicting a color the app no longer
+rendered. That is the checked-in-artifact version of a silent
+placeholder: green, and wrong. Fixed by regenerating with
+`--update-snapshots=all` on both platforms, which rewrote all 17
+darwin and all 17 linux baselines.
+
+Worth flagging for the 2026-09-27 rebrand entry above: only 9 of 17
+baselines changed there for exactly this reason, so 8 committed
+baselines had been left depicting pre-Orca colors. Both platforms are
+now regenerated unconditionally and depict current UI. Any future
+whole-app color change should use `--update-snapshots=all`, not the
+bare flag -- a small uniform shift will otherwise pass and update
+nothing.
