@@ -46,7 +46,10 @@ export default async function globalSetup() {
 
   const { data: course, error: courseError } = await admin
     .from("courses")
-    .insert({ owner_id: userId, name: "Tutor Agent E2E Course" })
+    // island_shape_index is cosmetic and irrelevant to this fixture
+    // insert, which bypasses createCourse; 0 is a real library index,
+    // not a stand-in for an unknown value.
+    .insert({ owner_id: userId, name: "Tutor Agent E2E Course", island_shape_index: 0 })
     .select()
     .single();
   if (courseError || !course) {
