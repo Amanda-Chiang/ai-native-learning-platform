@@ -66,21 +66,30 @@ test("sign in, create a course via the real form, and reach every linked feature
   // live -- createCourse's {course}|{error} result was being
   // discarded entirely).
   await expect(page).toHaveURL(/\/courses\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole("heading", { name: "Course material" })).toBeVisible();
 
   const courseId = page.url().split("/").filter(Boolean).pop()!;
   createdCourseIds.push(courseId);
+
+  await page.goto(`/courses/${courseId}/material`);
+  await expect(page.getByRole("heading", { name: "Course material" })).toBeVisible();
 
   // Regression guard: the course detail page must link to every other
   // feature (previously had none at all).
   // "Study" is deliberately absent here -- it's no longer a top-level nav
   // tab (course-shell.tsx), only reachable via the Review page's own
   // "Start review" button (covered by review-navigates-to-study below).
+  // Material is walked last: we're already on /material (from the goto
+  // above), so its own link click is a same-URL no-op that never pushes
+  // a new history entry -- the goBack() after it would otherwise rewind
+  // past our explicit goto and land back on the (now pageless) course
+  // root. Ending the loop on it means that harmless rewind has no later
+  // iteration left to corrupt.
   const featurePages: [name: string, path: string, heading: string][] = [
     ["Atlas", "atlas", "Concept Atlas"],
     ["Review", "review", "Review queue"],
     ["Tutor", "tutor", "Tutor"],
     ["Exam plan", "exam-plan", "Exam Plan"],
+    ["Material", "material", "Course material"],
   ];
 
   for (const [linkName, path, heading] of featurePages) {

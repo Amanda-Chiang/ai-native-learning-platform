@@ -21,7 +21,7 @@ async function loadDemoReviewQueue(): Promise<ReviewQueueItem[]> {
   return JSON.parse(raw) as ReviewQueueItem[];
 }
 
-export default async function CourseDetailPage({
+export default async function CourseMaterialPage({
   params,
 }: {
   params: Promise<{ courseId: string }>;
