@@ -59,7 +59,13 @@ test("uploading a real course syllabus succeeds, with no RLS error, and appears 
   await page.getByLabel("Course name").fill(courseName);
   await page.getByRole("button", { name: "Create course" }).click();
   await expect(page).toHaveURL(/\/courses\/[0-9a-f-]{36}$/);
-  createdCourseIds.push(page.url().split("/").filter(Boolean).pop()!);
+  const courseId = page.url().split("/").filter(Boolean).pop()!;
+  createdCourseIds.push(courseId);
+
+  // The upload dropzone lives on the Material tab, not the course root
+  // (the course root is the Concepts screen as of the Orca Phase 2
+  // redesign) -- navigate there explicitly before touching the file input.
+  await page.goto(`/courses/${courseId}/material`);
 
   // The dropzone auto-submits the moment a file is chosen (its onChange
   // calls formRef.current.requestSubmit()) -- there is no separate
