@@ -94,7 +94,7 @@ const s: Record<string, CSSProperties> = {
     fontSize: 13,
     fontFamily: "var(--font-sans)",
     fontWeight: 500,
-    color: "var(--clay)",
+    color: "var(--accent)",
     textDecoration: "none",
   },
 };
