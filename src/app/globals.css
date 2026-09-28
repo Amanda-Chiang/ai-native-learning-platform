@@ -35,19 +35,27 @@
    ═══════════════════════════════════════════ */
 
 :root {
+  /* Orca brand — raw tokens, verbatim from brain/design-context/brand-identity.md */
+  --black: #000000;
+  --prussian-blue: #151d3a;
+  --alice-blue: #e1ecfa;
+  --periwinkle: #afb5f2;
+  --wisteria-blue: #839bec;
+  --parchment: #fcf7f4;
+
   /* Ground */
-  --bg: #f7f7f6;
+  --bg: var(--parchment);
   --surface: #ffffff;
-  --surface-hover: #f3f3f2;
+  --surface-hover: var(--alice-blue);
 
-  /* Borders */
-  --border: #e4e4e2;
-  --border-strong: #d0cfcc;
+  /* Borders — periwinkle-tinted instead of flat gray, ties chrome to brand */
+  --border: color-mix(in srgb, var(--periwinkle) 35%, transparent);
+  --border-strong: color-mix(in srgb, var(--periwinkle) 55%, transparent);
 
-  /* Text */
-  --text-primary: #0d0d0d;
-  --text-secondary: #4a5568;
-  --text-tertiary: #8a9bad;
+  /* Text — black-based, hierarchy via opacity so hue stays consistent with the logo */
+  --text-primary: var(--black);
+  --text-secondary: rgb(0 0 0 / 0.65);
+  --text-tertiary: rgb(0 0 0 / 0.42);
 
   /* ── Blushed Brick (primary + critical urgency) */
   --clay: #c94f53;
