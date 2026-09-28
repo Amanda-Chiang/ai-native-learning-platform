@@ -386,8 +386,9 @@ now carries the real Orca token system (6 brand tokens, plus the
 `--accent*` / `--status-*` split that replaced the overloaded `--clay`),
 `AppShell` is a bottom icon nav bar, and a shared `BrandLogo` renders a
 deliberate text-only placeholder wordmark (no real logo asset exists
-yet). Known follow-up: the `-linux.png` visual baselines are stale and
-need regenerating on CI's own runner. See
+yet). The `-linux.png` visual baselines were regenerated on CI's own
+runner and committed, so the visual suite is green on both platforms.
+See
 `brain/decisions/architecture-log.md`'s 2026-09-27 "Orca rebrand Phase 1"
 entry and the execution addendum in
 `docs/superpowers/plans/2026-09-27-orca-rebrand-app-shell.md`.

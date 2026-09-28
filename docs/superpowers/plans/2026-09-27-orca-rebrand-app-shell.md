@@ -1010,9 +1010,11 @@ above isn't read as a literal account:
    `--update-snapshots` on macOS cannot produce the `-linux.png`
    baselines CI compares against; those are now stale and must be
    regenerated on CI's `ubuntu-latest` runner the way
-   `brain/decisions/architecture-log.md`'s 2026-09-08 entry describes,
-   or `quality-gates` will fail on an intended change. **This is the
-   one piece of Phase 1 that is not finished locally.**
+   `brain/decisions/architecture-log.md`'s 2026-09-08 entry describes.
+   **Done** -- regenerated on a real `ubuntu-latest` runner via a
+   one-off `workflow_dispatch` workflow (added, run once, deleted), the
+   9 regenerated `-linux.png` baselines eyeballed and committed. Phase 1
+   is complete.
 
 Also worth noting for anyone re-running this: every `npm run dev` /
 `playwright` / `typecheck` step needs Node 24 (`nvm use 24`) -- the

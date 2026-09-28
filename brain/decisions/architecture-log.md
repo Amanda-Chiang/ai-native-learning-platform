@@ -2174,9 +2174,16 @@ amended in place to match):
    local Docker approximation renders fonts differently). 9 `-darwin`
    baselines were regenerated and each inspected by eye before
    committing (Confirm wisteria / Reject red in the review queue,
-   Atlas mastery rings unchanged); the checked-in `-linux` pair of each
-   will fail the next `quality-gates` run on an intended change until
-   regenerated the way the 2026-09-08 entry describes.
+   Atlas mastery rings unchanged). **Resolved the same day**: the
+   matching 9 `-linux.png` baselines were regenerated on a real
+   `ubuntu-latest` runner via a one-off `workflow_dispatch` workflow
+   (`.github/workflows/regen-linux-snapshots.yml`, added, run once,
+   then deleted -- exactly the 2026-09-08 pattern), which uploaded them
+   as an artifact rather than self-committing, so each could be
+   eyeballed before landing. CI regenerated precisely the same 9
+   screenshots macOS did, which is itself corroboration that the diff
+   is the intended global retint and not a platform-specific render
+   problem.
 
 3. **Task 4's snippet didn't match the real file** -- it showed
    `subNavItemActive`'s `color` and `borderBottom` as adjacent lines,
