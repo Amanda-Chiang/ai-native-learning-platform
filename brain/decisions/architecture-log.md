@@ -2512,9 +2512,23 @@ no-silent-placeholders rule. Ruling, deliberately scoped: only this new
 action throws. `listUnits` and `listCourses` keep their pre-existing
 `if (error || !data) return []` pattern unchanged -- fixing those is a
 separate decision, deferred rather than folded into this change
-silently. Known consequence: the Concepts screen still inherits a
-silent empty list from those two reads if either fails, even though its
-own new read is now honest about failure.
+silently. Known consequence, and it differs by which read fails, so it's
+worth stating precisely rather than as one blanket "silent empty list":
+if `listCourseConceptsWithMastery` throws, the whole page fails --
+there is no `error.tsx` under `src/app`, so the learner sees Next.js's
+generic framework error screen, not a designed state. If `listUnits`
+instead returns `[]` (its own query failed while the concepts query
+succeeded -- e.g. a `course_units`-specific RLS or query error, as
+opposed to a connection outage, where the throwing read would win the
+race), `groupConceptsByUnit` finds no known unit ids and buckets every
+concept in the course into a single "Unassigned" section -- a fully
+populated, plausible-looking page that is actually wrong, which is
+worse than an empty state because nothing about it looks broken. And
+if `getDueQueue`'s own unchecked `conceptsRes.data ?? []`
+(`src/features/review-scheduler/due-queue.ts`) hits a failed query, the
+due rail renders as though the query had succeeded with zero due
+concepts: "Nothing due right now," an affirmative claim rather than an
+error.
 
 **The plan under-counted the specs the route move touched.** It named
 `tests/visual/review-queue.spec.ts` and `tests/e2e/basic-flows.spec.ts`
