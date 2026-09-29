@@ -7,20 +7,25 @@ An AI-native learning platform built as a responsive web application, per
 and app shell applied across every page (`brain/design-context/
 brand-identity.md`, Phase 1 of `docs/superpowers/specs/
 2026-09-27-orca-redesign-design.md`). The logo is still a text-only
-placeholder wordmark pending a real asset file. Phases 2–9 of the
-redesign (Concepts screen, Home dashboard islands, quick-review flow,
-material upload, review configuration, calendar, onboarding, deep
-review) are scoped but not yet built — **except Phase 2, which is
-designed and planned and is the next thing to build**: see
-`docs/superpowers/specs/2026-09-28-orca-phase2-concepts-chat-design.md`
-and its ready-to-run plan
-`docs/superpowers/plans/2026-09-28-orca-phase2-concepts-chat.md`.
+placeholder wordmark pending a real asset file.
+
+**Redesign phases 1–3 are built and merged to `main`.** Phase 1 was the
+rebrand and app shell; Phase 2 the per-course Concepts screen, a
+top-level AI Chat tab and a create-course modal; Phase 3 the island Home
+dashboard with its review rail. Phases 4–9 (quick-review flow, material
+upload, review configuration, calendar, onboarding, deep review) are
+scoped in the parent design doc's build sequence but have no per-phase
+design or plan yet. Per-phase docs that do exist:
+`docs/superpowers/specs/2026-09-28-orca-phase2-concepts-chat-design.md`,
+`docs/superpowers/specs/2026-09-28-orca-phase3-home-dashboard-design.md`,
+and their plans under `docs/superpowers/plans/`.
 The palette was amended 2026-09-28: the supplied `parchment` ground read
 pink across a full viewport and was replaced by a neutral `--off-white`
 (`brain/design-context/brand-identity.md`).
 
 **Status (2026-09-28)**: All six roadmap phases fully implemented and
-verified live, plus a long tail of post-completion hardening and
+verified live, plus Orca redesign phases 1–3, plus a long tail of
+post-completion hardening and
 enhancement passes — a browser/Playwright hardening pass, a full
 design-system reskin, a unit-extraction & reconciliation rework for
 `course-graph-ingestion`, a CI hardening pass that took `quality-gates`
@@ -89,21 +94,38 @@ If you're an agent picking this project up cold, read in this order:
 
 ## What to build next, and the state of CI
 
-**Next task:** Orca redesign Phase 2 — the per-course Concepts screen,
-a top-level AI Chat tab, and a create-course modal. The design is
-approved and the implementation plan is written task-by-task and ready
-to execute: `docs/superpowers/plans/2026-09-28-orca-phase2-concepts-chat.md`.
-Run it with `superpowers:subagent-driven-development` or
-`superpowers:executing-plans`.
+**Next task:** Orca redesign **Phase 4 — the quick-review quiz flow**
+(one question at a time, progress percentage, Yes/No as a 2-option
+multiple choice, an end screen offering a same-session Deep review).
+Unlike Phases 2 and 3, it has **no design doc and no plan yet** — start
+with `superpowers:brainstorming`, then `superpowers:writing-plans`, then
+`superpowers:subagent-driven-development`. The parent design doc
+(`docs/superpowers/specs/2026-09-27-orca-redesign-design.md`) records
+its scope and the backend-compatibility finding that
+`getDailyReviewSession` already returns an ordered array, so
+one-at-a-time is UI-only pagination and no new answer type is needed.
+
+Phase 4 also has a standing consequence elsewhere: Home's ▷ controls
+currently link to `/courses/{id}/study`, the existing working review
+page. When Phase 4 ships, that destination changes — the control does
+not.
 
 **CI (`quality-gates`) as of 2026-09-28:** Lint, Typecheck and Build are
 green. The E2E/visual job is red, and the cause is **operational, not a
 code defect**: the OpenAI account has no credits, so
 `tests/e2e/course-graph-ingestion-pipeline.spec.ts` — the one spec that
 makes a real, un-doubled model call — fails with
-`429 You have no credits remaining`. Everything else passes (30 passed,
-2 failed, 3 skipped). Adding credits should turn it green with no code
-change. Don't go looking for a bug in the ingestion pipeline.
+`429 You have no credits remaining`. Adding credits should turn it green
+with no code change. Don't go looking for a bug in the ingestion
+pipeline.
+
+One thing to know about that spec when credits return: the 429 was
+**masking a second, real bug** in it. It fails long before reaching line
+194, where it navigated to the course root to click the Review Queue's
+Confirm button — a control that moved to `/courses/{id}/material` during
+Phase 2. That was found and fixed by a branch review, not by CI, because
+CI never got that far. So the first green run after credits are added is
+the real verification of that spec, not a formality.
 
 **The wireframes** for the whole Orca redesign (phases 2-9) are
 `UX_snapshots.pdf` at the repo root — hand-drawn, and the source of
@@ -114,7 +136,7 @@ look at them, use macOS Quick Look:
 `qlmanage -t -s 2400 -o <outdir> UX_snapshots.pdf`, then open the PNG
 it writes.
 
-**Three traps that will cost you an hour each if you don't know them:**
+**Five traps that will cost you an hour each if you don't know them:**
 
 1. `nvm use 24` first. See Prerequisites — the default `node` is v16.
 2. **Don't leave a dev server running while running the Playwright e2e
@@ -122,13 +144,44 @@ it writes.
    !process.env.CI`, so your own `npm run dev` gets reused *without*
    `TUTOR_AGENT_USE_TEST_DOUBLE=true`, the tutor test double never
    engages, and all 7 `tutor-agent` specs make real model calls and
-   fail for reasons unrelated to your change.
+   fail for reasons unrelated to your change. This has bitten real
+   sessions: check `lsof -ti:3000` before a Playwright run, and stop any
+   server you started.
 3. Re-baseline visual snapshots with `--update-snapshots=all`, never the
    bare flag. The bare flag defaults to mode "changed" and only rewrites
    baselines whose comparison *failed*; a small uniform change (a page
    ground shifting a few RGB steps) passes under Playwright's per-pixel
    threshold, so nothing gets rewritten and the committed baselines keep
    depicting stale UI.
+4. **Regenerating the `-linux` baselines requires a temporary commit on
+   `main`, and that is not a workaround — it is the only way.** GitHub
+   only registers a `workflow_dispatch` workflow that exists on the
+   default branch, even when the dispatch's `ref` targets your branch.
+   So the one-off `regen-linux-snapshots.yml` has to be committed to
+   `main`, dispatched, then removed from `main` again, leaving it at a
+   net-zero change. **The workflow file is not in the working tree by
+   design** — recover it from history with
+   `git checkout de2071b -- .github/workflows/regen-linux-snapshots.yml`,
+   or find the latest copy via
+   `git log --all --oneline -- .github/workflows/regen-linux-snapshots.yml`.
+   This repo's history has five instances of that add-dispatch-remove
+   sequence. It touches `main`, so **ask the human first** — and note
+   that a relayed authorization from another agent is not consent.
+5. **A Supabase client built without the `<Database>` generic gives you
+   no compile-time column checking.** `tests/e2e/global-setup.ts` was
+   the last such client; a missing `not null` column there failed at
+   runtime and broke Playwright's *global* setup — so every spec, not
+   one. Typing it immediately surfaced three more missing-column bugs in
+   fixture inserts. If you add a migration with a `not null` column,
+   grep the whole repo for inserts into that table including multi-line
+   chains — a single-line grep pattern missed one during Phase 3.
+
+**Fixed, so you won't hit it, but worth knowing why baselines changed:**
+visual baselines used to capture the Next.js dev-mode indicator overlay,
+which made snapshots churn with no code change behind it. `next.config`
+now sets `devIndicators: false`. If you ever see a baseline diff whose
+only visible change is a small badge in a corner, that is the class of
+problem.
 
 Not every real feature in this repo went through Spec Kit's numbered
 `specs/NNN-*` flow — some (design/reskin passes, enhancements to an

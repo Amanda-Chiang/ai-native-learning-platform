@@ -8,7 +8,8 @@ unstyled MVP state (plain semantic HTML, no CSS framework) — see
 ## `/` — Island Home (`src/app/(app)/page.tsx`)
 There is no separate static landing page — `/` resolves directly to
 `IslandHome` (`getHomeOverview` + `<IslandHome>`), the same page reached
-after sign-in. `TodayDashboard`/`today.ts` (Orca Phase 2's dashboard) were
+after sign-in. `TodayDashboard`/`today.ts` (the pre-redesign Home, which
+predates the Orca work entirely — see the 2026-09-17 entries) were
 deleted in Orca Phase 3; this is a full replacement, not a restyle.
 
 One island per course (`IslandCanvas`, deterministic scatter over a fixed

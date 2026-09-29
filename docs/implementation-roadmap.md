@@ -389,6 +389,25 @@ Known open items, not yet resolved as of 2026-09-28:
   around midnight — Today may show a same-day exam as due while the
   Exam Plan page itself reports it already passed. Neither is new;
   both predate this branch.
+- **`listCourses` and `getDueQueue` still return `[]` on a query error**,
+  which is indistinguishable from "nothing found". This is a deliberate,
+  product-owner-ruled deferral from Orca Phase 2, not an oversight: the
+  fix pattern is established (`listCoursesResult`, `getDueQueueResult`
+  and `listExamConfigsResult` are additive siblings that report the
+  error while the originals keep their behavior for existing callers),
+  so closing it is a matter of migrating each remaining caller and
+  deciding what each page should show on failure. Until then, any screen
+  reading through the original functions can render an empty state for a
+  failed query.
+- **The Phase 7 calendar ADR is still owed.** Showing many future review
+  dates across a month reverses the review-scheduler's documented
+  decision never to persist a future schedule
+  (`specs/009-review-scheduler/data-model.md`: everything is computed on
+  read). Phase 3's rail deliberately shows only one *nearest* date per
+  course, which is a fact about current state rather than a projected
+  schedule — that choice avoided the question but did not settle it.
+- **The heavy assessment-generation path is still unwired to any UI** —
+  see the earlier entry; unchanged by the Orca redesign work.
 
 **Orca redesign — Phases 1–3 shipped 2026-09-27/28; phases 4–9 scoped only**:
 Phase 1 (rebrand + app shell) is **built and committed**: `globals.css`
@@ -433,7 +452,8 @@ via migration `0016_course_island_shape.sql`, color hashed from the
 course id) and a right-hand rail (`HomeReviewRail`) listing every
 course's next review session soonest-first, with a pinned "Upcoming
 exams" section below the rail's own scroll region. `TodayDashboard` and
-`today.ts` (Phase 2's dashboard) are deleted, not kept alongside the new
+`today.ts` (the pre-redesign Home, which predates the Orca work
+entirely) are deleted, not kept alongside the new
 one. An island opens that course's Concepts screen; the rail's ▷ opens
 Study (Quick review's existing, working page — unlike Phase 2's disabled
 ▷ controls, this one had a real destination to link to). A count next to
@@ -441,12 +461,47 @@ a course's due date appears only when that work is due *now*; a future
 date renders with no count, because no session that far out is ever
 persisted (see `brain/decisions/architecture-log.md`'s 2026-09-28 "Orca
 Phase 3" entry for the full reasoning, including why this doesn't
-discharge the calendar ADR Phase 7 still owes). Visual baselines: macOS
-regenerated locally with `--update-snapshots=all` (Task 8); the
-`-linux.png` regen was intentionally left to the product owner/controller
-(pushing the regen workflow to `main` needs their explicit
-authorization) — see Task 8's report,
-`.superpowers/sdd/2026-09-28-orca-phase3-home-dashboard/task-8-report.md`.
+discharge the calendar ADR Phase 7 still owes).
+
+Visual baselines are current on **both** platforms: macOS regenerated
+locally with `--update-snapshots=all`, and the `-linux.png` set
+regenerated on CI's own runner and committed. Every `-linux` baseline
+changed in that run, which is expected rather than alarming — the final
+branch review found that the baselines had been capturing the Next.js
+dev-mode indicator overlay, so snapshots churned with no code change
+behind them. `next.config` now sets `devIndicators: false`, and the
+regenerated set is the first without that overlay.
+
+Four defects found by the final whole-branch review, all fixed before
+merge and each worth knowing because the class of bug recurs:
+
+- **Islands moved when due dates changed.** The canvas laid out by array
+  position and was being handed the due-date-sorted list, so studying a
+  course permanently relocated its island — contradicting the layout
+  module's own doc comments. The canvas now orders by `createdAt` while
+  the rail orders by due date.
+- **The exam section's "failed" state was unreachable**, because
+  `listExamConfigs` returns `[]` rather than throwing. A failed
+  `exam_configs` query would have rendered "No exams scheduled." to a
+  student with an exam in three days. Fixed with a
+  `listExamConfigsResult` sibling, the same additive pattern as
+  `listCoursesResult` and `getDueQueueResult`.
+- **`tests/e2e/global-setup.ts`'s Supabase client was untyped**, which
+  is why a missing `not null` column there failed at runtime instead of
+  at typecheck — and it broke Playwright's *global* setup, so every
+  spec. Typing it surfaced three further missing-column bugs.
+- **Mobile Home rendered no islands at all** below ~768px: the rail's
+  fixed width plus an unbreakpointed canvas squeezed the archipelago to
+  nothing. Caught by the new Home visual spec, which is the argument for
+  having added it. The layout now stacks — islands above, rail below —
+  following the `<style>` + `className` + media-query pattern
+  `ConceptDetailPanel` and `DueQueue` already use, since inline styles
+  cannot express a breakpoint.
+
+`tests/visual/home.spec.ts` now covers the Home route at both desktop
+and mobile, using a checked-in fixture — before this, the redesign's
+main deliverable had no visual regression coverage at all.
+
 Pending: the settings gear seen in earlier design mockups has no route
 yet — it's still waiting on Phase 6's Configurations screen, not a Phase
 3 gap. See `docs/superpowers/plans/2026-09-28-orca-phase3-home-dashboard.md`

@@ -2785,10 +2785,17 @@ and the exam section remained visible in every screenshot taken -- but
 the browser-automation tool used for this session's live check could
 only scroll the page's outer canvas region, not this specific inner
 scroll container, so no pixel screenshot exists of the rail mid-scroll.
-That gap is recorded plainly rather than implied away; see Task 8's
-report (`.superpowers/sdd/2026-09-28-orca-phase3-home-dashboard/
-task-8-report.md`) for the full detail and screenshots. All seeded rows
+That gap is recorded plainly rather than implied away. All seeded rows
 and the throwaway user were deleted afterward via the same admin client.
+
+**Closed afterwards, in the same branch:** `tests/visual/home.spec.ts`
+was added with a fixture carrying enough courses to overflow the rail,
+so the scrolling-list-with-pinned-exams case is now covered by a
+committed baseline at both desktop and mobile rather than resting on a
+DOM inspection. (The per-task scratch reports this entry originally
+cited lived under `.superpowers/sdd/`, which is git-ignored working
+space deleted when the branch finished — the commits and this log are
+the durable record.)
 
 Full regression at Task 8: typecheck clean; `eslint src tests trigger` 0
 errors (8 pre-existing warnings, unrelated to this branch); 384/384
