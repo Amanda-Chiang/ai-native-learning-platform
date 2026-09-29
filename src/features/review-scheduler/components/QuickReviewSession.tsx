@@ -159,7 +159,10 @@ export function QuickReviewSession({
         item={item}
         index={index}
         total={items.length}
-        answeredCount={score.answered}
+        // Answered plus skipped: the bar reports progress through
+        // today's review, not a score. The end screen keeps those two
+        // numbers separate.
+        addressedCount={score.answered + score.skipped}
         status={statusFor(item.conceptId, results, skipped)}
         outcome={results[item.conceptId]}
         pending={pending}

@@ -43,11 +43,28 @@ export function statusFor(
   return "unanswered";
 }
 
-/** Answered items only -- a skip never advances the bar, so the
- * percentage never overstates what the student actually retrieved. */
-export function progressPercent(answeredCount: number, total: number): number {
+/**
+ * How far through the session the student is -- answered AND skipped
+ * items both count, because this bar reports progress through today's
+ * review, not a score. A skipped question has been dealt with: the
+ * student saw it, decided, and moved on, and it will not come back in
+ * this session.
+ *
+ * This deliberately reverses an earlier rule that counted answered
+ * items only. That version left the bar reading 0% for a student who
+ * had worked through half the session, which misreports the one thing
+ * a progress bar is for. Nothing is overstated by it either: the end
+ * screen reports correctness and skips separately (`sessionScore`), so
+ * "how much is done" and "how much did you get right" stay distinct
+ * numbers rather than one number trying to mean both.
+ *
+ * A failed submission is not addressed -- `statusFor` leaves it
+ * "unanswered" and it stays answerable -- so a grading failure never
+ * advances the bar.
+ */
+export function progressPercent(addressedCount: number, total: number): number {
   if (total <= 0) return 0;
-  return Math.round((answeredCount / total) * 100);
+  return Math.round((addressedCount / total) * 100);
 }
 
 export function sessionScore(
