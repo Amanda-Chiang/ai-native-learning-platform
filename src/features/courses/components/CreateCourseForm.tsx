@@ -11,7 +11,7 @@ import type { Course } from "@/features/courses/actions.ts";
  * {course}|{error} result entirely. This client component surfaces a
  * real error, and on success navigates straight to the new course --
  * matching the error-display convention every other form in this app
- * already uses (TutorChat, StudySession, ExamPlanner, ReviewQueue).
+ * already uses (TutorChat, QuickReviewSession, ExamPlanner, ReviewQueue).
  */
 export function CreateCourseForm({
   createCourse,

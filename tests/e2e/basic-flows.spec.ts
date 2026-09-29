@@ -172,5 +172,11 @@ test("Review's Start review button still reaches Study's UI, with no separate St
   await page.goto(`/courses/${courseId}/review`);
   await page.getByRole("link", { name: "Start review" }).click();
   await expect(page).toHaveURL(new RegExp(`/courses/${courseId}/study$`));
-  await expect(page.getByRole("heading", { name: "Study" })).toBeVisible();
+  // Orca Phase 4 replaced the all-items-at-once list (which had a
+  // "Study" <h1>) with the one-question-at-a-time QuickReviewSession,
+  // which has no page-level heading at all -- see
+  // src/features/review-scheduler/components/QuickReviewQuestion.tsx.
+  // Assert on the seeded question's own text instead, which is what
+  // actually proves Study's UI rendered.
+  await expect(page.getByText("Test question")).toBeVisible();
 });

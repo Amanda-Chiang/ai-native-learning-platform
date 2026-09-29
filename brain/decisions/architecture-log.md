@@ -2884,3 +2884,268 @@ change. Full regression: typecheck clean; `eslint src tests trigger` 0
 errors (8 pre-existing warnings); 386/386 unit; visual suite 17 passed /
 3 skipped (the skips are the unrelated `tutor-agent-e2e` project) on the
 no-flag confirmation run.
+
+## 2026-09-29 -- Task 11: Orca Phase 4 (quick-review quiz flow) closed out -- what shipped, real bugs found, and a stale test the regression run caught
+
+Phase 4 replaces `/courses/<id>/study`'s all-items-at-once scrolling
+list (`StudySession.tsx`, deleted) with `QuickReviewSession`: one
+question at a time, a progress percentage, free back/forward
+navigation, a Skip that commits nothing, a skip-confirmation dialog
+before finishing, and an end screen reporting the real score, the
+concepts covered, and a visibly-disabled deep-review offer. The
+backend needed no changes -- `getDailyReviewSession` already returned
+an ordered array, so this is pagination over data that already
+existed, and Yes/No is a two-option `multiple_choice` row rather than a
+new answer type.
+
+**Why the route was replaced in place rather than given a sibling.**
+Every entry point -- Home's ▷ control, the Review page's "Start
+review" link, the e2e specs -- already pointed at `/study`. Phase 3
+deliberately linked Home's control here specifically so Phase 4 would
+change what the route renders, not where anything points; adding a
+second route would have meant relinking every one of those callers for
+no benefit, and two UIs reading the same session data are two things
+that can drift out of sync with each other.
+
+**Why every response modality is paginated, not just multiple
+choice.** Filtering the session down to MCQs would silently drop due
+concepts from a student's review -- the session would look complete
+while actually skipping real work. The cost is real (a "quick" review
+can end up serving a slow, structured-checker question), but that cost
+is question-bank composition, not a UI defect, and hiding it behind a
+UI-level filter would hide it from whoever is actually positioned to
+fix it. Recorded as a known open item below.
+
+**Why Skip commits nothing and never touches mastery.** A skip is the
+*absence* of evidence, not evidence of failure. Writing a mastery
+penalty from a non-event would fabricate a signal the student never
+produced -- a student who skips because they ran out of time would be
+recorded as having failed the concept. Re-queuing a similar question
+in the same session was considered and rejected: the session holds
+exactly one question per due concept, so a same-session re-queue would
+just re-show the identical question, which does not manufacture a
+second independent attempt. Across days, the desired behavior already
+exists for free: a skipped concept produced no evidence, so its
+evidence gap stays exactly as wide as it was, and the existing ranking
+still surfaces it as due tomorrow. A *persisted* skip/avoidance signal
+that a student is actively avoiding a concept would be genuinely
+useful for review priority, but is deferred -- see the known-open-items
+entry below.
+
+**Why the load-more plumbing was deleted end to end rather than kept.**
+`loadMore` (a prop) and `excludeConceptIds` (an option and a function
+parameter) existed to let a caller fetch additional session items past
+the first batch. The argument for keeping it was that a future Deep
+review phase (Phase 9) would want the same "give me more, excluding
+what I've already seen" shape. That argument doesn't hold: Deep review
+selects its own material by a different rule entirely (it targets
+concepts below a mastery threshold, not "whatever's next in the daily
+queue"), so it will never call this function. A parameter with no
+caller in any planned phase is something the next reader has to
+investigate and rule out before they can trust it's actually dead --
+worse than just not having it. Deleted along with its unit test.
+
+**Why the deep-review offer ships visibly disabled with band-derived
+copy.** Deep review is Phase 9 and does not exist yet, so the offer is
+labeled "coming soon" in its own copy rather than silently absent. The
+hand-drawn wireframe (`UX_snapshots.pdf`) labels this control "level
+4," but this codebase has no numeric mastery levels -- mastery is the
+band enum (`unverified`/`exposed`/`weak`/`solid`/...). The shipped copy
+names the band one step above the session's weakest concept instead,
+so the label stays true the day the control is actually wired up
+rather than needing a rewrite alongside the wiring.
+
+**Why the mobile nav-hide is CSS, not a JS breakpoint hook.**
+`AppShell` stays a server-renderable component; the same injected
+`<style>` + `@media` + class pattern `ConceptDetailPanel.tsx` and
+`DueQueue.tsx`'s `CONNECT_PANEL_MEDIA_QUERY` already use, rather than a
+new `useMobileBreakpoint()` hook that would force a layout decision
+into render and re-render on resize.
+
+### Real bugs found during the build
+
+**1. A stale-closure bug in the session state machine, written into
+this plan's own Task 6 code sample.** The plan's original `handleSkip`
+called `setSkipped((current) => new Set(current).add(item.conceptId))`
+and then synchronously called `advance()`, which branched on `skipped`
+-- read from the render closure, still the pre-update value at the
+moment `handleSkip` runs (React state updates are not synchronous).
+Concretely: in a three-question session with nothing skipped yet,
+pressing Skip on the last question checked the still-empty `skipped`
+set, so the skip-confirmation dialog never appeared and the session
+silently ended with an unconfirmed skipped question. Caught in code
+review, not by a test. Fixed by computing the updated set into a local
+`next` const first and branching on that directly inside `handleSkip`,
+which also sidesteps nesting a `setPhase`/`setIndex` call inside a
+`setSkipped` updater -- not guaranteed to run exactly once under
+StrictMode. `docs/superpowers/plans/2026-09-29-orca-phase4-quick-review.md`'s
+Task 6 sample has been corrected in place, with a note explaining what
+was wrong and why, rather than left to teach the buggy pattern to the
+next reader.
+
+**2. The mobile nav-hiding change was completely inert, and a first
+code review passed it.** `app-shell.tsx` correctly added the
+`app-shell-nav-hidden` class to the `<nav>` on the quick-review route,
+and the media rule was correctly scoped. But the same `<nav>` also
+carried an inline `style={s.nav}` with `display: "flex"` baked into
+that object, and an inline style always wins the cascade over a class
+selector regardless of specificity tricks -- so the media rule hid
+nothing, at any viewport width. The first review checked the route
+regex and confirmed the rule sat inside a media query, but never asked
+whether the rule could actually win against the element's own inline
+style. It was caught only when the visual-regression pass (Task 9)
+rendered real mobile screenshots and the bottom nav was still visible
+in them -- the QA agent refused to commit baselines depicting the
+broken UI rather than accepting green-by-omission. Fixed by moving
+`display: "flex"` out of `s.nav` and into a new base `.app-shell-nav`
+class, so the media rule overrides class-with-class with no
+`!important` anywhere. Verified afterward by measuring computed styles
+in a real browser, not by re-reading the CSS: at phone width the quick-
+review route's `<nav>` computes `display: none`; at desktop width the
+same route computes `display: flex`; and a different route at desktop
+width also computes `display: flex`. This plan's Task 8 sample has
+also been corrected in place, with the same before/after note. The
+lesson worth keeping: for CSS, "correctly scoped" is not the same
+claim as "actually effective," and only a real render settles which
+one is true.
+
+**3. Three Supabase seeding defects, all surfaced by the typed admin
+client while writing Task 10's e2e spec, none worked around.** A
+`course_units` insert missing the NOT NULL `status` and
+`extraction_run_id` columns; an `artifacts` insert missing the
+required `target_unit_id` key; and a real foreign key from
+`evidence_events.source_artifact_id` to `public.artifacts` that
+`submitMultipleChoiceReviewAnswer` depends on via
+`course_concepts.source_anchors[0].artifactId` -- a placeholder
+artifact id (the pattern `global-setup.ts` uses, which never exercises
+this code path) would have made every real answer submission in the
+spec fail on a foreign-key violation. A genuine `artifacts` row was
+seeded instead. This is a second concrete instance (after the
+2026-09-27/28 Orca Phase 2/3 seeding bugs) of why this project requires
+the `<Database>` generic on every admin Supabase client used in test
+setup rather than an untyped one.
+
+**4. A plan gap found while executing Task 1.** `exam-planner/actions.ts`
+independently constructs session items and needed the same new
+`SessionItem` fields this plan introduced, which the plan itself had
+not anticipated. Extended with the same throw-on-missing-metadata rule
+the rest of this codebase uses, rather than a silent fallback name.
+
+**Consolidation, not a new rule:** `isPassedOutcome` -- which encodes
+that the code-sandbox grading path reports outcome `"graded"` with a
+separate `allPassed` boolean, so treating every non-`"correct"` outcome
+as failure would render a passing code submission as a red X -- existed
+in three separate copies before this plan and now exists in exactly
+one, in the unit-tested `quick-review-state.ts`.
+
+### Task 11's own regression run, and a real bug the run itself caught
+
+Full regression: `tsc --noEmit` clean; `eslint src tests trigger` 0
+errors, 8 pre-existing warnings (unchanged from before this branch);
+402/402 unit tests. `tests/e2e/course-graph-ingestion-pipeline.spec.ts`
+was not run, per this project's standing, already-diagnosed
+`429 You have no credits remaining` OpenAI billing state (see the
+2026-09-28 entry above) -- an operational gap, not a code defect, and
+not this branch's to fix.
+
+The first Playwright run of `tests/visual`, `smoke.spec.ts`,
+`basic-flows.spec.ts`, and `quick-review-flow.spec.ts` together came
+back **2 failed, 3 skipped, 29 passed** -- not green. Both failures
+were the same pre-existing test,
+`tests/e2e/basic-flows.spec.ts`'s "Review's Start review button still
+reaches Study's UI," on both the `chromium` and `mobile` projects. That
+test predates this plan and asserts
+`page.getByRole("heading", { name: "Study" })` on the `/study` route --
+a real `<h1>Study</h1>` that lived in the now-deleted `StudySession.tsx`.
+`QuickReviewQuestion.tsx`, which replaced it, has no page-level heading
+at all (`item.questionText` renders as a plain `<p>`), so this
+assertion was never going to pass again once Task 7 shipped. It is a
+real regression this branch introduced, not flake: no earlier task's
+brief called for updating this pre-existing spec, and Task 10 added a
+brand-new spec for the new flow instead of touching this one. Fixed
+here, since it is a one-line consequence of a UI change this same plan
+made intentionally, not a design decision -- the assertion now checks
+for the seeded question's own text (`"Test question"`) instead of a
+heading that no longer exists, which is what the test actually needs
+to prove Study's UI rendered. Re-run after the fix: **31 passed, 3
+skipped, 0 failed** (the 3 skips are the pre-existing, unrelated
+`tutor-agent-e2e` project, same as every prior regression run recorded
+in this log). `lsof -ti:3000` printed nothing before and after both
+runs.
+
+### Known open items recorded in `docs/implementation-roadmap.md`
+
+- A persisted skip/avoidance signal feeding review priority, deferred
+  to the Phase 6 configurable-weights work (needs a new evidence type
+  carrying zero mastery weight, plus a weights decision).
+- Quick review can serve a slow, structured-checker question inside a
+  "quick" session -- question-bank composition, not a UI defect.
+
+`README.md`'s "Next task" now points at Phase 5 (material upload with
+metadata + HW reflection, itself flagged as needing its own
+evidence-boundary decision) instead of Phase 4, and no longer claims
+Home's ▷ destination will change when Phase 4 ships -- it did not; only
+what the route renders did.
+
+## 2026-09-29 -- Final whole-branch review blocked the Phase 4 merge: a third, unaccounted-for state between "answered" and "skipped"
+
+The whole-branch review that runs before a merge, not per-task
+regression, caught a real defect Task 11's own close-out (above) did
+not: every unanswered question in the quick-review quiz rendered both
+a `Skip` button and a `Next` button. `Skip` recorded the concept in the
+skip set as designed; `Next` only advanced the index and recorded
+nothing. That left a third state -- neither answered nor skipped --
+that no code in the state machine accounted for, because the design
+doc and every unit test only ever reasoned about two: answered or
+skipped.
+
+Concrete failure: a student who pressed `Next` on every question,
+never answering and never skipping, reached the last question with an
+empty skip set. `handleSkip`'s dialog-trigger logic was correct --
+`next.size > 0` -- but it was never invoked, because `Next` calls
+`advance()`, not `handleSkip()`. `advance()`'s own check,
+`skipped.size > 0`, was equally correct and equally never true, so
+`Finish` went straight to the end screen. The end screen then read
+"0/0 correct" with no skipped line at all (that line is conditional on
+`skipped > 0`), silently understating that every concept in the
+session was left unaddressed. The skip-confirmation dialog exists
+precisely to prevent this outcome, and the most natural path through
+the UI -- pressing the single most prominent button, repeatedly --
+defeated it every time.
+
+**The ruling:** an unanswered question offers only `Skip`; `Next` (or
+`Finish`, on the last question) appears only once the question has
+been answered. This closes the third state by construction rather than
+by patching the dialog's trigger condition: every forward step off an
+unanswered question is now, unconditionally, a recorded skip, so
+`skipped.size` and the end-screen counts are truthful on every path
+through the UI, including the "hold down the same button" path that
+exposed the bug. `handleSkip`'s existing last-question dialog check
+needed no change -- it already branched on the locally computed `next`
+set rather than the stale `skipped` render closure (a stale-closure bug
+fixed earlier in this same phase, per the entry above), and that same
+correct logic now simply runs on every unanswered-question exit
+instead of never running on it. The back control (`‹` / "Previous
+question") was untouched and stays available everywhere, per an
+explicit product requirement that back navigation remain completely
+free.
+
+Updated for consistency, not just the two component files: the
+Task 10 e2e spec's forward-navigation presses (an unanswered last
+question is left via `Skip`, not `Finish`), the visual baselines for
+the question screen (its footer now renders exactly one button), and
+both the Phase 4 design doc and plan, which had described the
+now-superseded two-button footer and the dialog as triggering off
+"pressing Next on the last question." No unit-tested rule in
+`quick-review-state.ts` changed -- `statusFor`, `sessionScore`, and
+`firstSkippedIndex` were already correct; this was a presentational
+defect in which control the footer offered, not a defect in the
+scoring or skip-set logic itself.
+
+The lesson worth keeping: a per-task regression run (green at 31
+passed / 3 skipped / 0 failed, recorded above) tests that the code you
+wrote does what you intended -- it does not, by itself, catch a state
+your design never enumerated. A dedicated whole-branch review, run
+after the branch is otherwise "done," is a different check: it asks
+whether the enumerated states are actually exhaustive, which is a
+question no amount of testing the intended states can answer.

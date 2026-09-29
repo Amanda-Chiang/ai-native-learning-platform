@@ -1,0 +1,71 @@
+{
+  "status": "ok",
+  "moreAvailable": false,
+  "items": [
+    {
+      "conceptId": "c-xor",
+      "conceptName": "XOR truth tables",
+      "masteryState": "weak",
+      "questionBankEntryId": "q-xor",
+      "questionText": "Is this XOR truth table accurate?",
+      "responseModality": "multiple_choice",
+      "rubric": {
+        "options": [
+          "Yes",
+          "No"
+        ],
+        "correctOptionIndex": 1
+      },
+      "checkerDomain": null,
+      "checkerInput": null,
+      "reasons": [
+        "Last reviewed 9 days ago",
+        "Prerequisite for 3 other concepts"
+      ]
+    },
+    {
+      "conceptId": "c-bfs",
+      "conceptName": "Breadth-first search",
+      "masteryState": "exposed",
+      "questionBankEntryId": "q-bfs",
+      "questionText": "Explain why BFS finds the shortest path in an unweighted graph.",
+      "responseModality": "text",
+      "rubric": {},
+      "checkerDomain": null,
+      "checkerInput": null,
+      "reasons": [
+        "No independent retrieval yet"
+      ]
+    },
+    {
+      "conceptId": "c-topo",
+      "conceptName": "Topological sort",
+      "masteryState": "unverified",
+      "questionBankEntryId": "q-topo",
+      "questionText": "Give a valid topological ordering of this DAG.",
+      "responseModality": "structured",
+      "rubric": {},
+      "checkerDomain": "graph",
+      "checkerInput": {
+        "nodes": [
+          "a",
+          "b",
+          "c"
+        ],
+        "edges": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "b",
+            "c"
+          ]
+        ]
+      },
+      "reasons": [
+        "Never attempted"
+      ]
+    }
+  ]
+}

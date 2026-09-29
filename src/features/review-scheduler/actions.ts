@@ -22,7 +22,7 @@ const DEFAULT_TIME_BUDGET_MINUTES = 7;
 
 export async function getDailyReviewSession(
   courseId: string,
-  options?: { timeBudgetMinutes?: number; excludeConceptIds?: string[] },
+  options?: { timeBudgetMinutes?: number },
 ): Promise<DailySessionResult> {
   const supabase = await createClient();
   const now = new Date();
@@ -36,7 +36,7 @@ export async function getDailyReviewSession(
     // them assumes 'confirmed'. A still-proposed concept's
     // prerequisite-out-degree simply defaults to 0 below (no confirmed
     // edges reference it yet) -- a benign, not-wrong default.
-    supabase.from("course_concepts").select("id, importance_score").eq("course_id", courseId).in("status", ["confirmed", "proposed"]),
+    supabase.from("course_concepts").select("id, canonical_name, importance_score").eq("course_id", courseId).in("status", ["confirmed", "proposed"]),
     supabase.from("concept_edges").select("source_concept_id, relation_type").eq("course_id", courseId).eq("status", "confirmed"),
     supabase.from("question_bank").select("id, question_text, response_modality, rubric, checker_domain, checker_input, target_concept_ids").eq("course_id", courseId),
   ]);
@@ -76,11 +76,19 @@ export async function getDailyReviewSession(
       const learnerState = await getConceptState(courseId, concept.id);
       return {
         conceptId: concept.id,
+        conceptName: concept.canonical_name,
         importanceScore: concept.importance_score,
         prerequisiteOutDegree: prerequisiteOutDegreeByConceptId.get(concept.id) ?? 0,
         learnerState,
       };
     }),
+  );
+
+  const conceptMetaById = new Map(
+    priorityInputs.map((input) => [
+      input.conceptId,
+      { name: input.conceptName, masteryState: input.learnerState.masteryState },
+    ]),
   );
 
   const dueConceptInputs = priorityInputs.filter((input) => isDue(input.learnerState, now));
@@ -89,8 +97,8 @@ export async function getDailyReviewSession(
   return composeDailySession(
     rankedDue,
     questionsByConcept,
+    conceptMetaById,
     options?.timeBudgetMinutes ?? DEFAULT_TIME_BUDGET_MINUTES,
-    options?.excludeConceptIds ?? [],
   );
 }
 

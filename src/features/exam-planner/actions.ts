@@ -300,8 +300,8 @@ export async function getExamPlan(examConfigId: string): Promise<GetExamPlanResu
 
   const [conceptsRes, edgesRes, bankRes] = await Promise.all([
     scopedConceptIds.length > 0
-      ? supabase.from("course_concepts").select("id, importance_score").eq("course_id", courseId).eq("status", "confirmed").in("id", scopedConceptIds)
-      : Promise.resolve({ data: [] as { id: string; importance_score: number }[] }),
+      ? supabase.from("course_concepts").select("id, canonical_name, importance_score").eq("course_id", courseId).eq("status", "confirmed").in("id", scopedConceptIds)
+      : Promise.resolve({ data: [] as { id: string; canonical_name: string; importance_score: number }[] }),
     supabase.from("concept_edges").select("id, source_concept_id, target_concept_id, relation_type").eq("course_id", courseId).eq("status", "confirmed"),
     supabase.from("question_bank").select("id, question_text, response_modality, rubric, checker_domain, checker_input, source_anchors").eq("course_id", courseId),
   ]);
@@ -346,6 +346,20 @@ export async function getExamPlan(examConfigId: string): Promise<GetExamPlanResu
     })),
   );
 
+  // Same SessionItem display fields review-scheduler's daily session
+  // carries (conceptName/masteryState) -- built from the concepts read
+  // above plus the learnerState already fetched into
+  // scopedConceptInputs, not a second query.
+  const conceptMetaById = new Map(
+    scopedConceptInputs.map((input) => {
+      const concept = concepts.find((c) => c.id === input.conceptId);
+      if (!concept) {
+        throw new Error(`No concept row for scoped concept ${input.conceptId}`);
+      }
+      return [input.conceptId, { name: concept.canonical_name, masteryState: input.learnerState.masteryState }];
+    }),
+  );
+
   const scopedEdgeInputs: ScopedEdgeInput[] = await Promise.all(
     scopedEdgeRows.map(async (e) => ({
       edgeId: e.id,
@@ -361,8 +375,17 @@ export async function getExamPlan(examConfigId: string): Promise<GetExamPlanResu
       const questions = questionsByConcept.get(p.conceptId);
       if (!questions || questions.length === 0) continue;
       const q = questions[0];
+      const conceptMeta = conceptMetaById.get(p.conceptId);
+      // Every selectable priority came from scopedConceptInputs, which
+      // conceptMetaById is built from, so a miss is a wiring bug -- see
+      // daily-session.ts's identical check.
+      if (!conceptMeta) {
+        throw new Error(`No concept metadata for scoped concept ${p.conceptId}`);
+      }
       items.push({
         conceptId: p.conceptId,
+        conceptName: conceptMeta.name,
+        masteryState: conceptMeta.masteryState,
         questionBankEntryId: q.id,
         questionText: q.questionText,
         responseModality: q.responseModality,

@@ -34,8 +34,8 @@ function Row({ item }: { item: DueQueueItem }) {
 
 /**
  * Weekly Connect session (T014) -- moved here from the Study page
- * (StudySession.tsx used to render this directly under the daily
- * questions) per direct product feedback: it read as noise mixed in
+ * (the old all-items-at-once study component used to render this
+ * directly under the daily questions) per direct product feedback: it read as noise mixed in
  * with the actual answerable session. Positioned as its own absolutely-
  * placed panel (not a flex sibling of `inner`) specifically so it never
  * shifts `inner`'s own centered position -- it only ever occupies the

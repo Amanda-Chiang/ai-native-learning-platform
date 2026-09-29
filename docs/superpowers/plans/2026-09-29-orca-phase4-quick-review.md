@@ -589,7 +589,7 @@ git commit -m "feat(courses): add pure next-due-course selection for the review 
 
 ### Task 4: The question screen
 
-One question, full width, with the header (back arrow, progress bar, percentage), the modality-dispatched answer form, the outcome once submitted, and the Skip/Next footer.
+One question, full width, with the header (back arrow, progress bar, percentage), the modality-dispatched answer form, the outcome once submitted, and a footer that shows exactly one forward control at a time: `Skip` while the question is unanswered, `Next`/`Finish` once it is answered. (Post-merge correction, recorded in `brain/decisions/architecture-log.md`: the footer originally shown here offered both buttons on every unanswered question, which let a student advance the whole session without answering or skipping anything. The final code in this repo is the corrected version below.)
 
 This component holds no session state: it receives everything and reports events upward. That keeps every rule in Task 2's tested module.
 
@@ -745,16 +745,19 @@ export function QuickReviewQuestion({
         )}
 
         <footer style={s.footer}>
-          {/* Skip commits nothing and disappears once the question is
-              answered -- there is nothing left to skip. */}
-          {!isAnswered && (
-            <button type="button" onClick={onSkip} style={s.skipBtn}>
+          {/* An unanswered question offers only Skip -- Next would be a
+              third, unaccounted-for way to leave a question neither
+              answered nor recorded as skipped. Once answered, there is
+              nothing left to skip, so only the forward button remains. */}
+          {!isAnswered ? (
+            <button type="button" onClick={onSkip} style={{ ...s.skipBtn, marginLeft: "auto" }}>
               Skip
             </button>
+          ) : (
+            <button type="button" onClick={onNext} style={s.nextBtn}>
+              {index === total - 1 ? "Finish" : "Next"}
+            </button>
           )}
-          <button type="button" onClick={onNext} style={s.nextBtn}>
-            {index === total - 1 ? "Finish" : "Next"}
-          </button>
         </footer>
       </div>
     </div>
@@ -1038,7 +1041,7 @@ git commit -m "feat(review-scheduler): add the quick-review end screen"
 
 ### Task 6: The session state machine and skip confirmation
 
-Owns the index, the results, and the skip set; submits answers through the existing actions; shows the skip dialog when `Next` is pressed on the last question with anything skipped.
+Owns the index, the results, and the skip set; submits answers through the existing actions; shows the skip dialog when the last question is left going forward -- by `Skip` if still unanswered, by `Next`/`Finish` if answered -- with anything skipped.
 
 **Files:**
 - Create: `src/features/review-scheduler/components/QuickReviewSession.tsx`
@@ -1070,8 +1073,11 @@ type SubmitResult = AnswerOutcome;
  *
  * 1. An answer commits its evidence the moment it is submitted, so
  *    there is no "submit the quiz" step -- which is why the skip
- *    dialog hangs off pressing Next on the LAST question rather than
- *    off a submit button.
+ *    dialog hangs off leaving the LAST question (by Skip, if it is
+ *    still unanswered, or by Next/Finish once it is answered) rather
+ *    than off a submit button. An unanswered question only ever offers
+ *    Skip: a bare "Next" that recorded nothing would be a third,
+ *    unaccounted-for way to leave a concept unaddressed.
  * 2. An answered question is read-only when revisited. Its evidence
  *    is already committed, and a second submission would be recorded
  *    as a second independent retrieval attempt the student never made.
@@ -1161,9 +1167,33 @@ export function QuickReviewSession({
     record(item.conceptId, outcome);
   }
 
+  // Corrected after the fact: the version of this plan originally
+  // published here wrote `handleSkip` as `setSkipped((current) => new
+  // Set(current).add(item.conceptId)); advance();`, with `advance`
+  // branching on `skipped` read from the render closure -- still the
+  // pre-update value at the moment `handleSkip` runs. In a
+  // three-question session with nothing skipped yet, pressing Skip on
+  // the last question checked the still-empty set, so the
+  // skip-confirmation dialog never appeared and the session ended with
+  // an unconfirmed skipped question. A code review caught it before
+  // merge; the fix below computes the updated set into a local `next`
+  // first and branches on that instead of on state that has not
+  // re-rendered yet.
   function handleSkip() {
-    setSkipped((current) => new Set(current).add(item.conceptId));
-    advance();
+    // Computed locally rather than inside the setSkipped updater: the
+    // set membership decides which screen comes next, and branching on
+    // `current`/`skipped` (the render closure, not yet updated) would
+    // silently skip the skip-confirmation dialog on the last question.
+    // Keeping the branch outside the updater also avoids nesting a
+    // setPhase/setIndex call inside a setState updater, which is not
+    // guaranteed to run exactly once under StrictMode.
+    const next = new Set(skipped).add(item.conceptId);
+    setSkipped(next);
+    if (index < items.length - 1) {
+      setIndex(index + 1);
+      return;
+    }
+    setPhase(next.size > 0 ? "confirm-skips" : "end");
   }
 
   function advance() {
@@ -1463,16 +1493,29 @@ Inside `AppShell`, after the `usePathname()` call:
   const isQuickReview = /^\/courses\/[^/]+\/study$/.test(pathname);
 ```
 
-Add the style block just inside the returned `<div style={s.shell}>`:
+Corrected after the fact: the version of this plan originally
+published here added the class and the media rule exactly as below,
+but `s.nav` (the object passed as this element's inline `style`) still
+carried `display: "flex"`. An inline style always wins the cascade
+over a class, no matter how correctly the class or its media query is
+scoped, so `.app-shell-nav-hidden { display: none }` had no visible
+effect at any width -- the first code review verified the route regex
+and that the rule sat inside a media query, but never asked whether
+the rule could actually win against the element's own inline style.
+It shipped inert and was only caught when the visual-regression pass
+rendered real mobile screenshots and the bottom nav was still there.
+The fix moves `display: "flex"` out of `s.nav` and into a base
+`.app-shell-nav` class, so the media rule overrides class-with-class
+with no `!important` needed:
 
 ```tsx
-      <style>{`@media (max-width: 768px) { .app-shell-nav-hidden { display: none; } }`}</style>
+      <style>{`.app-shell-nav { display: flex; } @media (max-width: 768px) { .app-shell-nav-hidden { display: none; } }`}</style>
 ```
 
-and put the class on the nav:
+and put both classes on the nav, removing `display` from `s.nav`'s inline style object:
 
 ```tsx
-      <nav className={isQuickReview ? "app-shell-nav-hidden" : undefined} style={s.nav}>
+      <nav className={`app-shell-nav${isQuickReview ? " app-shell-nav-hidden" : ""}`} style={s.nav}>
 ```
 
 - [ ] **Step 2: Verify it in a real browser at both widths**
@@ -1734,8 +1777,11 @@ test("answering one question and skipping the other commits evidence for only th
   await expect(page.getByText(/^Result:/)).toBeVisible();
 
   await page.getByRole("button", { name: "Next" }).click();
-  await page.getByRole("button", { name: "Finish" }).click();
-  await page.getByRole("button", { name: "Finish anyway" }).click();
+  // Still unanswered here, so the last question offers Skip, not
+  // Finish -- Skip on the last question reopens the same dialog.
+  await page.getByRole("button", { name: "Skip" }).click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Finish anyway" }).click();
 
   await expect(page.getByText("Keep going. Keep growing.")).toBeVisible();
   await expect(page.getByText("1 skipped — still due for next time")).toBeVisible();

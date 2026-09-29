@@ -1,5 +1,11 @@
 import type { ConceptPriority } from "./review-priority.ts";
 import type { CheckerDomain } from "../visual-assessment/problem-setup.ts";
+import type { MasteryState } from "../../types/graph/course-graph.ts";
+
+/** Display metadata for one concept, looked up by the caller that has
+ * database access. Kept out of ConceptPriority: that type is the
+ * ranking domain's, and a concept's name is not a ranking input. */
+export type ConceptMeta = { name: string; masteryState: MasteryState };
 
 export type QuestionBankEntrySummary = {
   id: string;
@@ -16,6 +22,13 @@ export type QuestionBankEntrySummary = {
 
 export type SessionItem = {
   conceptId: string;
+  /** course_concepts.canonical_name -- what the end screen lists as
+   * covered. */
+  conceptName: string;
+  /** learner_concept_state.mastery_state, via getConceptState. A
+   * concept with no state row is genuinely "unverified"; that is a
+   * real band, not a stand-in for a missing value. */
+  masteryState: MasteryState;
   questionBankEntryId: string;
   questionText: string;
   responseModality: string;
@@ -47,11 +60,10 @@ export const DEFAULT_MINUTES_PER_QUESTION = 2;
 export function composeDailySession(
   rankedDueConcepts: ConceptPriority[],
   questionsByConcept: Map<string, QuestionBankEntrySummary[]>,
+  conceptMetaById: Map<string, ConceptMeta>,
   timeBudgetMinutes: number,
-  excludeConceptIds: string[],
 ): DailySessionResult {
-  const excluded = new Set(excludeConceptIds);
-  const eligible = rankedDueConcepts.filter((c) => !excluded.has(c.conceptId) && (questionsByConcept.get(c.conceptId)?.length ?? 0) > 0);
+  const eligible = rankedDueConcepts.filter((c) => (questionsByConcept.get(c.conceptId)?.length ?? 0) > 0);
 
   if (eligible.length === 0) {
     return {
@@ -67,8 +79,18 @@ export function composeDailySession(
   const items: SessionItem[] = selected.map((priority) => {
     const questions = questionsByConcept.get(priority.conceptId)!;
     const question = questions[0];
+    const conceptMeta = conceptMetaById.get(priority.conceptId);
+    // Every ranked concept came from the same course_concepts read
+    // that builds this map, so a miss is a wiring bug, not a student
+    // state. Throwing keeps it loud -- a fallback name here would put
+    // an invented concept on the end screen's "covered" list.
+    if (!conceptMeta) {
+      throw new Error(`No concept metadata for ranked concept ${priority.conceptId}`);
+    }
     return {
       conceptId: priority.conceptId,
+      conceptName: conceptMeta.name,
+      masteryState: conceptMeta.masteryState,
       questionBankEntryId: question.id,
       questionText: question.questionText,
       responseModality: question.responseModality,

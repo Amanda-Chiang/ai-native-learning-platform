@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { IconChevronRight, IconCourses, IconMaterial, IconAtlas, IconReview, IconTutor, IconExam } from "@/components/icons.tsx";
 
 // No "Study" tab here by design -- /courses/[courseId]/study is a real
-// route (StudySession's UI), but it's reached only via the Review
+// route (the quick-review UI), but it's reached only via the Review
 // page's "Start review" button, never as its own top-level nav entry.
 // Giving it a second, always-visible nav path duplicated the same
 // destination for no reason (found live, direct product request).
