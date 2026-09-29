@@ -154,10 +154,18 @@ what makes the progress percentage meaningful end-to-end. A student
 wanting more depth is the Deep review path (Phase 9), not a second
 helping of the same session.
 
-`getDailyReviewSession`'s `excludeConceptIds` option stays in
-`actions.ts`, tested, with no UI caller. It is a working capability with
-a likely Phase 9 use, not dead code to delete — recorded in the roadmap
-so its caller-less state is visible rather than discovered later.
+The load-more plumbing is deleted with it, end to end: the `loadMore`
+server-action prop, `getDailyReviewSession`'s `excludeConceptIds`
+option, `composeDailySession`'s `excludeConceptIds` parameter, and the
+unit test covering it.
+
+Keeping that parameter was considered and rejected. The argument for it
+was that Phase 9's Deep review would want it — but Deep review is a
+separate feature with its own selection of what to review, not another
+page of today's daily session, so it will not call this. A parameter
+with no caller in any planned phase is not a spare capability; it is
+something the next reader has to investigate before discovering it is
+inert.
 
 ### The deep-review offer ships visibly disabled, worded from the real model
 
