@@ -75,7 +75,13 @@ per-feature status: each
 chronological record of major design decisions and why, see
 `brain/decisions/architecture-log.md`.
 
-If you're an agent picking this project up cold, read in this order:
+If you're an agent picking this project up cold, read in this order.
+**Verify as you go rather than trusting this file**: run
+`git log --oneline -15` and read `brain/decisions/architecture-log.md`
+from its most recent entry backwards. Every summary in this repo — this
+README included — is a snapshot that goes stale between sessions. The
+log and the git history are the authority; this file said "next task:
+Phase 2" while Phases 2 and 3 were already merged.
 
 1. `CLAUDE.md` and `AGENTS.md` — durable rules, non-negotiable.
 2. `docs/implementation-roadmap.md` — phase sequencing, and its "Post-MVP
@@ -91,6 +97,40 @@ If you're an agent picking this project up cold, read in this order:
    file, the roadmap, or any spec's prose.
 5. `brain/README.md` — index of everything else under `brain/`
    (architecture rationale, product commitments, lessons, setup).
+
+### How work gets done here
+
+This is a solo build (Amanda Chiang). Commits are solo-authored — never
+add a `Co-Authored-By` trailer or any AI attribution.
+
+Meaningful features go through `superpowers:brainstorming` →
+`superpowers:writing-plans` → `superpowers:subagent-driven-development`,
+or through Spec Kit's `/speckit-*` flow. Skip that only for typos,
+trivial styling, one-line fixes, and dependency bumps with no behavioral
+change. Design docs land in `docs/superpowers/specs/`, plans in
+`docs/superpowers/plans/` — read the two most recent of each to see the
+expected shape and level of detail.
+
+Two rules from `CLAUDE.md` that cause the most rework when missed:
+
+- **No silent placeholders.** A fallback, default, or unknown value must
+  never be indistinguishable from a genuinely computed one. This is
+  applied retroactively — when you touch code, look for a `?? x` or
+  `|| x` masking a real gap, don't just avoid adding new ones. Branch
+  reviews here have caught several real bugs of exactly this shape,
+  including a failed query rendering as "nothing due" and an empty
+  course list telling a student with twelve courses they had none.
+- **When live credentials exist, actually run the live verification.**
+  A typecheck or a unit test around a live dependency is not the same
+  claim as having run it. This repo's history has real bugs that a live
+  run caught and a typecheck would have missed — a migration backfill
+  that silently did nothing, an insert that failed only at runtime.
+
+After finishing a step, explain in plain language what changed and why,
+including any design decision and what it was chosen over. This project
+is also how the owner is learning system design, so explain
+data-structure and architecture choices pedagogically rather than just
+reporting status.
 
 ## What to build next, and the state of CI
 
