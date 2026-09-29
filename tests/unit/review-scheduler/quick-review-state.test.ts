@@ -1,3 +1,11 @@
+// Orca Phase 4 final-review fix (2026-09-29): "an unanswered question
+// offers only Skip; Next appears only once answered" is a purely
+// presentational rule in QuickReviewQuestion.tsx's footer (which
+// button renders), not a rule this module encodes. statusFor,
+// sessionScore, and firstSkippedIndex below were already correct and
+// are unchanged by the fix -- see brain/decisions/architecture-log.md's
+// 2026-09-29 entry for why the defect was a missing UI state, not a
+// scoring bug.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {

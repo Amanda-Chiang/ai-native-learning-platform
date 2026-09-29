@@ -18,8 +18,12 @@ type SubmitResult = AnswerOutcome;
  *
  * 1. An answer commits its evidence the moment it is submitted, so
  *    there is no "submit the quiz" step -- which is why the skip
- *    dialog hangs off pressing Next on the LAST question rather than
- *    off a submit button.
+ *    dialog hangs off leaving the LAST question (by Skip, if it is
+ *    still unanswered, or by Next/Finish once it is answered) rather
+ *    than off a submit button. An unanswered question only ever offers
+ *    Skip: a bare "Next" that recorded nothing would be a third,
+ *    unaccounted-for way to leave a concept unaddressed, which is
+ *    exactly the defect this rule closes.
  * 2. An answered question is read-only when revisited. Its evidence
  *    is already committed, and a second submission would be recorded
  *    as a second independent retrieval attempt the student never made.

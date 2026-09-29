@@ -119,7 +119,6 @@ test("answering one question and skipping the other commits evidence for only th
   const submitLabel = "Submit";
   const nextLabel = "Next";
   const skipLabel = "Skip";
-  const finishLabel = "Finish";
   const previousLabel = "Previous question";
   const answerThemLabel = "Answer them";
   const finishAnywayLabel = "Finish anyway";
@@ -162,8 +161,14 @@ test("answering one question and skipping the other commits evidence for only th
 
   await page.getByRole("button", { name: nextLabel }).click();
   await expect(page.getByText(secondQuestionText)).toBeVisible();
-  await page.getByRole("button", { name: finishLabel }).click();
-  await page.getByRole("button", { name: finishAnywayLabel }).click();
+  // Q2 is still unanswered here (only revisited via "Answer them" and
+  // then left again via "Previous question"), so its footer offers
+  // only Skip -- there is no "Finish" to press on an unaddressed
+  // question. Skip on this, the last question, reopens the same
+  // confirmation dialog.
+  await page.getByRole("button", { name: skipLabel }).click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: finishAnywayLabel }).click();
 
   const headlineText = "Keep going. Keep growing.";
   await expect(page.getByText(headlineText)).toBeVisible();

@@ -138,16 +138,22 @@ export function QuickReviewQuestion({
         )}
 
         <footer style={s.footer}>
-          {/* Skip commits nothing and disappears once the question is
-              answered -- there is nothing left to skip. */}
-          {!isAnswered && (
-            <button type="button" onClick={onSkip} style={s.skipBtn}>
+          {/* An unanswered question offers only Skip -- Next would be a
+              third, unaccounted-for way to leave a question neither
+              answered nor recorded as skipped. Skip advances (and on
+              the last question, still opens the skip-confirmation
+              dialog) exactly as the forward button used to. Once
+              answered, there is nothing left to skip, so only the
+              forward button remains. */}
+          {!isAnswered ? (
+            <button type="button" onClick={onSkip} style={{ ...s.skipBtn, marginLeft: "auto" }}>
               Skip
             </button>
+          ) : (
+            <button type="button" onClick={onNext} style={s.nextBtn}>
+              {index === total - 1 ? "Finish" : "Next"}
+            </button>
           )}
-          <button type="button" onClick={onNext} style={s.nextBtn}>
-            {index === total - 1 ? "Finish" : "Next"}
-          </button>
         </footer>
       </div>
     </div>
