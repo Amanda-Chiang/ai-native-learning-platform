@@ -1,7 +1,21 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { getDailyReviewSession, submitTextReviewAnswer, submitStructuredReviewAnswer, submitMultipleChoiceReviewAnswer } from "@/features/review-scheduler/actions.ts";
 import { getHomeOverview } from "@/features/courses/home-overview.ts";
 import { selectNextDueCourse, type NextDueCourse } from "@/features/courses/next-due-course.ts";
 import { QuickReviewSession } from "@/features/review-scheduler/components/QuickReviewSession.tsx";
+import type { DailySessionResult } from "@/features/review-scheduler/daily-session.ts";
+
+/**
+ * Checked-in fixture for tests/visual/quick-review.spec.ts -- the same
+ * `?demo=1` switch src/app/(app)/page.tsx uses for Home, so the visual
+ * suite needs no database. Values are pre-computed and committed, so
+ * baselines never drift with the date the suite runs on.
+ */
+async function loadDemoSession(): Promise<DailySessionResult> {
+  const raw = await readFile(path.join(process.cwd(), "tests/fixtures/quick-review-demo.json"), "utf-8");
+  return JSON.parse(raw) as DailySessionResult;
+}
 
 /**
  * The quick-review flow (Orca Phase 4), replacing the all-items-at-once
@@ -20,11 +34,18 @@ async function resolveNextDueCourse(courseId: string): Promise<NextDueCourse> {
 
 export default async function CourseStudyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ courseId: string }>;
+  searchParams: Promise<{ demo?: string }>;
 }) {
   const { courseId } = await params;
-  const [daily, nextDueCourse] = await Promise.all([getDailyReviewSession(courseId), resolveNextDueCourse(courseId)]);
+  const { demo } = await searchParams;
+  const isDemo = demo === "1";
+
+  const [daily, nextDueCourse] = isDemo
+    ? ([await loadDemoSession(), { kind: "none" } as NextDueCourse] as const)
+    : await Promise.all([getDailyReviewSession(courseId), resolveNextDueCourse(courseId)]);
 
   return (
     <>
