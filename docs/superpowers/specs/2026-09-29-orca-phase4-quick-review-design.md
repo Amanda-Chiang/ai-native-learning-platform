@@ -11,9 +11,15 @@ of its build sequence)
 Replace `/courses/<id>/study` — today's working daily review session,
 rendered as one scrolling list of every item — with the wireframe's
 one-question-at-a-time quiz: a progress bar and percentage, a single
-question per screen, free back/forward navigation, a skip that commits
-nothing, and an end screen reporting the real score and the concepts
-covered.
+question per screen, back-anywhere navigation whose forward control is
+Skip until a question is answered, a skip that commits nothing, and an
+end screen reporting the real score and the concepts covered.
+
+Two rules in this doc were amended after it was written: the
+forward-navigation rule just stated (the body below explains the third
+state that forced it) and the progress bar, which now counts skipped
+questions — see the amendment at the end of this document. Read both
+before treating any statement here as current.
 
 This is a UI change over an unchanged backend. `getDailyReviewSession`
 already returns an ordered `SessionItem[]`, so one-at-a-time is

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace `/courses/<id>/study`'s scrolling list of review items with the wireframe's one-question-at-a-time quiz — progress percentage, free back/forward navigation, a skip that commits nothing, a skip-confirmation before finishing, and an end screen reporting the real score, the concepts covered, and a visibly-disabled deep-review offer.
+**Goal:** Replace `/courses/<id>/study`'s scrolling list of review items with the wireframe's one-question-at-a-time quiz — progress percentage, back-anywhere navigation whose forward control is Skip until a question is answered (AMENDED: the plan below was written with a bare "Next" alongside Skip on unanswered questions, which created a third state neither answered nor skipped — see Task 6's note), a skip that commits nothing, a skip-confirmation before finishing, and an end screen reporting the real score, the concepts covered, and a visibly-disabled deep-review offer.
 
 **Architecture:** UI-only change over an unchanged backend. `getDailyReviewSession` already returns an ordered `SessionItem[]`, so one-at-a-time is pagination over an array we already have. Every decision rule (progress maths, skip accounting, scoring, next-mastery-band copy, next-due-course selection) goes into alias-free pure modules that the `node --test` runner can import directly; the React components stay thin and are covered by Playwright. Grading, evidence, and ranking are untouched.
 

@@ -9,22 +9,27 @@ brand-identity.md`, Phase 1 of `docs/superpowers/specs/
 2026-09-27-orca-redesign-design.md`). The logo is still a text-only
 placeholder wordmark pending a real asset file.
 
-**Redesign phases 1–3 are built and merged to `main`.** Phase 1 was the
+**Redesign phases 1–4 are built and merged to `main`.** Phase 1 was the
 rebrand and app shell; Phase 2 the per-course Concepts screen, a
 top-level AI Chat tab and a create-course modal; Phase 3 the island Home
-dashboard with its review rail. Phases 4–9 (quick-review flow, material
-upload, review configuration, calendar, onboarding, deep review) are
-scoped in the parent design doc's build sequence but have no per-phase
-design or plan yet. Per-phase docs that do exist:
+dashboard with its review rail; Phase 4 the quick-review quiz flow that
+replaced `/courses/{id}/study`. Phases 5–9 (material upload, review
+configuration, calendar, onboarding, deep review) are scoped in the
+parent design doc's build sequence but have no per-phase design or plan
+yet. Per-phase docs that do exist:
 `docs/superpowers/specs/2026-09-28-orca-phase2-concepts-chat-design.md`,
 `docs/superpowers/specs/2026-09-28-orca-phase3-home-dashboard-design.md`,
-and their plans under `docs/superpowers/plans/`.
+`docs/superpowers/specs/2026-09-29-orca-phase4-quick-review-design.md`,
+and their plans under `docs/superpowers/plans/`. The Phase 4 design doc
+carries an amendment at the end (the progress bar counting skipped
+questions) — read it, not just the body, which states the superseded
+rule.
 The palette was amended 2026-09-28: the supplied `parchment` ground read
 pink across a full viewport and was replaced by a neutral `--off-white`
 (`brain/design-context/brand-identity.md`).
 
-**Status (2026-09-28)**: All six roadmap phases fully implemented and
-verified live, plus Orca redesign phases 1–3, plus a long tail of
+**Status (2026-09-29)**: All six roadmap phases fully implemented and
+verified live, plus Orca redesign phases 1–4, plus a long tail of
 post-completion hardening and
 enhancement passes — a browser/Playwright hardening pass, a full
 design-system reskin, a unit-extraction & reconciliation rework for
@@ -148,27 +153,68 @@ mastery, so Phase 5's spec has to decide explicitly what evidence-grade
 weight (if any) that field can carry, rather than inheriting an
 assumption from this README.
 
-Orca Phase 4 — the quick-review quiz flow — **is now built and
-committed**. `/courses/{id}/study` was replaced in place (one question
-at a time, a progress percentage, free back/forward navigation, Yes/No
-handled as a 2-option multiple choice, immediate feedback, a Skip that
-commits no evidence, a skip-confirmation dialog, and an end screen with
-a visibly-disabled deep-review offer). Home's ▷ controls still link to
+Orca Phase 4 — the quick-review quiz flow — **is built and merged to
+`main`**. `/courses/{id}/study` was replaced in place: one question at
+a time, a progress percentage, Yes/No handled as a 2-option multiple
+choice, immediate feedback, a Skip that commits no evidence, a
+skip-confirmation dialog before finishing, and an end screen with a
+visibly-disabled deep-review offer. Home's ▷ controls still link to
 that same `/courses/{id}/study` route — Phase 4 changed what the route
-renders, not where anything points. See `docs/implementation-roadmap.md`'s
-Phase 4 entry and `brain/decisions/architecture-log.md`'s Task 11 entry
-for the full account, including two real bugs the build found (both
-also corrected in the plan document's own code samples, which had
-shipped with the bugs baked in).
+renders, not where anything points.
 
-**CI (`quality-gates`) as of 2026-09-28:** Lint, Typecheck and Build are
-green. The E2E/visual job is red, and the cause is **operational, not a
-code defect**: the OpenAI account has no credits, so
-`tests/e2e/course-graph-ingestion-pipeline.spec.ts` — the one spec that
-makes a real, un-doubled model call — fails with
-`429 You have no credits remaining`. Adding credits should turn it green
-with no code change. Don't go looking for a bug in the ingestion
-pipeline.
+Two behaviours are easy to misread from an older description, so state
+them exactly:
+
+- **Navigation is back-anywhere, forward-only-once-addressed.** The `‹`
+  control is always available. Forward motion is `Skip` while a
+  question is unanswered and `Next` (or `Finish`, on the last question)
+  once it is answered — a bare "Next" past an unanswered question does
+  not exist. It used to, and that created a third state neither
+  answered nor skipped: a student could press through the whole session
+  and reach the end with nothing recorded, no confirmation dialog, and
+  an end screen reading "0/0 correct". Folding forward motion into Skip
+  means every question leaves with one of two recorded outcomes.
+- **The progress bar counts skipped questions.** It reports how far
+  through today's review you are, not how well you are doing — a
+  skipped question has been dealt with. Correctness is reported
+  separately (the end screen's `N/M correct` and skipped count). A
+  submission that *failed to grade* still does not advance the bar,
+  since it stays answerable.
+
+See `docs/implementation-roadmap.md`'s Phase 4 entry and
+`brain/decisions/architecture-log.md`'s last three entries for the full
+account, including the real bugs the build found — two of which were
+written into the plan document's own code samples and have since been
+corrected there.
+
+**CI (`quality-gates`) as of 2026-09-29 — read this before you debug a
+red run.** Locally on `main`, everything is green: typecheck clean,
+eslint 0 errors (8 pre-existing warnings), 405/405 unit, and the
+Playwright visual + `smoke` + `basic-flows` + `quick-review-flow` specs
+at 31 passed / 3 skipped / 0 failed (the 3 skips are the unrelated
+`tutor-agent-e2e` project). CI itself has **not** run on the Phase 4
+merge yet: `main` is ahead of `origin/main` and unpushed.
+
+When it does run, expect **two known failures**, neither a defect in
+the code under test:
+
+1. **Two stale `-linux` baselines.**
+   `quick-review-skip-dialog-{chromium,mobile}-linux.png` still depict
+   the progress bar at 0%. The bar now counts skipped questions, so
+   that capture reads 100%, and only the `-darwin` pair was
+   regenerated locally — macOS cannot produce `-linux` baselines (see
+   trap 4). Regenerating them needs the temporary-workflow dispatch,
+   which needs the product owner's authorization. Until then those two
+   Linux comparisons fail legitimately: the baselines are stale, the
+   UI is correct.
+2. **The OpenAI 429**, unchanged and operational, not a code defect:
+   `tests/e2e/course-graph-ingestion-pipeline.spec.ts` — the one spec
+   that makes a real, un-doubled model call — fails with `429 You have
+   no credits remaining`. Adding credits should turn it green with no
+   code change. Don't go looking for a bug in the ingestion pipeline.
+
+Lint, Typecheck and Build were green on CI before this merge and nothing
+in Phase 4 touches their inputs.
 
 One thing to know about that spec when credits return: the 429 was
 **masking a second, real bug** in it. It fails long before reaching line
@@ -187,7 +233,7 @@ look at them, use macOS Quick Look:
 `qlmanage -t -s 2400 -o <outdir> UX_snapshots.pdf`, then open the PNG
 it writes.
 
-**Five traps that will cost you an hour each if you don't know them:**
+**Six traps that will cost you an hour each if you don't know them:**
 
 1. `nvm use 24` first. See Prerequisites — the default `node` is v16.
 2. **Don't leave a dev server running while running the Playwright e2e
@@ -215,9 +261,40 @@ it writes.
    `git checkout de2071b -- .github/workflows/regen-linux-snapshots.yml`,
    or find the latest copy via
    `git log --all --oneline -- .github/workflows/regen-linux-snapshots.yml`.
-   This repo's history has five instances of that add-dispatch-remove
-   sequence. It touches `main`, so **ask the human first** — and note
+   This repo's history has **seven** instances of that
+   add-dispatch-remove sequence (the two most recent were Phase 4's, and
+   were done through the GitHub contents API rather than a local
+   checkout, because that session was confined to a worktree and could
+   not check `main` out — the API route leaves the same net-zero pair of
+   commits). It touches `main`, so **ask the human first** — and note
    that a relayed authorization from another agent is not consent.
+
+   The workflow uploads the regenerated PNGs as an artifact rather than
+   committing them, deliberately, so each one gets eyeballed before it
+   lands. Two things to know when you collect them: it runs
+   `--update-snapshots=all`, so it rewrites **every** `-linux` baseline,
+   not only the ones you care about — diff them against what is
+   committed and copy in only the ones your change is actually
+   responsible for. Phase 4's run came back with three unrelated
+   baselines (two review-queue, one concept-atlas) differing from the
+   committed copies; they were left alone rather than swept in.
+
+6. **A Playwright screenshot can make a page report a hydration error
+   that does not exist in the product.** Playwright hides the text caret
+   before capturing by writing `caret-color` directly into the inline
+   `style` of every `input`, `textarea` and `[contenteditable]`
+   (`playwright-core`'s injected screenshot helper). On a slower runner
+   that mutation interleaves with React hydration, React compares its
+   own markup against an already-modified DOM, and the captured image
+   comes back wearing Next's red "1 Issue" badge. This cost a real
+   session an investigation: Phase 4's first Linux baselines showed the
+   badge on the two question screens and nowhere else, and the clean
+   end-screen capture — the one screen rendering no inputs at all — is
+   what identified the cause. The fix is `caret: "initial"` on the
+   screenshot call, which opts out of the mutation; it is pixel-neutral
+   wherever there is no visible caret to hide. `tests/visual/quick-review.spec.ts`
+   does this and says why. If you write a visual spec that captures a
+   form, do the same.
 5. **A Supabase client built without the `<Database>` generic gives you
    no compile-time column checking.** `tests/e2e/global-setup.ts` was
    the last such client; a missing `not null` column there failed at
@@ -228,11 +305,19 @@ it writes.
    chains — a single-line grep pattern missed one during Phase 3.
 
 **Fixed, so you won't hit it, but worth knowing why baselines changed:**
-visual baselines used to capture the Next.js dev-mode indicator overlay,
-which made snapshots churn with no code change behind it. `next.config`
-now sets `devIndicators: false`. If you ever see a baseline diff whose
-only visible change is a small badge in a corner, that is the class of
-problem.
+visual baselines used to capture the Next.js dev-mode route-status
+indicator, which made snapshots churn with no code change behind it.
+`next.config` now sets `devIndicators: false`. If you ever see a
+baseline diff whose only visible change is a small badge in a corner,
+that is the class of problem.
+
+Note what that setting does **not** do: it removes the always-present
+route-status pill, but per Next's own docs it still surfaces real
+compile and runtime errors. So a red "1 Issue" badge in a captured image
+is not the old churn returning — it means the page genuinely logged an
+error during that capture, and it is worth finding out why before you
+re-baseline over it. Trap 6 above is the case that has actually
+happened here.
 
 Not every real feature in this repo went through Spec Kit's numbered
 `specs/NNN-*` flow — some (design/reskin passes, enhancements to an

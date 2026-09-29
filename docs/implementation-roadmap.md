@@ -346,7 +346,21 @@ phase numbering:**
   full account: `brain/decisions/architecture-log.md`'s 2026-09-26
   entries. `specs/010-exam-planner/tasks.md` amended with an addendum.
 
-Known open items, not yet resolved as of 2026-09-28:
+Known open items, not yet resolved as of 2026-09-29:
+- **Two `-linux` visual baselines are stale and will fail CI.**
+  `tests/visual/quick-review.spec.ts-snapshots/quick-review-skip-dialog-{chromium,mobile}-linux.png`
+  still depict the progress bar at 0%. The bar now counts skipped
+  questions, so that capture reads 100%; only the `-darwin` pair could
+  be regenerated locally, because macOS cannot produce `-linux`
+  baselines. Regenerating them needs the temporary-workflow dispatch on
+  `main`, which needs the product owner's authorization. Until then
+  those two comparisons fail legitimately — the baselines are stale and
+  the UI is correct, which is the opposite of the usual reason a visual
+  test goes red, so check this entry before debugging the component.
+- **`main` is ahead of `origin/main` and unpushed** as of this writing,
+  so CI has not run on the Phase 4 merge at all. The local full suite is
+  green (typecheck clean, eslint 0 errors / 8 pre-existing warnings,
+  405/405 unit, Playwright 31 passed / 3 skipped / 0 failed).
 - `quality-gates` is green except for
   `tests/e2e/course-graph-ingestion-pipeline.spec.ts` (both projects),
   and the cause is **operational, not a code defect**: the OpenAI
@@ -529,7 +543,7 @@ yet — it's still waiting on Phase 6's Configurations screen, not a Phase
 3 gap. See `docs/superpowers/plans/2026-09-28-orca-phase3-home-dashboard.md`
 and the corresponding design doc for the full spec.
 
-Phase 4 (quick-review quiz flow) is also **built and committed**:
+Phase 4 (quick-review quiz flow) is also **built and merged to `main`**:
 `/courses/<id>/study` was replaced in place rather than given a sibling
 route — every entry point (Home's ▷ control, the Review page, the e2e
 specs) already pointed here, so the change is to what this route
@@ -537,7 +551,13 @@ renders, not to where anything links, and keeping one UI over one data
 source avoids two screens drifting apart. `StudySession.tsx`'s
 scrolling, all-items-at-once list is deleted; the route now renders one
 question at a time behind `QuickReviewSession`, with a progress
-percentage, free back/forward navigation, immediate per-answer feedback
+percentage, back-anywhere navigation whose forward control is `Skip`
+until a question is answered and `Next`/`Finish` afterwards (a bare
+"Next" past an unanswered question does not exist — it used to, and it
+created a third state neither answered nor skipped, letting a student
+reach the end with nothing recorded and no confirmation; the
+whole-branch review caught that before merge),
+immediate per-answer feedback
 (the outcome is already known the moment an answer commits, so nothing
 is held back for an end screen), a Skip that commits no evidence and
 never penalizes mastery (a skip is the absence of evidence, not
@@ -570,6 +590,18 @@ e2e spec and a `SessionItem`-shaped gap `exam-planner/actions.ts` needed
 closing: `brain/decisions/architecture-log.md`'s Task 11 entry for this
 plan. Design: `docs/superpowers/specs/2026-09-29-orca-phase4-quick-review-design.md`;
 plan: `docs/superpowers/plans/2026-09-29-orca-phase4-quick-review.md`.
+
+Amended immediately after the merge, on direct product-owner feedback:
+**the progress bar counts skipped questions.** It reports how far
+through today's review the student is, not how well they are doing, and
+a skipped question has been dealt with — excluding it left the bar
+reading 0% for someone halfway through the session. Correctness stays a
+separate number (the end screen's `N/M correct` and skipped count), so
+nothing is overstated; a submission that failed to grade still does not
+advance the bar, because it stays answerable. The design doc carries a
+matching amendment at its end rather than a silent edit, and
+`progressPercent`'s parameter was renamed `answeredCount` →
+`addressedCount` so the name still describes what it receives.
 
 The paragraph below describes the original scoping pass:
 
