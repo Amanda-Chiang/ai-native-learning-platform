@@ -3086,3 +3086,66 @@ metadata + HW reflection, itself flagged as needing its own
 evidence-boundary decision) instead of Phase 4, and no longer claims
 Home's ▷ destination will change when Phase 4 ships -- it did not; only
 what the route renders did.
+
+## 2026-09-29 -- Final whole-branch review blocked the Phase 4 merge: a third, unaccounted-for state between "answered" and "skipped"
+
+The whole-branch review that runs before a merge, not per-task
+regression, caught a real defect Task 11's own close-out (above) did
+not: every unanswered question in the quick-review quiz rendered both
+a `Skip` button and a `Next` button. `Skip` recorded the concept in the
+skip set as designed; `Next` only advanced the index and recorded
+nothing. That left a third state -- neither answered nor skipped --
+that no code in the state machine accounted for, because the design
+doc and every unit test only ever reasoned about two: answered or
+skipped.
+
+Concrete failure: a student who pressed `Next` on every question,
+never answering and never skipping, reached the last question with an
+empty skip set. `handleSkip`'s dialog-trigger logic was correct --
+`next.size > 0` -- but it was never invoked, because `Next` calls
+`advance()`, not `handleSkip()`. `advance()`'s own check,
+`skipped.size > 0`, was equally correct and equally never true, so
+`Finish` went straight to the end screen. The end screen then read
+"0/0 correct" with no skipped line at all (that line is conditional on
+`skipped > 0`), silently understating that every concept in the
+session was left unaddressed. The skip-confirmation dialog exists
+precisely to prevent this outcome, and the most natural path through
+the UI -- pressing the single most prominent button, repeatedly --
+defeated it every time.
+
+**The ruling:** an unanswered question offers only `Skip`; `Next` (or
+`Finish`, on the last question) appears only once the question has
+been answered. This closes the third state by construction rather than
+by patching the dialog's trigger condition: every forward step off an
+unanswered question is now, unconditionally, a recorded skip, so
+`skipped.size` and the end-screen counts are truthful on every path
+through the UI, including the "hold down the same button" path that
+exposed the bug. `handleSkip`'s existing last-question dialog check
+needed no change -- it already branched on the locally computed `next`
+set rather than the stale `skipped` render closure (a stale-closure bug
+fixed earlier in this same phase, per the entry above), and that same
+correct logic now simply runs on every unanswered-question exit
+instead of never running on it. The back control (`‹` / "Previous
+question") was untouched and stays available everywhere, per an
+explicit product requirement that back navigation remain completely
+free.
+
+Updated for consistency, not just the two component files: the
+Task 10 e2e spec's forward-navigation presses (an unanswered last
+question is left via `Skip`, not `Finish`), the visual baselines for
+the question screen (its footer now renders exactly one button), and
+both the Phase 4 design doc and plan, which had described the
+now-superseded two-button footer and the dialog as triggering off
+"pressing Next on the last question." No unit-tested rule in
+`quick-review-state.ts` changed -- `statusFor`, `sessionScore`, and
+`firstSkippedIndex` were already correct; this was a presentational
+defect in which control the footer offered, not a defect in the
+scoring or skip-set logic itself.
+
+The lesson worth keeping: a per-task regression run (green at 31
+passed / 3 skipped / 0 failed, recorded above) tests that the code you
+wrote does what you intended -- it does not, by itself, catch a state
+your design never enumerated. A dedicated whole-branch review, run
+after the branch is otherwise "done," is a different check: it asks
+whether the enumerated states are actually exhaustive, which is a
+question no amount of testing the intended states can answer.

@@ -96,6 +96,23 @@ no mastery change, and advances to the next question — the skipped
 question stays in place, since the student can navigate back to it
 freely.
 
+**An unanswered question offers only Skip; a bare "Next" never appears
+until the question is answered.** The footer originally shipped both
+buttons on every unanswered question, which created a third state the
+rest of the design never accounted for: a student who pressed "Next"
+repeatedly without ever answering or skipping left every concept
+neither answered nor recorded as skipped. That silently defeated the
+skip-confirmation dialog below (its condition is "anything skipped,"
+which stayed empty) and the end screen understated the session as
+"0/0 correct" with no skipped line — the whole-branch review caught
+this before merge, recorded in
+`brain/decisions/architecture-log.md`. The fix folds forward motion for
+an unaddressed question into Skip itself: Skip both advances and
+records the concept in the skip set, exactly as it always did, so there
+is no way to leave a question without one of the two recorded outcomes.
+Once a question is answered, Skip disappears — there is nothing left to
+skip — and Next (or Finish, on the last question) takes its place.
+
 Two rejected alternatives, both considered and both wrong here:
 
 **Penalizing mastery on skip** would violate this project's central
@@ -122,7 +139,9 @@ under "Open questions deferred by design" rather than smuggled in here.
 
 ### Back and forward navigation, with answered questions read-only
 
-`‹` and `Next` move freely across the session in both directions.
+`‹` moves freely across the session in both directions, unconditionally.
+Forward motion is `Skip` while a question is unanswered and `Next` (or
+`Finish`, on the last question) once it is answered — see above.
 
 An already-answered question renders read-only on return: the answer
 given, the outcome, the explanation. It cannot be re-answered, because
@@ -134,15 +153,16 @@ question, having committed nothing, is fully answerable when revisited.
 ### A skip confirmation before the end screen
 
 Because each answer commits its own evidence as it is given, there is no
-submit step to intercept. The trigger is pressing `Next` on the last
-question. If anything was skipped:
+submit step to intercept. The trigger is leaving the last question
+going forward — by `Skip` if it is still unanswered, or by `Next`/
+`Finish` once it is answered. If anything was skipped:
 
 > **2 questions skipped**
 > 3 of 5 answered.
 > [Answer them] [Finish anyway]
 
 "Answer them" jumps to the first skipped question rather than merely
-dismissing the dialog. With no skips, `Next` on the last question goes
+dismissing the dialog. With no skips, leaving the last question goes
 straight to the end screen and no dialog appears.
 
 ### One bounded session — no load-more
@@ -224,7 +244,8 @@ Client components, replacing `StudySession.tsx`:
   Owns submit, skip, and navigation. Nothing else.
 - **`QuickReviewQuestion.tsx`** — one item: header (`‹`, progress bar,
   percentage), question text, the modality-dispatched answer form, the
-  outcome once submitted, and the `Skip` / `Next` footer.
+  outcome once submitted, and the footer that shows exactly one forward
+  control: `Skip` while unanswered, `Next`/`Finish` once answered.
 - **`QuickReviewEndScreen.tsx`** — score, skipped count, concepts
   covered, the disabled deep-review stub, and the two exits.
 
