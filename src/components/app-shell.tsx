@@ -35,10 +35,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div style={s.shell}>
-      <style>{`@media (max-width: 768px) { .app-shell-nav-hidden { display: none; } }`}</style>
+      <style>{`.app-shell-nav { display: flex; } @media (max-width: 768px) { .app-shell-nav-hidden { display: none; } }`}</style>
       <div style={s.outlet}>{children}</div>
 
-      <nav className={isQuickReview ? "app-shell-nav-hidden" : undefined} style={s.nav}>
+      <nav className={`app-shell-nav${isQuickReview ? " app-shell-nav-hidden" : ""}`} style={s.nav}>
         {NAV_MAIN.map((item) => {
           const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
           return (
@@ -70,7 +70,6 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "hidden",
   },
   nav: {
-    display: "flex",
     flexShrink: 0,
     height: "var(--bottom-nav-h)",
     borderTop: "1px solid var(--border)",
