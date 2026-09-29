@@ -71,6 +71,24 @@ here so they're discoverable from the repo alone.
 - Git commits in this repo are solo-authored (Amanda Chiang) — never add
   a "Co-Authored-By: Claude" trailer. Commit incrementally at feature/
   checkpoint boundaries, not batched at the end.
+- **Never push to `origin`, and never commit directly to `main`, without
+  explicit approval in the current conversation.** Branch first; feature
+  work lands on `main` through a merge the product owner asks for. This
+  is a public repository, so a push publishes unreviewed work — and
+  anything that writes to the default branch (including the kind of
+  temporary-workflow trick CI work sometimes needs) is the product
+  owner's call, every time. Approval given for one push is not standing
+  approval for the next.
+- **On a meaningful feature, say what you understand the task to be and
+  how you would approach it before writing code, then wait.** Not a
+  status update — a real check: what the task is, what you found that
+  changes it, what you would build, and what you are unsure about. This
+  repo's own history is the argument: that step is where hand-drawn
+  wireframes got read before a screen was designed, where a proposed
+  "skip penalizes mastery" behavior was caught as a violation of the
+  evidence invariant before any code existed, and where several design
+  questions with materially different answers got settled by asking.
+  Skip it for typos, one-line fixes, and dependency bumps.
 - Never print or paste a sensitive secret (service-role keys, API keys)
   into chat — ask the user to fill it in directly in their editor.
   Non-sensitive values (URLs, anon/publishable keys) are fine to read
