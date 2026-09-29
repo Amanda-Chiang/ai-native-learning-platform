@@ -48,9 +48,12 @@ mis-routed, dead `useState` in the exam planner), and — most recently —
 capped at one; add/switch/edit/delete via a dropdown, every exam
 competing for Today's nearest-exam/Upcoming slots), built via
 `superpowers:brainstorming` → `superpowers:writing-plans` →
-`superpowers:subagent-driven-development` end to end. The heavy
-(checker-domain/free-text) assessment-generation path is still real,
-tested, and unwired to any UI — a known, separate, still-open gap. See
+`superpowers:subagent-driven-development` end to end — and, most
+recently, Orca redesign Phase 4 (the quick-review quiz flow, described
+below), after which visual regression moved to a single macOS-only
+baseline set. The heavy (checker-domain/free-text)
+assessment-generation path is still real, tested, and unwired to any
+UI — a known, separate, still-open gap. See
 `brain/decisions/architecture-log.md`'s entries from 2026-09-02
 onward, and `docs/implementation-roadmap.md`'s "Post-MVP work" +
 "Known open items" sections, for the full current list; this
@@ -181,35 +184,39 @@ them exactly:
   submission that *failed to grade* still does not advance the bar,
   since it stays answerable.
 
-See `docs/implementation-roadmap.md`'s Phase 4 entry and
-`brain/decisions/architecture-log.md`'s last three entries for the full
-account, including the real bugs the build found — two of which were
-written into the plan document's own code samples and have since been
-corrected there.
+See `docs/implementation-roadmap.md`'s Phase 4 entry and the
+`brain/decisions/architecture-log.md` entries dated 2026-09-29 for the
+full account, including the real bugs the build found — two of which
+were written into the plan document's own code samples and have since
+been corrected there. Those entries are also the clearest worked
+example in the repo of how this project expects a feature to be built
+and reviewed.
 
-**CI (`quality-gates`) as of 2026-09-29 — read this before you debug a
-red run.** Locally on `main`, everything is green: typecheck clean,
-eslint 0 errors (8 pre-existing warnings), 405/405 unit, and the
-Playwright visual + `smoke` + `basic-flows` + `quick-review-flow` specs
-at 31 passed / 3 skipped / 0 failed (the 3 skips are the unrelated
-`tutor-agent-e2e` project). CI itself has **not** run on the Phase 4
-merge yet: `main` is ahead of `origin/main` and unpushed. Note also
-that CI's job layout changed with this work — `quality-gates` is now
-lint/typecheck/build on Linux, and a second job, `e2e-visual`, runs
-Playwright on macOS (see trap 4). If you have branch protection
-configured against the old single job name, it needs updating.
+**CI as of 2026-09-29 — read this before you debug a red run.**
 
-When it does run, expect **one known failure**, not a defect in the
-code under test:
+CI has **two jobs** (this layout is new): `quality-gates` — lint,
+typecheck, build — on Linux, because that is what the deployment target
+runs; and `e2e-visual` — Playwright — on macOS, because that is where
+the visual baselines are authored (trap 4 explains why that matters).
+Branch protection configured against the old single-job name needs to
+add `e2e-visual`, or the visual suite will not block a merge.
 
-1. **The OpenAI 429**, unchanged and operational, not a code defect:
-   `tests/e2e/course-graph-ingestion-pipeline.spec.ts` — the one spec
-   that makes a real, un-doubled model call — fails with `429 You have
-   no credits remaining`. Adding credits should turn it green with no
-   code change. Don't go looking for a bug in the ingestion pipeline.
+**Local state on `main` is fully green**: typecheck clean, eslint 0
+errors (8 pre-existing warnings), 405/405 unit, and Playwright across
+`tests/visual` + `smoke` + `basic-flows` + `quick-review-flow` at 31
+passed / 3 skipped / 0 failed (the 3 skips are the unrelated
+`tutor-agent-e2e` project).
 
-Lint, Typecheck and Build were green on CI before this merge and nothing
-in Phase 4 touches their inputs.
+**CI has not actually run on any of this yet** — `main` is ahead of
+`origin/main` and unpushed. Lint, typecheck and build were green on CI
+before the Phase 4 merge, and nothing in it touches their inputs.
+
+When CI does run, expect **one known failure**, and it is not a defect
+in the code under test: `tests/e2e/course-graph-ingestion-pipeline.spec.ts`
+— the one spec that makes a real, un-doubled model call — fails with
+`429 You have no credits remaining`. The OpenAI account has no credits.
+Adding credits should turn it green with no code change. Don't go
+looking for a bug in the ingestion pipeline.
 
 One thing to know about that spec when credits return: the 429 was
 **masking a second, real bug** in it. It fails long before reaching line
@@ -265,6 +272,15 @@ it writes.
    git history: `regen-linux-snapshots.yml` and the add-dispatch-remove
    ritual around it are gone, not merely unused.
 
+5. **A Supabase client built without the `<Database>` generic gives you
+   no compile-time column checking.** `tests/e2e/global-setup.ts` was
+   the last such client; a missing `not null` column there failed at
+   runtime and broke Playwright's *global* setup — so every spec, not
+   one. Typing it immediately surfaced three more missing-column bugs in
+   fixture inserts. If you add a migration with a `not null` column,
+   grep the whole repo for inserts into that table including multi-line
+   chains — a single-line grep pattern missed one during Phase 3.
+
 6. **A Playwright screenshot can make a page report a hydration error
    that does not exist in the product.** Playwright hides the text caret
    before capturing by writing `caret-color` directly into the inline
@@ -281,14 +297,6 @@ it writes.
    wherever there is no visible caret to hide. `tests/visual/quick-review.spec.ts`
    does this and says why. If you write a visual spec that captures a
    form, do the same.
-5. **A Supabase client built without the `<Database>` generic gives you
-   no compile-time column checking.** `tests/e2e/global-setup.ts` was
-   the last such client; a missing `not null` column there failed at
-   runtime and broke Playwright's *global* setup — so every spec, not
-   one. Typing it immediately surfaced three more missing-column bugs in
-   fixture inserts. If you add a migration with a `not null` column,
-   grep the whole repo for inserts into that table including multi-line
-   chains — a single-line grep pattern missed one during Phase 3.
 
 **Fixed, so you won't hit it, but worth knowing why baselines changed:**
 visual baselines used to capture the Next.js dev-mode route-status
@@ -323,36 +331,129 @@ this repo does.
   `You are using Node.js 16.20.2. For Next.js, Node.js version ">=20.9.0"
   is required.` Playwright needs 20+ too, and CI pins 24.
 - npm
+- **A `.env.local` with real credentials.** This project talks to a live
+  Supabase project, a real OpenAI account, E2B for sandboxed code
+  grading, and Trigger.dev for background jobs. Almost nothing works
+  without it — not `npm run dev` past the first authenticated page, and
+  not the e2e suite at all.
 
-## Install dependencies
+## First run, in order
 
 ```bash
+nvm use 24          # not optional; default node here is v16
 npm install
+cp .env.example .env.local   # then fill it in, see below
+npx next typegen    # see note below — do this before typecheck
+npm run dev         # http://localhost:3000
 ```
 
-## Start the development server
+**Filling in `.env.local`.** `.env.example` documents every variable and
+where in each provider's dashboard to find it. Five matter:
+
+| Variable | Sensitivity |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | public (browser-exposed) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | public — RLS, not this key, enforces isolation |
+| `SUPABASE_SERVICE_ROLE_KEY` | **secret** — bypasses RLS |
+| `OPENAI_API_KEY` | **secret** |
+| `TRIGGER_SECRET_KEY` | **secret** |
+
+If you are an agent: ask the human to paste the secret ones into the
+file themselves. Never print a service-role or API key into a
+conversation, a log, a commit, or a report.
+
+CI reads the same values from repository secrets (Settings → Secrets and
+variables → Actions), which is why a fresh CI checkout can run the e2e
+suite at all.
+
+**`npx next typegen` before your first typecheck.** `tsconfig.json`
+includes `.next/types/**/*.ts` and `.next/dev/types/**/*.ts`, and
+`src/app/layout.tsx` uses the generated `LayoutProps<"/">` type. On a
+checkout with no `.next/` directory, `npm run typecheck` therefore fails
+with exactly:
+
+```
+src/app/layout.tsx(20,50): error TS2304: Cannot find name 'LayoutProps'.
+```
+
+`next dev` and `next build` generate those types as a side effect;
+`tsc` does not. `npx next typegen` alone is enough to fix it (verified
+by deleting `.next/` and running it). CI runs it explicitly before
+typecheck for this reason. This bites hardest in a fresh git worktree,
+which starts with no `.next/` at all — if you see that error, you have
+not hit a real type bug.
+
+## Verifying your work
+
+Run these before claiming anything is done — the project's rules require
+evidence, not assertion.
 
 ```bash
-npm run dev
+npm run typecheck                   # tsc --noEmit
+npx eslint src tests trigger        # expect 0 errors, 8 pre-existing warnings
+npm run test:unit                   # node --test, ~405 tests, no database needed
+npm run test:e2e                    # Playwright: e2e + visual, needs .env.local
 ```
 
-Then open [http://localhost:3000](http://localhost:3000).
+`npm run test:unit` is pure-function tests only — it runs on plain
+`node --test` with no browser and no database, which is why the decision
+logic in this codebase lives in alias-free modules rather than inside
+React components. There is **no component-test tooling** (no jsdom, no
+testing-library); component behaviour is covered by Playwright instead.
+
+Before any Playwright run, check `lsof -ti:3000` is empty — see trap 2.
+
+To run a subset (much faster than the whole suite):
+
+```bash
+npx playwright test tests/visual/quick-review.spec.ts
+npx playwright test tests/visual tests/e2e/smoke.spec.ts
+```
+
+Note that `npm run test:e2e` includes
+`tests/e2e/course-graph-ingestion-pipeline.spec.ts`, which makes a real
+model call and currently fails on billing — see the CI section above
+before treating that failure as yours.
 
 ## Repository structure
 
 ```text
 /
 ├── src/
-│   ├── app/            # Next.js App Router pages/layouts
-│   ├── components/     # Shared UI components
-│   ├── features/       # Feature-specific modules
-│   ├── lib/             # Shared utilities/helpers
-│   └── types/           # Shared TypeScript types
-├── public/              # Static assets
-├── docs/                 # Product and technical documentation
-├── .env.example          # Environment variable placeholders
+│   ├── app/             # Next.js App Router pages/layouts; (app)/ is the
+│   │                    #   authenticated shell, route groups in parens
+│   ├── components/      # Shared UI (app-shell, course-shell, icons)
+│   ├── features/        # One directory per feature -- where most code lives
+│   ├── lib/             # Supabase clients, generated database.types.ts
+│   └── types/           # Shared domain/graph types
+├── supabase/migrations/ # SQL migrations, applied to a live project
+├── trigger/             # Trigger.dev background tasks
+├── tests/
+│   ├── unit/            # node --test, pure functions, no DB/browser
+│   ├── e2e/             # Playwright behaviour specs (+ global setup/teardown)
+│   ├── visual/          # Playwright screenshot specs + committed baselines
+│   └── fixtures/        # Checked-in JSON fixtures for ?demo=1 routes
+├── specs/NNN-*/         # Spec Kit features: spec, plan, tasks, contracts
+├── docs/
+│   ├── technical-prd.md         # full requirements
+│   ├── implementation-roadmap.md # phase sequencing + post-MVP + open items
+│   └── superpowers/             # specs/ and plans/ for non-Spec-Kit work
+├── brain/               # durable context: architecture, decisions, lessons
+│                        #   (brain/README.md indexes it; read before
+│                        #    touching a subsystem)
+├── benchmark/           # extraction benchmark corpus
+├── UX_snapshots.pdf     # hand-drawn wireframes, source of truth for the redesign
+├── .env.example         # every environment variable, documented
 └── ...standard Next.js config files
 ```
+
+**Where to put new code.** Feature logic goes in
+`src/features/<feature>/`, with the pure, testable rules in plain
+modules (relative imports only, so `node --test` can load them) and the
+database-touching parts in `actions.ts` marked `"use server"`.
+Components live in `src/features/<feature>/components/`. That split is
+not cosmetic — it is what makes anything testable here, given there is
+no component-test tooling.
 
 ## Documentation
 
