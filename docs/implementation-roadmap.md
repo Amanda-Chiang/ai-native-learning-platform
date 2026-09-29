@@ -408,6 +408,28 @@ Known open items, not yet resolved as of 2026-09-28:
   schedule — that choice avoided the question but did not settle it.
 - **The heavy assessment-generation path is still unwired to any UI** —
   see the earlier entry; unchanged by the Orca redesign work.
+- **A persisted skip/avoidance signal was deliberately deferred, not
+  built, in Orca Phase 4.** Quick review's Skip is currently pure UI
+  state: it commits no evidence and leaves review priority untouched,
+  because a skip is the absence of evidence rather than evidence of
+  failure, and writing a penalty from a non-event would fabricate a
+  signal the student never produced. A student who repeatedly skips the
+  same concept is still a real, useful signal for review priority to
+  see — but recording it honestly needs a new evidence type carrying
+  zero mastery weight (so it can move ranking without ever being read as
+  a mastery observation) plus a weights decision about how much an
+  avoidance signal should influence ranking relative to failed or absent
+  attempts. Both belong with the later configurable-weights phase
+  (Phase 6), not with Phase 4's UI work.
+- **Quick review can serve a slow, structured-checker question inside
+  a "quick" session**, because every due concept is paginated regardless
+  of its response modality (Orca Phase 4 rejected filtering the session
+  down to multiple-choice-only, since that would silently drop due
+  concepts and make an incomplete session look finished). This is
+  question-bank composition — how many slow-modality questions exist for
+  a given concept, and how the review-priority function selects among
+  them — not a UI defect, and is out of scope for the quiz-flow work
+  that surfaced it.
 
 **Orca redesign — Phases 1–3 shipped 2026-09-27/28; phases 4–9 scoped only**:
 Phase 1 (rebrand + app shell) is **built and committed**: `globals.css`
@@ -506,6 +528,48 @@ Pending: the settings gear seen in earlier design mockups has no route
 yet — it's still waiting on Phase 6's Configurations screen, not a Phase
 3 gap. See `docs/superpowers/plans/2026-09-28-orca-phase3-home-dashboard.md`
 and the corresponding design doc for the full spec.
+
+Phase 4 (quick-review quiz flow) is also **built and committed**:
+`/courses/<id>/study` was replaced in place rather than given a sibling
+route — every entry point (Home's ▷ control, the Review page, the e2e
+specs) already pointed here, so the change is to what this route
+renders, not to where anything links, and keeping one UI over one data
+source avoids two screens drifting apart. `StudySession.tsx`'s
+scrolling, all-items-at-once list is deleted; the route now renders one
+question at a time behind `QuickReviewSession`, with a progress
+percentage, free back/forward navigation, immediate per-answer feedback
+(the outcome is already known the moment an answer commits, so nothing
+is held back for an end screen), a Skip that commits no evidence and
+never penalizes mastery (a skip is the absence of evidence, not
+evidence of failure), a skip-confirmation dialog before finishing, and
+an end screen reporting the real score, the concepts covered, and a
+visibly-disabled deep-review offer whose copy is derived from the
+session's mastery-band enum rather than the wireframe's numeric
+"level 4," because this codebase has no numeric levels. Every response
+modality is paginated, not just multiple choice — filtering the session
+down to MCQs would silently drop due concepts from a student's review
+while making the session look complete. The backend needed no changes:
+`getDailyReviewSession` already returned an ordered array, so this is
+pagination over data that already existed, and Yes/No is handled as a
+two-option `multiple_choice` row rather than a new answer type. The
+load-more plumbing (`loadMore` prop, `excludeConceptIds` option and
+parameter, its unit test) was deleted end to end rather than kept for a
+hypothetical future Deep-review caller — see this doc's own plan-doc
+correction below and the architecture log's Task 11 entry for why that
+reasoning didn't hold. Mobile hides the bottom nav for this route only,
+in CSS via the same injected-`<style>` + `@media` + class pattern
+`ConceptDetailPanel` and `DueQueue` already use, so the page stays a
+server component. Two real bugs were found and fixed during the build,
+both written into the plan document's own code samples and both since
+corrected there: a stale-closure bug in the skip/confirm state machine,
+and an inline `style={{ display: "flex" }}` on the nav element that
+silently defeated the mobile-hide media rule until the visual-regression
+pass rendered real mobile screenshots. Full account, including three
+Supabase seeding defects the typed admin client caught while writing the
+e2e spec and a `SessionItem`-shaped gap `exam-planner/actions.ts` needed
+closing: `brain/decisions/architecture-log.md`'s Task 11 entry for this
+plan. Design: `docs/superpowers/specs/2026-09-29-orca-phase4-quick-review-design.md`;
+plan: `docs/superpowers/plans/2026-09-29-orca-phase4-quick-review.md`.
 
 The paragraph below describes the original scoping pass:
 

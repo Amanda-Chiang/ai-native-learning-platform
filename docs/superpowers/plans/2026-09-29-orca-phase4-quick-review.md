@@ -1161,9 +1161,33 @@ export function QuickReviewSession({
     record(item.conceptId, outcome);
   }
 
+  // Corrected after the fact: the version of this plan originally
+  // published here wrote `handleSkip` as `setSkipped((current) => new
+  // Set(current).add(item.conceptId)); advance();`, with `advance`
+  // branching on `skipped` read from the render closure -- still the
+  // pre-update value at the moment `handleSkip` runs. In a
+  // three-question session with nothing skipped yet, pressing Skip on
+  // the last question checked the still-empty set, so the
+  // skip-confirmation dialog never appeared and the session ended with
+  // an unconfirmed skipped question. A code review caught it before
+  // merge; the fix below computes the updated set into a local `next`
+  // first and branches on that instead of on state that has not
+  // re-rendered yet.
   function handleSkip() {
-    setSkipped((current) => new Set(current).add(item.conceptId));
-    advance();
+    // Computed locally rather than inside the setSkipped updater: the
+    // set membership decides which screen comes next, and branching on
+    // `current`/`skipped` (the render closure, not yet updated) would
+    // silently skip the skip-confirmation dialog on the last question.
+    // Keeping the branch outside the updater also avoids nesting a
+    // setPhase/setIndex call inside a setState updater, which is not
+    // guaranteed to run exactly once under StrictMode.
+    const next = new Set(skipped).add(item.conceptId);
+    setSkipped(next);
+    if (index < items.length - 1) {
+      setIndex(index + 1);
+      return;
+    }
+    setPhase(next.size > 0 ? "confirm-skips" : "end");
   }
 
   function advance() {
@@ -1463,16 +1487,29 @@ Inside `AppShell`, after the `usePathname()` call:
   const isQuickReview = /^\/courses\/[^/]+\/study$/.test(pathname);
 ```
 
-Add the style block just inside the returned `<div style={s.shell}>`:
+Corrected after the fact: the version of this plan originally
+published here added the class and the media rule exactly as below,
+but `s.nav` (the object passed as this element's inline `style`) still
+carried `display: "flex"`. An inline style always wins the cascade
+over a class, no matter how correctly the class or its media query is
+scoped, so `.app-shell-nav-hidden { display: none }` had no visible
+effect at any width -- the first code review verified the route regex
+and that the rule sat inside a media query, but never asked whether
+the rule could actually win against the element's own inline style.
+It shipped inert and was only caught when the visual-regression pass
+rendered real mobile screenshots and the bottom nav was still there.
+The fix moves `display: "flex"` out of `s.nav` and into a base
+`.app-shell-nav` class, so the media rule overrides class-with-class
+with no `!important` needed:
 
 ```tsx
-      <style>{`@media (max-width: 768px) { .app-shell-nav-hidden { display: none; } }`}</style>
+      <style>{`.app-shell-nav { display: flex; } @media (max-width: 768px) { .app-shell-nav-hidden { display: none; } }`}</style>
 ```
 
-and put the class on the nav:
+and put both classes on the nav, removing `display` from `s.nav`'s inline style object:
 
 ```tsx
-      <nav className={isQuickReview ? "app-shell-nav-hidden" : undefined} style={s.nav}>
+      <nav className={`app-shell-nav${isQuickReview ? " app-shell-nav-hidden" : ""}`} style={s.nav}>
 ```
 
 - [ ] **Step 2: Verify it in a real browser at both widths**

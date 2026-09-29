@@ -134,21 +134,32 @@ reporting status.
 
 ## What to build next, and the state of CI
 
-**Next task:** Orca redesign **Phase 4 — the quick-review quiz flow**
-(one question at a time, progress percentage, Yes/No as a 2-option
-multiple choice, an end screen offering a same-session Deep review).
-Unlike Phases 2 and 3, it has **no design doc and no plan yet** — start
-with `superpowers:brainstorming`, then `superpowers:writing-plans`, then
-`superpowers:subagent-driven-development`. The parent design doc
-(`docs/superpowers/specs/2026-09-27-orca-redesign-design.md`) records
-its scope and the backend-compatibility finding that
-`getDailyReviewSession` already returns an ordered array, so
-one-at-a-time is UI-only pagination and no new answer type is needed.
+**Next task:** Orca redesign **Phase 5 — material upload with metadata
++ HW reflection** (new material-type/coverage/due-date columns on
+`artifacts`, additive and no ingestion-pipeline change, plus a
+free-text "reflect" field on homework uploads). It has **no design doc
+and no plan yet** — start with `superpowers:brainstorming`, then
+`superpowers:writing-plans`, then `superpowers:subagent-driven-development`.
+The parent design doc (`docs/superpowers/specs/2026-09-27-orca-redesign-design.md`)
+flags that the HW-reflection field needs its own evidence-boundary
+design decision — a student's self-reported reflection text is exposure
+at best, and this project's own invariant is that exposure is not
+mastery, so Phase 5's spec has to decide explicitly what evidence-grade
+weight (if any) that field can carry, rather than inheriting an
+assumption from this README.
 
-Phase 4 also has a standing consequence elsewhere: Home's ▷ controls
-currently link to `/courses/{id}/study`, the existing working review
-page. When Phase 4 ships, that destination changes — the control does
-not.
+Orca Phase 4 — the quick-review quiz flow — **is now built and
+committed**. `/courses/{id}/study` was replaced in place (one question
+at a time, a progress percentage, free back/forward navigation, Yes/No
+handled as a 2-option multiple choice, immediate feedback, a Skip that
+commits no evidence, a skip-confirmation dialog, and an end screen with
+a visibly-disabled deep-review offer). Home's ▷ controls still link to
+that same `/courses/{id}/study` route — Phase 4 changed what the route
+renders, not where anything points. See `docs/implementation-roadmap.md`'s
+Phase 4 entry and `brain/decisions/architecture-log.md`'s Task 11 entry
+for the full account, including two real bugs the build found (both
+also corrected in the plan document's own code samples, which had
+shipped with the bugs baked in).
 
 **CI (`quality-gates`) as of 2026-09-28:** Lint, Typecheck and Build are
 green. The E2E/visual job is red, and the cause is **operational, not a
