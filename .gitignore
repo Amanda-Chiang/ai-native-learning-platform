@@ -62,3 +62,6 @@ next-env.d.ts
 
 # editor-local settings (e.g. MCP server config), not project config
 /.vscode/
+
+# claude code worktrees (local scratch, never committed)
+.claude/worktrees/
