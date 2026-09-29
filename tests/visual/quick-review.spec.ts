@@ -18,7 +18,12 @@ const DEMO_URL = "/courses/demo/study?demo=1";
 test("the first question shows the progress bar, the question, and its options", async ({ page }) => {
   await page.goto(DEMO_URL);
   await page.getByText("Is this XOR truth table accurate?").waitFor({ state: "visible" });
-  await expect(page).toHaveScreenshot("quick-review-question.png");
+  // Playwright's screenshot code hides the text caret by writing caret-color:transparent
+  // into input/textarea/contenteditable inline styles. On slower CI runners this DOM
+  // mutation can interleave with React hydration, causing a mismatch error badge to
+  // appear in the captured image. These screens have no visible text caret anyway, so
+  // we opt out of the hiding with caret: "initial".
+  await expect(page).toHaveScreenshot("quick-review-question.png", { caret: "initial" });
 });
 
 test("skipping every question surfaces the skip confirmation, not the end screen", async ({ page }) => {
@@ -28,7 +33,7 @@ test("skipping every question surfaces the skip confirmation, not the end screen
     await page.getByRole("button", { name: "Skip" }).click();
   }
   await page.getByRole("dialog").waitFor({ state: "visible" });
-  await expect(page).toHaveScreenshot("quick-review-skip-dialog.png");
+  await expect(page).toHaveScreenshot("quick-review-skip-dialog.png", { caret: "initial" });
 });
 
 test("finishing anyway shows the end screen with the real skipped count and the disabled deep-review offer", async ({ page }) => {
@@ -44,5 +49,5 @@ test("finishing anyway shows the end screen with the real skipped count and the 
   // (unverified -> exposed), and says it is not built yet.
   await expect(page.getByRole("button", { name: /Deep review to reach exposed/ })).toBeDisabled();
   await expect(page.getByText("Nothing else due today")).toBeVisible();
-  await expect(page).toHaveScreenshot("quick-review-end.png");
+  await expect(page).toHaveScreenshot("quick-review-end.png", { caret: "initial" });
 });
