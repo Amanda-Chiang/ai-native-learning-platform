@@ -110,8 +110,20 @@ export function QuickReviewSession({
   }
 
   function handleSkip() {
-    setSkipped((current) => new Set(current).add(item.conceptId));
-    advance();
+    // Computed locally rather than inside the setSkipped updater: the
+    // set membership decides which screen comes next, and branching on
+    // `current`/`skipped` (the render closure, not yet updated) would
+    // silently skip the skip-confirmation dialog on the last question.
+    // Keeping the branch outside the updater also avoids nesting a
+    // setPhase/setIndex call inside a setState updater, which is not
+    // guaranteed to run exactly once under StrictMode.
+    const next = new Set(skipped).add(item.conceptId);
+    setSkipped(next);
+    if (index < items.length - 1) {
+      setIndex(index + 1);
+      return;
+    }
+    setPhase(next.size > 0 ? "confirm-skips" : "end");
   }
 
   function advance() {
