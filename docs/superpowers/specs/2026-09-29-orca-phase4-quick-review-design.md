@@ -323,10 +323,38 @@ finish, asserting the end screen's real counts.
   that it is coming. No TBDs elsewhere.
 - **Internal consistency:** the skip rules, the back-navigation rules,
   and the progress-percentage definition agree — skipped items commit
-  nothing, stay in place, remain answerable on return, and never
-  advance the bar.
+  nothing, stay in place, remain answerable on return, and do advance
+  the bar (see the amendment below, which supersedes this doc's
+  original rule that they did not).
 - **Scope check:** one screen, one route, two new `SessionItem` fields,
   no backend logic change. Single-plan sized.
 - **Ambiguity check:** "next task" was ambiguous between "next question"
   and "next course" — fixed to mean the next due *course's* session
   explicitly, in both the decision and the error-handling section.
+
+## Amendment (2026-09-29): the progress bar counts skipped items
+
+This doc originally specified that the progress percentage counted
+answered items only, on the reasoning that a bar including skips would
+overstate what the student had actually retrieved.
+
+That reasoning conflated two different questions. The bar answers "how
+far through today's review am I", not "how well am I doing". A skipped
+question has been dealt with — the student saw it, decided, and moved
+on, and it does not reappear later in the session — so leaving it out
+left the bar reading 0% for someone who had worked through half the
+session. That misreports the one thing a progress bar exists to report.
+
+The percentage is therefore computed over every **addressed** item,
+answered or skipped. Nothing is overstated by this, because correctness
+was never the bar's job: the end screen reports `N/M correct` and the
+skipped count as separate numbers, and the pre-finish confirmation
+names the skips explicitly ("3 questions skipped · 0 of 3 answered").
+Two numbers each meaning one thing, rather than one number trying to
+mean both.
+
+One case deliberately does **not** advance the bar: a submission that
+failed to grade. `statusFor` leaves it "unanswered" and it stays
+answerable, so a grading failure is not progress — consistent with the
+rule elsewhere in this design that a failed submission and a
+graded-wrong answer must never be treated alike.

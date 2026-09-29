@@ -18,7 +18,7 @@ export function QuickReviewQuestion({
   item,
   index,
   total,
-  answeredCount,
+  addressedCount,
   status,
   outcome,
   pending,
@@ -33,7 +33,7 @@ export function QuickReviewQuestion({
   item: SessionItem;
   index: number;
   total: number;
-  answeredCount: number;
+  addressedCount: number;
   status: ItemStatus;
   outcome: AnswerOutcome | undefined;
   pending: boolean;
@@ -45,7 +45,7 @@ export function QuickReviewQuestion({
   onBack: () => void;
   onNext: () => void;
 }) {
-  const percent = progressPercent(answeredCount, total);
+  const percent = progressPercent(addressedCount, total);
   const passed = outcome && outcome.error === null && isPassedOutcome(outcome.result);
   const options = (item.rubric.options as string[] | undefined) ?? [];
   const isAnswered = status === "answered";

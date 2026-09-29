@@ -3149,3 +3149,54 @@ your design never enumerated. A dedicated whole-branch review, run
 after the branch is otherwise "done," is a different check: it asks
 whether the enumerated states are actually exhaustive, which is a
 question no amount of testing the intended states can answer.
+
+## 2026-09-29 — Quick review's progress bar counts skipped questions
+
+Phase 4 shipped with the progress percentage computed over answered
+items only. The reasoning at design time was that counting skips would
+overstate what the student had actually retrieved, and it sat alongside
+the rule that a skip writes no evidence and never touches mastery.
+
+Direct product-owner feedback after the merge: the bar reports
+"% completed of the daily review", so a skipped question should
+advance it.
+
+That is right, and the original rule had conflated two different
+questions. The bar answers "how far through today's review am I",
+not "how well am I doing". A skipped question has been dealt with —
+the student saw it, decided, and moved on, and it does not reappear
+later in that session — so excluding it left the bar reading 0% for
+someone halfway through, which misreports the one thing a progress bar
+exists to report.
+
+Nothing is overstated by the change, because correctness was never the
+bar's job. The end screen already reports `N/M correct` and the skipped
+count as two separate numbers, and the pre-finish confirmation names
+the skips explicitly ("3 questions skipped · 0 of 3 answered"). Two
+numbers each meaning one thing beats one number trying to mean both.
+
+`progressPercent`'s parameter was renamed from `answeredCount` to
+`addressedCount` rather than left with a name that no longer described
+what it received — the sort of drift that makes a later reader trust a
+label over the code.
+
+One case deliberately still does not advance the bar: a submission that
+failed to grade. `statusFor` leaves it "unanswered" and it stays
+answerable, so a grading failure is not progress. That keeps faith with
+the standing rule that a failed submission and a graded-wrong answer
+must never be treated alike.
+
+Two visual baselines changed (the skip-confirmation capture at desktop
+and mobile, which now reads 100% with all three questions skipped) and
+were regenerated and eyeballed. The unit tests that asserted the old
+rule were rewritten rather than deleted, and three cases were added
+that the old rule never covered: a session completed entirely by
+skipping reads 100%; answering a previously-skipped question does not
+double-count it (`record()` removes it from the skip set, so the
+addressed total tracks distinct items rather than events); and a failed
+submission does not advance the bar.
+
+The design doc carries a matching amendment rather than a silent edit,
+and the plan's two now-stale code samples were corrected in place —
+same reasoning as the earlier Phase 4 correction: a plan left teaching
+a rule the code no longer follows is a trap for the next reader.

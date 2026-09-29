@@ -285,7 +285,10 @@ test("an item is answered, skipped, or unanswered -- and a failed submission is 
   assert.equal(statusFor("c3", results, skipped), "unanswered");
 });
 
-test("progress counts answered items only -- skipping never advances the bar", () => {
+// AMENDED after shipping: the bar counts every addressed item,
+// answered or skipped, because it reports progress through the
+// session rather than a score. See the design doc's amendment.
+test("progress counts every addressed item, answered or skipped", () => {
   assert.equal(progressPercent(0, 4), 0);
   assert.equal(progressPercent(1, 4), 25);
   assert.equal(progressPercent(4, 4), 100);
@@ -378,8 +381,11 @@ export function statusFor(
   return "unanswered";
 }
 
-/** Answered items only -- a skip never advances the bar, so the
- * percentage never overstates what the student actually retrieved. */
+/** AMENDED after shipping -- this comment originally read "answered
+ * items only", which left the bar at 0% for a student who had worked
+ * through half the session. It now counts every ADDRESSED item,
+ * answered or skipped; correctness is reported separately by
+ * sessionScore. A failed submission still does not count. */
 export function progressPercent(answeredCount: number, total: number): number {
   if (total <= 0) return 0;
   return Math.round((answeredCount / total) * 100);

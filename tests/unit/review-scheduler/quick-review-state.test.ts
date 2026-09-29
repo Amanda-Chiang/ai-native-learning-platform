@@ -38,12 +38,38 @@ test("an item is answered, skipped, or unanswered -- and a failed submission is 
   assert.equal(statusFor("c3", results, skipped), "unanswered");
 });
 
-test("progress counts answered items only -- skipping never advances the bar", () => {
+test("progress counts every addressed item, answered or skipped", () => {
   assert.equal(progressPercent(0, 4), 0);
   assert.equal(progressPercent(1, 4), 25);
   assert.equal(progressPercent(4, 4), 100);
   // Rounded, so the bar and the number never disagree visually.
   assert.equal(progressPercent(1, 3), 33);
+});
+
+test("a session worked through entirely by skipping still reads 100% complete", () => {
+  // The bar reports progress through today's review, not a score --
+  // a student who dealt with every question has finished the session
+  // whether or not they answered any of them. Correctness lives in
+  // sessionScore, which reports it separately.
+  const results = {};
+  const skipped = new Set(["c1", "c2", "c3"]);
+  const score = sessionScore(results, skipped);
+  assert.equal(progressPercent(score.answered + score.skipped, 3), 100);
+  assert.deepEqual(score, { correct: 0, answered: 0, skipped: 3 });
+});
+
+test("answering a question that was skipped earlier does not double-count it", () => {
+  // record() removes the concept from the skip set on a successful
+  // answer, so the addressed total tracks distinct items, not events.
+  const score = sessionScore({ c1: pass }, new Set(["c2"]));
+  assert.equal(progressPercent(score.answered + score.skipped, 2), 100);
+});
+
+test("a failed submission does not advance the bar", () => {
+  // statusFor leaves an errored item "unanswered" and it stays
+  // answerable, so a grading failure must not read as progress.
+  const score = sessionScore({ c1: errored }, new Set());
+  assert.equal(progressPercent(score.answered + score.skipped, 2), 0);
 });
 
 test("progress on an empty session is 0, not NaN", () => {
