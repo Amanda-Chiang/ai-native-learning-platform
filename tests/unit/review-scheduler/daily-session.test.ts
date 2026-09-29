@@ -26,7 +26,6 @@ test("a due concept with zero available questions is skipped, never fabricated a
     new Map([["c1", [question("q1", "c1")]]]), // c2 has no questions
     new Map([["c1", meta("Concept 1")], ["c2", meta("Concept 2")]]),
     100,
-    [],
   );
   assert.equal(result.status, "ok");
   if (result.status === "ok") {
@@ -40,7 +39,7 @@ test("the session never exceeds timeBudgetMinutes / DEFAULT_MINUTES_PER_QUESTION
   const questions = new Map(concepts.map((c) => [c.conceptId, [question(`q-${c.conceptId}`, c.conceptId)]]));
   const metaByConcept = new Map(concepts.map((c) => [c.conceptId, meta(`Concept ${c.conceptId}`)]));
   const budget = DEFAULT_MINUTES_PER_QUESTION * 2; // room for exactly 2
-  const result = composeDailySession(concepts, questions, metaByConcept, budget, []);
+  const result = composeDailySession(concepts, questions, metaByConcept, budget);
   assert.equal(result.status, "ok");
   if (result.status === "ok") {
     assert.equal(result.items.length, 2);
@@ -54,7 +53,6 @@ test("a budget smaller than one question's cost still returns at least one item"
     new Map([["c1", [question("q1", "c1")]]]),
     new Map([["c1", meta("Concept 1")]]),
     1, // smaller than DEFAULT_MINUTES_PER_QUESTION
-    [],
   );
   assert.equal(result.status, "budget_too_small");
   if (result.status === "budget_too_small") {
@@ -63,7 +61,7 @@ test("a budget smaller than one question's cost still returns at least one item"
 });
 
 test("no eligible due concept has any available question -> no_content, never an empty ok session", () => {
-  const result = composeDailySession([priority("c1", 5)], new Map(), new Map(), 30, []);
+  const result = composeDailySession([priority("c1", 5)], new Map(), new Map(), 30);
   assert.equal(result.status, "no_content");
 });
 
@@ -82,30 +80,11 @@ test("checkerDomain/checkerInput pass through unchanged, so structured items are
     new Map([["c1", [structuredQuestion]]]),
     new Map([["c1", meta("Concept 1")]]),
     100,
-    [],
   );
   assert.equal(result.status, "ok");
   if (result.status === "ok") {
     assert.equal(result.items[0].checkerDomain, "bfs-dfs");
     assert.deepEqual(result.items[0].checkerInput, structuredQuestion.checkerInput);
-  }
-});
-
-test("excludeConceptIds really excludes those concepts from the ranked slice", () => {
-  const result = composeDailySession(
-    [priority("c1", 5), priority("c2", 4)],
-    new Map([
-      ["c1", [question("q1", "c1")]],
-      ["c2", [question("q2", "c2")]],
-    ]),
-    new Map([["c1", meta("Concept 1")], ["c2", meta("Concept 2")]]),
-    100,
-    ["c1"],
-  );
-  assert.equal(result.status, "ok");
-  if (result.status === "ok") {
-    assert.equal(result.items.length, 1);
-    assert.equal(result.items[0].conceptId, "c2");
   }
 });
 
@@ -115,7 +94,6 @@ test("each item carries its concept's real name and mastery band", () => {
     new Map([["c1", [question("q1", "c1")]]]),
     new Map([["c1", meta("Topological Sort", "exposed")]]),
     100,
-    [],
   );
   assert.equal(result.status, "ok");
   if (result.status === "ok") {
@@ -132,7 +110,6 @@ test("a concept with no metadata throws rather than inventing a name", () => {
         new Map([["c1", [question("q1", "c1")]]]),
         new Map(), // no meta for c1
         100,
-        [],
       ),
     /c1/,
   );

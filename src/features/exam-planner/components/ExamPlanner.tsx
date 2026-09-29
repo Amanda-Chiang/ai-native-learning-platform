@@ -7,17 +7,9 @@ import { StructuredAnswerForm } from "@/features/review-scheduler/components/Str
 import { ConceptScopeSelect } from "@/features/exam-planner/components/ConceptScopeSelect.tsx";
 import { IconCheck } from "@/components/icons.tsx";
 import { formatCalendarDate } from "@/lib/format-date.ts";
+import { isPassedOutcome } from "@/features/review-scheduler/quick-review-state.ts";
 
 type SubmitResult = { result: { outcome: string; [key: string]: unknown }; error: string | null };
-
-/** Same fix as StudySession.tsx's isPassedOutcome -- outcome === "correct"
- * alone mislabels a passing code-sandbox submission ("graded" + allPassed)
- * as a failure. */
-function isPassedOutcome(result: SubmitResult["result"]): boolean {
-  if (result.outcome === "correct") return true;
-  if (result.outcome === "graded") return result.allPassed === true;
-  return false;
-}
 
 /**
  * Exam configuration + staged plan + readiness UI (T012/T016). Text-
@@ -402,7 +394,7 @@ export function ExamPlanner({
                               {/* A real error must be shown as an error, never
                                   rendered as a plausible-looking grading
                                   outcome (same hardening-pass finding as
-                                  review-scheduler's StudySession.tsx). */}
+                                  review-scheduler's quick-review flow). */}
                               {outcome &&
                                 (outcome.error ? (
                                   <p style={s.errorText}>{outcome.error}</p>

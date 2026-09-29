@@ -22,7 +22,7 @@ const DEFAULT_TIME_BUDGET_MINUTES = 7;
 
 export async function getDailyReviewSession(
   courseId: string,
-  options?: { timeBudgetMinutes?: number; excludeConceptIds?: string[] },
+  options?: { timeBudgetMinutes?: number },
 ): Promise<DailySessionResult> {
   const supabase = await createClient();
   const now = new Date();
@@ -99,7 +99,6 @@ export async function getDailyReviewSession(
     questionsByConcept,
     conceptMetaById,
     options?.timeBudgetMinutes ?? DEFAULT_TIME_BUDGET_MINUTES,
-    options?.excludeConceptIds ?? [],
   );
 }
 

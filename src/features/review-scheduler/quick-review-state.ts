@@ -17,8 +17,8 @@ export type ItemStatus = "answered" | "skipped" | "unanswered";
  * code-sandbox path reports outcome "graded" with a separate
  * allPassed boolean (grading-evidence.ts), so treating every
  * non-"correct" outcome as failure would mislabel a real passing code
- * submission as a red X. Moved here from StudySession.tsx, where it
- * had no test.
+ * submission as a red X. Moved here from the old all-items-at-once
+ * study component, where it had no test.
  */
 export function isPassedOutcome(result: AnswerOutcome["result"]): boolean {
   if (result.outcome === "correct") return true;

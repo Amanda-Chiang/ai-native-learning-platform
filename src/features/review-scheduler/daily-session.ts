@@ -62,10 +62,8 @@ export function composeDailySession(
   questionsByConcept: Map<string, QuestionBankEntrySummary[]>,
   conceptMetaById: Map<string, ConceptMeta>,
   timeBudgetMinutes: number,
-  excludeConceptIds: string[],
 ): DailySessionResult {
-  const excluded = new Set(excludeConceptIds);
-  const eligible = rankedDueConcepts.filter((c) => !excluded.has(c.conceptId) && (questionsByConcept.get(c.conceptId)?.length ?? 0) > 0);
+  const eligible = rankedDueConcepts.filter((c) => (questionsByConcept.get(c.conceptId)?.length ?? 0) > 0);
 
   if (eligible.length === 0) {
     return {

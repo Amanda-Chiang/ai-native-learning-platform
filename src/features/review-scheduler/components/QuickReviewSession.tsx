@@ -11,7 +11,7 @@ type SubmitResult = AnswerOutcome;
 
 /**
  * The quick-review flow's state machine (Orca Phase 4), replacing
- * StudySession's all-items-at-once list.
+ * the old all-items-at-once study list.
  *
  * Three rules worth stating, because each is a deliberate decision
  * from the design doc rather than an implementation detail:
