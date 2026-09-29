@@ -3200,3 +3200,56 @@ The design doc carries a matching amendment rather than a silent edit,
 and the plan's two now-stale code samples were corrected in place —
 same reasoning as the earlier Phase 4 correction: a plan left teaching
 a rule the code no longer follows is a trap for the next reader.
+
+## 2026-09-29 — Visual regression runs on one platform, and it is macOS
+
+Playwright suffixes snapshot files by platform (`-darwin`, `-linux`)
+because a browser does not rasterize text itself: it delegates glyph
+rendering to the operating system — CoreText on macOS, FreeType on
+Linux — and lets the OS draw native form controls (radio buttons,
+scrollbars, a textarea's resize grip). Identical HTML and identical CSS
+therefore produce slightly different pixels per platform.
+
+This repo had been carrying both sets. Development happens on macOS, so
+`-darwin` baselines came for free; `-linux` baselines could only be
+produced on a matching runner, which meant a one-off
+`regen-linux-snapshots.yml` temporarily committed to `main`, dispatched,
+and removed again — GitHub only registers a `workflow_dispatch`
+workflow that exists on the default branch. Seven of those cycles
+happened. They caught zero real bugs.
+
+The question the product owner asked is the one that settled it: why
+would a website's styling depend on the operating system at all? It
+does not. The app self-hosts Geist through `next/font`
+(`src/app/layout.tsx`), so the typeface is identical everywhere —
+the "system font resolves differently per OS" concern does not apply
+here and an earlier explanation in this session that said otherwise was
+wrong. What differs across platforms is only how the OS paints the same
+instructions, plus native widget chrome. None of that is perceptible in
+production, because no user ever sees two platforms at once. It is
+visible only to an image comparison run across machines, which is a
+property of the test method rather than a defect in the product.
+
+So the second baseline set was buying nothing and costing a recurring
+ritual plus a README trap to explain the ritual. CI's Playwright job now
+runs on `macos-latest`, matching where baselines are authored, and all
+25 `-linux` PNGs are deleted. `--update-snapshots=all` on a developer's
+machine is now the entire procedure for changing a baseline.
+
+`ci.yml` was split rather than moved wholesale: `quality-gates`
+(lint, typecheck, build) stays on `ubuntu-latest` because that is what
+the deployment target runs, so a build failure there is a build failure
+in production. Only `e2e-visual`, which compares pixels, moved. Runner
+minutes are free either way — the repository is public, so the 10x
+macOS billing multiplier that would otherwise argue against this does
+not apply.
+
+What this gives up, stated plainly: a rendering bug that manifests only
+under FreeType would no longer be caught by CI. That is a real if
+narrow loss. It is accepted because the suite never caught one, because
+such a bug would be a Chromium or OS defect rather than a defect in
+this codebase, and because the cost of the alternative was paid every
+single time any screen changed appearance.
+
+Branch protection, if configured against the old single `quality-gates`
+job, needs updating to include `e2e-visual`.

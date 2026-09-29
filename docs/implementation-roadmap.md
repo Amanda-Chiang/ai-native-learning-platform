@@ -347,16 +347,10 @@ phase numbering:**
   entries. `specs/010-exam-planner/tasks.md` amended with an addendum.
 
 Known open items, not yet resolved as of 2026-09-29:
-- **Two `-linux` visual baselines are stale and will fail CI.**
-  `tests/visual/quick-review.spec.ts-snapshots/quick-review-skip-dialog-{chromium,mobile}-linux.png`
-  still depict the progress bar at 0%. The bar now counts skipped
-  questions, so that capture reads 100%; only the `-darwin` pair could
-  be regenerated locally, because macOS cannot produce `-linux`
-  baselines. Regenerating them needs the temporary-workflow dispatch on
-  `main`, which needs the product owner's authorization. Until then
-  those two comparisons fail legitimately — the baselines are stale and
-  the UI is correct, which is the opposite of the usual reason a visual
-  test goes red, so check this entry before debugging the component.
+- ~~Two `-linux` visual baselines are stale~~ — resolved 2026-09-29 by
+  removing the concept: CI's visual job moved to a macOS runner and all
+  25 `-linux` baselines were deleted. See the "Visual regression runs on
+  one platform" entry below.
 - **`main` is ahead of `origin/main` and unpushed** as of this writing,
   so CI has not run on the Phase 4 merge at all. The local full suite is
   green (typecheck clean, eslint 0 errors / 8 pre-existing warnings,

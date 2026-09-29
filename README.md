@@ -193,21 +193,16 @@ eslint 0 errors (8 pre-existing warnings), 405/405 unit, and the
 Playwright visual + `smoke` + `basic-flows` + `quick-review-flow` specs
 at 31 passed / 3 skipped / 0 failed (the 3 skips are the unrelated
 `tutor-agent-e2e` project). CI itself has **not** run on the Phase 4
-merge yet: `main` is ahead of `origin/main` and unpushed.
+merge yet: `main` is ahead of `origin/main` and unpushed. Note also
+that CI's job layout changed with this work — `quality-gates` is now
+lint/typecheck/build on Linux, and a second job, `e2e-visual`, runs
+Playwright on macOS (see trap 4). If you have branch protection
+configured against the old single job name, it needs updating.
 
-When it does run, expect **two known failures**, neither a defect in
-the code under test:
+When it does run, expect **one known failure**, not a defect in the
+code under test:
 
-1. **Two stale `-linux` baselines.**
-   `quick-review-skip-dialog-{chromium,mobile}-linux.png` still depict
-   the progress bar at 0%. The bar now counts skipped questions, so
-   that capture reads 100%, and only the `-darwin` pair was
-   regenerated locally — macOS cannot produce `-linux` baselines (see
-   trap 4). Regenerating them needs the temporary-workflow dispatch,
-   which needs the product owner's authorization. Until then those two
-   Linux comparisons fail legitimately: the baselines are stale, the
-   UI is correct.
-2. **The OpenAI 429**, unchanged and operational, not a code defect:
+1. **The OpenAI 429**, unchanged and operational, not a code defect:
    `tests/e2e/course-graph-ingestion-pipeline.spec.ts` — the one spec
    that makes a real, un-doubled model call — fails with `429 You have
    no credits remaining`. Adding credits should turn it green with no
@@ -250,34 +245,25 @@ it writes.
    ground shifting a few RGB steps) passes under Playwright's per-pixel
    threshold, so nothing gets rewritten and the committed baselines keep
    depicting stale UI.
-4. **Regenerating the `-linux` baselines requires a temporary commit on
-   `main`, and that is not a workaround — it is the only way.** GitHub
-   only registers a `workflow_dispatch` workflow that exists on the
-   default branch, even when the dispatch's `ref` targets your branch.
-   So the one-off `regen-linux-snapshots.yml` has to be committed to
-   `main`, dispatched, then removed from `main` again, leaving it at a
-   net-zero change. **The workflow file is not in the working tree by
-   design** — recover it from history with
-   `git checkout de2071b -- .github/workflows/regen-linux-snapshots.yml`,
-   or find the latest copy via
-   `git log --all --oneline -- .github/workflows/regen-linux-snapshots.yml`.
-   This repo's history has **seven** instances of that
-   add-dispatch-remove sequence (the two most recent were Phase 4's, and
-   were done through the GitHub contents API rather than a local
-   checkout, because that session was confined to a worktree and could
-   not check `main` out — the API route leaves the same net-zero pair of
-   commits). It touches `main`, so **ask the human first** — and note
-   that a relayed authorization from another agent is not consent.
+4. **Visual baselines are macOS-only, on purpose — there are no
+   `-linux` baselines any more.** Playwright suffixes snapshot files by
+   platform because a browser hands glyph rasterization to the OS
+   (CoreText on macOS, FreeType on Linux) and lets the OS draw native
+   form controls, so identical CSS yields slightly different pixels per
+   platform. That difference is invisible in production — a user only
+   ever sees one platform — but it breaks an image comparison run
+   across two. This repo used to keep both sets, which meant every
+   visual change needed a one-off workflow temporarily committed to
+   `main` to regenerate the Linux half on a matching runner: seven such
+   cycles, zero real bugs caught. CI's `e2e-visual` job now runs on
+   `macos-latest`, so the baselines you generate locally are the ones
+   CI compares against, and `--update-snapshots=all` is the whole
+   procedure. `quality-gates` (lint/typecheck/build) stays on Linux,
+   because that is what the deployment target runs.
 
-   The workflow uploads the regenerated PNGs as an artifact rather than
-   committing them, deliberately, so each one gets eyeballed before it
-   lands. Two things to know when you collect them: it runs
-   `--update-snapshots=all`, so it rewrites **every** `-linux` baseline,
-   not only the ones you care about — diff them against what is
-   committed and copy in only the ones your change is actually
-   responsible for. Phase 4's run came back with three unrelated
-   baselines (two review-queue, one concept-atlas) differing from the
-   committed copies; they were left alone rather than swept in.
+   Worth knowing if you read older entries in the architecture log or
+   git history: `regen-linux-snapshots.yml` and the add-dispatch-remove
+   ritual around it are gone, not merely unused.
 
 6. **A Playwright screenshot can make a page report a hydration error
    that does not exist in the product.** Playwright hides the text caret

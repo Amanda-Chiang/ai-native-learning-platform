@@ -6,6 +6,10 @@ on:
   pull_request:
 
 jobs:
+  # Lint/typecheck/build stay on Linux deliberately: that is what the
+  # deployment target runs, so a build failure here is a build failure
+  # there. Nothing in this job compares pixels, so the renderer is
+  # irrelevant to it.
   quality-gates:
     runs-on: ubuntu-latest
     steps:
@@ -31,8 +35,48 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Playwright runs on macOS, and that is the whole point: visual
+  # baselines are platform-suffixed because a browser delegates glyph
+  # rasterization to the operating system (CoreText on macOS, FreeType
+  # on Linux) and lets the OS draw native form controls. Identical CSS
+  # therefore produces slightly different pixels per platform -- which
+  # matters to nobody in production, since a user only ever sees one
+  # platform, but breaks an image comparison run across two.
+  #
+  # Baselines are generated on macOS during development
+  # (`--update-snapshots=all`), so comparing them on macOS makes the
+  # committed images the single source of truth. Keeping a second,
+  # Linux set meant every visual change needed a one-off workflow
+  # temporarily committed to `main` just to regenerate them on a
+  # matching runner -- seven such cycles in this repo's history, which
+  # caught zero real bugs. Runner minutes are free here because the
+  # repository is public, so the only thing that trade was buying was
+  # the ritual.
+  #
+  # The typeface itself is NOT a cross-platform variable: the app
+  # self-hosts Geist via next/font (src/app/layout.tsx), so the font is
+  # identical everywhere. Only rasterization and native widget chrome
+  # differ.
+  e2e-visual:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Next.js route types
+        run: npx next typegen
+
+      # No `--with-deps` here: that flag installs Linux system packages
+      # and is not applicable on a macOS runner.
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
+        run: npx playwright install chromium webkit
 
       - name: E2E / visual regression
         run: npm run test:e2e
