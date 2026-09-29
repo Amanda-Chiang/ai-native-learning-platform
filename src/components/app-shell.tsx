@@ -26,11 +26,19 @@ const NAV_MAIN = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
+  // The quick-review flow (Orca Phase 4) takes the whole screen on a
+  // phone, where the question needs the room. Desktop keeps the nav.
+  // CSS, not a JS breakpoint hook, so nothing re-renders on resize --
+  // same pattern as ConceptDetailPanel's side-panel/bottom-sheet
+  // switch and DueQueue's CONNECT_PANEL_MEDIA_QUERY.
+  const isQuickReview = /^\/courses\/[^/]+\/study$/.test(pathname);
+
   return (
     <div style={s.shell}>
+      <style>{`@media (max-width: 768px) { .app-shell-nav-hidden { display: none; } }`}</style>
       <div style={s.outlet}>{children}</div>
 
-      <nav style={s.nav}>
+      <nav className={isQuickReview ? "app-shell-nav-hidden" : undefined} style={s.nav}>
         {NAV_MAIN.map((item) => {
           const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
           return (
